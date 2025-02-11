@@ -9,6 +9,8 @@ interface CounterData {
     time: string;
     action: string;
     count: number;
+    isNew?: boolean;
+    id: number;
   }>;
   timerState: {
     isRunning: boolean;
@@ -30,6 +32,12 @@ const DEFAULT_COUNTER_DATA: CounterData = {
   }
 };
 
+// 通用的提示配置
+const TOAST_CONFIG = {
+  icon: 'none' as const,
+  duration: 1500
+};
+
 Component({
   properties: {
     vibrationOn: {
@@ -46,56 +54,44 @@ Component({
     },
     onDelete: {
       type: Function,
-      value: null
+      value: () => { }
     }
   },
 
   data: {
     counterData: DEFAULT_COUNTER_DATA,
-    displayNumbers: [0],
-    currentIndex: 0,
     timerDisplay: '00:00:00',
     isTimerRunning: false,
     timerInterval: 0,
     showTargetInput: false,
-    targetInputValue: ''
+    targetInputValue: '',
+    options: {
+      during: 1,            // (number) 动画时间
+      height: 40,           // (number) 滚动行高 px
+      cellWidth: 24,        // (number) 单个数字宽度 px
+      ease: 'cubic-bezier(0, 1, 0, 1)',   // (string) 动画过渡效果
+      color: '#A889C8',     // (string) 字体颜色
+      columnStyle: '',      // (string) 字体单元 覆盖样式
+    }
   },
 
   lifetimes: {
     attached() {
       this.loadCounterData();
-      // 如果计时器之前在运行，恢复计时器状态
-      const counterData = this.data.counterData;
-      if (counterData && counterData.timerState && counterData.timerState.isRunning) {
-        const elapsedTime = counterData.timerState.elapsedTime;
-        const timeSinceLastStop = counterData.timerState.startTimestamp ? 
-          Date.now() - counterData.timerState.startTimestamp : 0;
-        const totalElapsed = elapsedTime + timeSinceLastStop;
-        
-        this.setData({
-          timerDisplay: this.formatTime(totalElapsed),
-          isTimerRunning: true
-        });
-        
-        this.startTimer(totalElapsed);
-      }
-      this.updateDisplayNumbers();
+      this.restoreTimerState();
     },
 
     detached() {
-      if (this.data.timerInterval) {
-        clearInterval(this.data.timerInterval);
-      }
+      this.clearTimer();
     }
   },
 
   methods: {
+    // 数据持久化相关
     loadCounterData() {
       try {
-        const key = this.properties.storageKey;
-        const savedData = wx.getStorageSync(key);
+        const savedData = wx.getStorageSync(this.properties.storageKey);
         if (savedData) {
-          // 确保有 timerState 字段
           const counterData = {
             ...DEFAULT_COUNTER_DATA,
             ...savedData,
@@ -115,202 +111,213 @@ Component({
       wx.setStorageSync(this.properties.storageKey, this.data.counterData);
     },
 
-    updateDisplayNumbers() {
-      const currentCount = this.data.counterData.currentCount;
-      const numbers = [currentCount];
+    // 计数器操作相关
+    async handleCountChange(type: 'increase' | 'decrease') {
+      const { currentCount, targetCount } = this.data.counterData;
+      const isIncrease = type === 'increase';
+
+
+      if (!isIncrease && currentCount <= 0) {
+        this.showToast('已经是最小值了');
+        return;
+      }
+
+      const newCount = currentCount + (isIncrease ? 1 : -1);
+      if (isIncrease && newCount === targetCount) {
+        this.showToast('🎉已达到目标行数');
+      }
+      await this.updateCount(newCount, isIncrease ? '行+1' : '行-1');
+    },
+
+    async updateCount(newCount: number, action: string) {
       this.setData({
-        displayNumbers: numbers,
-        currentIndex: 0
+        'counterData.currentCount': newCount
+      });
+
+      // 保存数据并添加历史记录
+      this.saveCounterData();
+      this.addHistory(action);
+    },
+    showToast(title: string) {
+      wx.showToast({
+        title,
+        ...TOAST_CONFIG
       });
     },
 
+    showModal(options: {
+      title: string;
+      content: string;
+      success: (res: WechatMiniprogram.ShowModalSuccessCallbackResult) => void;
+    }) {
+      wx.showModal(options);
+    },
+
+    // 历史记录相关
+    addHistory(action: string) {
+      const now = new Date();
+      const timeString = this.formatDateTime(now);
+
+      // 先将所有现有记录的 isNew 标记移除
+      const currentHistory = this.data.counterData.history.map(item => ({
+        ...item,
+        isNew: false
+      }));
+
+      // 创建新的历史记录项
+      const newHistoryItem = {
+        time: timeString,
+        action,
+        count: this.data.counterData.currentCount,
+        isNew: true,
+        id: Date.now() // 添加唯一标识符
+      };
+
+      // 更新历史记录列表
+      const newHistory = [newHistoryItem, ...currentHistory].slice(0, 50);
+
+      // 设置新的历史记录
+      this.setData({
+        'counterData.history': newHistory
+      });
+
+      // 延迟移除动画类
+      setTimeout(() => {
+        if (this.data.counterData.history.length > 0) {
+          const updatedHistory = this.data.counterData.history.map(item => ({
+            ...item,
+            isNew: false
+          }));
+
+          this.setData({
+            'counterData.history': updatedHistory
+          });
+        }
+      }, 300);
+
+      this.saveCounterData();
+    },
+
+    clearHistory() {
+
+      // 清空历史记录
+      this.setData({
+        'counterData.history': []
+      });
+
+      // 保存数据
+      this.saveCounterData();
+
+      // 显示清除成功提示
+      this.showToast('记录已清除');
+    },
+
+    // 计时器相关
+    restoreTimerState() {
+      const { counterData } = this.data;
+      if (counterData && counterData.timerState.isRunning) {
+        const totalElapsed = this.calculateTotalElapsed();
+        this.setData({
+          timerDisplay: this.formatTime(totalElapsed),
+          isTimerRunning: true
+        });
+        this.startTimer(totalElapsed);
+      }
+    },
+
+    calculateTotalElapsed(): number {
+      const { elapsedTime, startTimestamp } = this.data.counterData.timerState;
+      const timeSinceLastStop = startTimestamp ? Date.now() - startTimestamp : 0;
+      return elapsedTime + timeSinceLastStop;
+    },
+
+    toggleTimer() {
+      if (this.data.isTimerRunning) {
+        this.stopTimer();
+      } else {
+        this.startTimer();
+      }
+    },
+
+    startTimer(initialElapsed: number = 0) {
+      const startTime = Date.now();
+      const timerInterval = setInterval(() => {
+        const elapsed = initialElapsed + (Date.now() - startTime);
+        this.setData({
+          timerDisplay: this.formatTime(elapsed)
+        });
+      }, 1000);
+
+      const counterData = this.data.counterData;
+      counterData.timerState.isRunning = true;
+      counterData.timerState.startTimestamp = startTime;
+
+      this.setData({
+        timerInterval,
+        isTimerRunning: true,
+        counterData
+      });
+      this.saveCounterData();
+    },
+
+    stopTimer() {
+      this.clearTimer();
+
+      const counterData = this.data.counterData;
+      counterData.timerState.isRunning = false;
+      counterData.timerState.elapsedTime = this.getCurrentElapsedTime();
+      counterData.timerState.startTimestamp = 0;
+
+      this.setData({
+        isTimerRunning: false,
+        counterData
+      });
+      this.saveCounterData();
+    },
+
+    clearTimer() {
+      if (this.data.timerInterval) {
+        clearInterval(this.data.timerInterval);
+      }
+    },
+
+    getCurrentElapsedTime(): number {
+      const { startTimestamp, elapsedTime } = this.data.counterData.timerState;
+      if (!startTimestamp) return elapsedTime || 0;
+      return (elapsedTime || 0) + (Date.now() - startTimestamp);
+    },
+
+    // 格式化相关
     formatTime(milliseconds: number): string {
       const totalSeconds = Math.floor(milliseconds / 1000);
       const hours = Math.floor(totalSeconds / 3600);
       const minutes = Math.floor((totalSeconds % 3600) / 60);
       const seconds = totalSeconds % 60;
-      
-      const pad = (num: number) => num.toString().padStart(2, '0');
-      return `${pad(hours)}:${pad(minutes)}:${pad(seconds)}`;
+
+      return this.padNumbers(hours, minutes, seconds);
     },
 
-    addHistory(action: string) {
-      const now = new Date();
-      const timeString = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')} ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
-      
-      const newHistory = [{
-        time: timeString,
-        action,
-        count: this.data.counterData.currentCount
-      }, ...this.data.counterData.history].slice(0, 50);
-
-      this.setData({
-        'counterData.history': newHistory
-      });
-      this.saveCounterData();
+    formatDateTime(date: Date): string {
+      const pad = (n: number) => String(n).padStart(2, '0');
+      return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}`;
     },
 
-    async increase() {
-      if (this.data.counterData.currentCount >= this.data.counterData.targetCount) {
-        wx.showToast({
-          title: '已达到目标行数',
-          icon: 'none'
-        });
-        return;
-      }
-
-      const newCount = this.data.counterData.currentCount + 1;
-      this.setData({
-        'counterData.currentCount': newCount
-      });
-      this.updateDisplayNumbers();
-      this.addHistory('行+1');
-
-      if (this.properties.vibrationOn) {
-        try {
-          await vibrate('medium');
-        } catch (error) {
-          console.error('Vibration failed:', error);
-        }
-      }
-
-      if (this.properties.voiceOn) {
-        // TODO: 实现声音播放
-      }
+    padNumbers(...numbers: number[]): string {
+      return numbers.map(n => n.toString().padStart(2, '0')).join(':');
     },
 
-    async decrease() {
-      if (this.data.counterData.currentCount <= 0) {
-        wx.showToast({
-          title: '已经是最小值了',
-          icon: 'none'
-        });
-        return;
-      }
-
-      const newCount = this.data.counterData.currentCount - 1;
-      this.setData({
-        'counterData.currentCount': newCount
-      });
-      this.updateDisplayNumbers();
-      this.addHistory('行-1');
-
-      if (this.properties.vibrationOn) {
-        try {
-          await vibrate('medium');
-        } catch (error) {
-          console.error('Vibration failed:', error);
-        }
-      }
-
-      if (this.properties.voiceOn) {
-        // TODO: 实现声音播放
-      }
-    },
-
-    showResetConfirm() {
-      wx.showModal({
-        title: '确认重置',
-        content: '是否确认重置计数器？',
-        success: async (res) => {
-          if (res.confirm) {
-            this.setData({
-              'counterData.currentCount': 0,
-              'counterData.startTime': 0,
-              timerDisplay: '00:00:00',
-              isTimerRunning: false
-            });
-            this.updateDisplayNumbers();
-            this.addHistory('重置');
-
-            if (this.properties.vibrationOn) {
-              try {
-                await vibrate('heavy');
-              } catch (error) {
-                console.error('Vibration failed:', error);
-              }
-            }
-
-            if (this.data.timerInterval) {
-              clearInterval(this.data.timerInterval);
-              this.setData({ timerInterval: 0 });
-            }
-          }
-        }
-      });
-    },
-
-    toggleTimer() {
-      if (this.data.isTimerRunning) {
-        // 停止计时器
-        clearInterval(this.data.timerInterval);
-        
-        // 更新持久化状态
-        const counterData = this.data.counterData;
-        counterData.timerState.isRunning = false;
-        counterData.timerState.elapsedTime = this.getCurrentElapsedTime();
-        counterData.timerState.startTimestamp = 0;
-        
-        this.setData({
-          isTimerRunning: false,
-          counterData
-        });
-        
-        this.saveCounterData();
-      } else {
-        // 开始计时器
-        const startTime = Date.now();
-        const elapsedTime = this.data.counterData.timerState.elapsedTime || 0;
-        
-        // 更新持久化状态
-        const counterData = this.data.counterData;
-        counterData.timerState.isRunning = true;
-        counterData.timerState.startTimestamp = startTime;
-        
-        this.setData({
-          isTimerRunning: true,
-          counterData
-        });
-        
-        this.startTimer(elapsedTime);
-        this.saveCounterData();
-      }
-    },
-
-    startTimer(initialElapsed: number = 0) {
-      const startTimestamp = Date.now();
-      const timerInterval = setInterval(() => {
-        const currentTime = Date.now();
-        const elapsed = initialElapsed + (currentTime - startTimestamp);
-        this.setData({
-          timerDisplay: this.formatTime(elapsed)
-        });
-      }, 1000);
-      
-      this.setData({ timerInterval });
-    },
-
-    getCurrentElapsedTime(): number {
-      if (!this.data.counterData.timerState.startTimestamp) {
-        return this.data.counterData.timerState.elapsedTime || 0;
-      }
-      const timeSinceStart = Date.now() - this.data.counterData.timerState.startTimestamp;
-      return (this.data.counterData.timerState.elapsedTime || 0) + timeSinceStart;
-    },
-
+    // 目标设置相关
     showTargetInput() {
       this.setData({
         showTargetInput: true,
         targetInputValue: String(this.data.counterData.targetCount)
       });
     },
-
     onTargetInput(e: any) {
       this.setData({
         targetInputValue: e.detail.value
       });
     },
-
     cancelTargetInput() {
       this.setData({
         showTargetInput: false,
@@ -352,43 +359,22 @@ Component({
       this.saveCounterData();
     },
 
-    clearHistory() {
-      // Add fade-out animation before clearing
-      const historyList = this.data.counterData.history;
-      if (historyList.length === 0) return;
-
-      const historyItems = wx.createSelectorQuery()
-        .in(this)
-        .selectAll('.history-item');
-
-      historyItems.fields({ dataset: true }, (res) => {
-        // Add fade-out class to all history items
-        res.forEach((item, index) => {
-          const historyItem = this.selectComponent(`.history-item:nth-child(${index + 1})`);
-          historyItem.setData({ 'fadeOut': true });
-        });
-
-        // Clear history after animation
-        setTimeout(() => {
-          this.setData({
-            'counterData.history': []
-          });
-          this.saveCounterData();
-        }, 500); // Match the animation duration
-      }).exec();
-    },
-
+    // 删除相关
     handleCounterDelete() {
-      // Trigger the onDelete callback if provided
-      if (this.data.onDelete && typeof this.data.onDelete === 'function') {
+      if (typeof this.data.onDelete === 'function') {
         this.data.onDelete();
       } else {
-        // Fallback to showing a toast if no specific delete handler is provided
-        wx.showToast({
-          title: '无法删除计数器',
-          icon: 'none'
-        });
+        this.showToast('无法删除计数器');
       }
+    },
+
+    // 公共方法
+    increase() {
+      this.handleCountChange('increase');
+    },
+
+    decrease() {
+      this.handleCountChange('decrease');
     }
   }
 });

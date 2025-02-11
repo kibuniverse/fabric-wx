@@ -13,11 +13,7 @@
   <view class="counter-main">
     <view class="counter-btn minus" bindtap="decrease">-</view>
     <view class="counter-number">
-      <view class="number-scroll" style="transform: translateY({{-currentIndex * 100}}%)">
-        <block wx:for="{{displayNumbers}}" wx:key="*this">
-          <view class="number-item">{{item}}</view>
-        </block>
-      </view>
+      <animate-numbers value="{{counterData.currentCount}}" min='{{0}}' max='{{999}}' options='{{options}}'/>
     </view>
     <view class="counter-btn plus" bindtap="increase">+</view>
   </view>
@@ -31,13 +27,14 @@
       <view class="operation-btn reset" bindtap="showResetConfirm">
         <image class="reset-icon" src="/assets/reset.svg" />
       </view>
-      <view class="operation-btn timer {{isTimerRunning ? 'timer-stop' : 'timer-start'}}" bindtap="toggleTimer">
+      <view class="operation-btn timer {{isTimerRunning ? 'timer-start' : 'timer-stop'}}" bindtap="toggleTimer">
         <image src="{{isTimerRunning ? '/assets/clock_colorful.svg' : '/assets/clock.svg'}}" />
       </view>
     </view>
     <view class="operation-buttons-right">
       <view class="target-count" bindtap="showTargetInput">
-        目标行数：{{counterData.targetCount}}
+        <view>目标行数：</view>
+        <view class="target-num">{{counterData.targetCount}}</view>
       </view>
     </view>
   </view>
@@ -50,21 +47,15 @@
         <text>清除记录</text>
       </view>
     </view>
-
-    <view class="history-list" wx:if="{{counterData.history.length > 0}}">
-      <view 
-        class="history-item {{item.fadeOut ? 'fade-out' : ''}}" 
-        wx:for="{{counterData.history}}" 
-        wx:key="time"
-      >
-        <text class="history-time">{{item.time}}</text>
-        <text class="history-action">{{item.action}}</text>
-        <text class="history-count">{{item.count}}行</text>
-      </view>
-    </view>
-    <view class="empty-history" wx:else>
-      <text>快去织东西吧</text>
-    </view>
+    <scroll-view scroll-y class="history-list">
+      <block wx:for="{{counterData.history}}" wx:key="index">
+        <view class="history-item {{item.isNew ? 'slide-in' : ''}}">
+          <view class="history-time">{{item.time}}</view>
+          <view class="history-action">{{item.action}}</view>
+          <view class="history-count">{{item.count}}</view>
+        </view>
+      </block>
+    </scroll-view>
   </view>
 
   <!-- 目标行数输入弹窗 -->

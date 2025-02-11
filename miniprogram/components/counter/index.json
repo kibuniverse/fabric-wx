@@ -1,6 +1,7 @@
 {
   "component": true,
   "usingComponents": {
-    "dynamic-svg": "/components/dynamic-svg/index"
+    "dynamic-svg": "/components/dynamic-svg/index",
+    "animate-numbers": "/components/animate-numbers/index"
   }
 }
