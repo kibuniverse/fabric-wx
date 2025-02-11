@@ -1,0 +1,12 @@
+<view class="container">
+  <view class="header">
+    <text class="title">资料库</text>
+  </view>
+  
+  <view class="content">
+    <!-- 这里可以添加资料列表或其他内容 -->
+    <view class="empty-state">
+      <text>暂无资料</text>
+    </view>
+  </view>
+</view>

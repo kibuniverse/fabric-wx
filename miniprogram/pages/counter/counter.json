@@ -1,0 +1,10 @@
+{
+  "navigationBarTitleText": "行计数器",
+  "usingComponents": {
+    "mp-dialog": "weui-miniprogram/dialog/dialog",
+    "mp-toptips": "weui-miniprogram/toptips/toptips",
+    "dynamic-svg": "/components/dynamic-svg/index",
+    "toast": "/components/toast/index",
+    "counter": "/components/counter/index"
+  }
+}

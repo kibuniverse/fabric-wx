@@ -1,0 +1,81 @@
+<view class="counter-wrapper">
+  <!-- 标题和目标行数 -->
+  <view class="counter-header">
+    <view class="counter-name-container">
+      <text class="counter-name">{{counterData.name || '默认计数器'}}</text>
+      <view class="counter-delete-btn" bindtap="handleCounterDelete">
+        <image class="delete-icon" src="/assets/delete.svg" />
+      </view>
+    </view>
+  </view>
+
+  <!-- 计数器主体 -->
+  <view class="counter-main">
+    <view class="counter-btn minus" bindtap="decrease">-</view>
+    <view class="counter-number">
+      <view class="number-scroll" style="transform: translateY({{-currentIndex * 100}}%)">
+        <block wx:for="{{displayNumbers}}" wx:key="*this">
+          <view class="number-item">{{item}}</view>
+        </block>
+      </view>
+    </view>
+    <view class="counter-btn plus" bindtap="increase">+</view>
+  </view>
+
+  <!-- 计时器显示 -->
+  <view class="timer-display">{{timerDisplay}}</view>
+
+  <!-- 操作按钮 -->
+  <view class="operation-buttons">
+    <view class="operation-buttons-left">
+      <view class="operation-btn reset" bindtap="showResetConfirm">
+        <image class="reset-icon" src="/assets/reset.svg" />
+      </view>
+      <view class="operation-btn timer {{isTimerRunning ? 'timer-stop' : 'timer-start'}}" bindtap="toggleTimer">
+        <image src="{{isTimerRunning ? '/assets/clock_colorful.svg' : '/assets/clock.svg'}}" />
+      </view>
+    </view>
+    <view class="operation-buttons-right">
+      <view class="target-count" bindtap="showTargetInput">
+        目标行数：{{counterData.targetCount}}
+      </view>
+    </view>
+  </view>
+
+  <!-- 历史记录 -->
+  <view class="history-section">
+    <view class="history-header">
+      <text>操作记录</text>
+      <view class="clear-history" bindtap="clearHistory" wx:if="{{counterData.history.length > 0}}">
+        <text>清除记录</text>
+      </view>
+    </view>
+
+    <view class="history-list" wx:if="{{counterData.history.length > 0}}">
+      <view 
+        class="history-item {{item.fadeOut ? 'fade-out' : ''}}" 
+        wx:for="{{counterData.history}}" 
+        wx:key="time"
+      >
+        <text class="history-time">{{item.time}}</text>
+        <text class="history-action">{{item.action}}</text>
+        <text class="history-count">{{item.count}}行</text>
+      </view>
+    </view>
+    <view class="empty-history" wx:else>
+      <text>快去织东西吧</text>
+    </view>
+  </view>
+
+  <!-- 目标行数输入弹窗 -->
+  <view class="target-input-modal" wx:if="{{showTargetInput}}">
+    <view class="modal-content">
+      <view class="modal-title">设置目标行数</view>
+      <input type="number" value="{{targetInputValue}}" bindinput="onTargetInput" focus="{{showTargetInput}}" maxlength="3" />
+      <view class="modal-buttons">
+        <button bindtap="cancelTargetInput">取消</button>
+        <button bindtap="confirmTargetInput">确定</button>
+      </view>
+    </view>
+  </view>
+</view>

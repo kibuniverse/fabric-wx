@@ -1,0 +1,6 @@
+{
+  "component": true,
+  "usingComponents": {
+    "dynamic-svg": "../components/dynamic-svg/index"
+  }
+}

@@ -1,0 +1,5 @@
+<view class="toast-container {{show ? 'toast-show' : 'toast-hide'}}">
+  <view class="toast-content">
+    {{message}}
+  </view>
+</view>

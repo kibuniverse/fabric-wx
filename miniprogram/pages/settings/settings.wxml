@@ -1,0 +1,14 @@
+<view class="container">
+  <view class="header">
+    <text class="title">设置</text>
+  </view>
+  
+  <view class="settings-list">
+    <view class="setting-item" wx:for="{{settings}}" wx:key="title">
+      <view class="setting-content">
+        <text class="setting-title">{{item.title}}</text>
+        <view class="arrow">></view>
+      </view>
+    </view>
+  </view>
+</view>

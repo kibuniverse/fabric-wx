@@ -1,0 +1,42 @@
+/* pages/counter/counter.wxss */
+.title-container {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20rpx 30rpx;
+  background: #fff;
+  margin-bottom: 20rpx;
+}
+
+.title-text {
+  font-weight: 500;
+  font-size: 52rpx;
+  color: #000000;
+}
+
+.title-operate {
+  display: flex;
+  gap: 20rpx;
+}
+
+.operate-icon {
+  width: 80rpx;
+  height: 80rpx;
+  box-sizing: border-box;
+  padding: 16rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+}
+
+.operate-icon-on {
+  background-color: rgba(168, 137, 200, 0.1);
+}
+
+.operate-icon-off {
+  background-color: rgba(0, 0, 0, 0.1);
+}
+
+.operate-icon-inner { 
+}

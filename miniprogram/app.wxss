@@ -1,0 +1,16 @@
+/**app.wxss**/
+
+page {
+  --main-color: #A889C8;
+  --main-bg-color: #E6E6FA;
+  --td-brand-color: #A889C8;
+}
+.container {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
+  padding: 200rpx 0;
+  box-sizing: border-box;
+}

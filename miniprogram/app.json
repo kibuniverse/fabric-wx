@@ -1,0 +1,42 @@
+{
+  "pages": [
+    "pages/counter/counter",
+    "pages/home/home",
+    "pages/library/library",
+    "pages/settings/settings"
+  ],
+  "window": {
+    "navigationBarTextStyle": "black",
+    "navigationBarTitleText": "知织",
+    "navigationBarBackgroundColor": "#E6E6FA"
+  },
+  "componentFramework": "glass-easel",
+  "lazyCodeLoading": "requiredComponents",
+  "useExtendedLib": {
+    "weui": true
+  },
+  "tabBar": {
+    "custom": true,
+    "color": "#000000",
+    "selectedColor": "#000000",
+    "backgroundColor": "#000000",
+    "list": [
+      {
+        "pagePath": "pages/counter/counter",
+        "text": "首页"
+      },
+      {
+        "pagePath": "pages/library/library",
+        "text": "资料库"
+      },
+      {
+        "pagePath": "pages/home/home",
+        "text": "计数器"
+      },
+      {
+        "pagePath": "pages/settings/settings",
+        "text": "设置"
+      }
+    ]
+  }
+}

@@ -1,0 +1,289 @@
+.counter-wrapper {
+  padding: 20rpx;
+}
+
+/* 头部样式 */
+.counter-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 40rpx;
+}
+
+.counter-name-container {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+}
+
+.counter-name {
+  font-size: 32rpx;
+  color: #333;
+}
+
+.counter-delete-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.delete-icon {
+  width: 46rpx;
+  height: 45rpx;
+}
+
+.target-count {
+  color: #333333;
+  font-size: 32rpx;
+  font-weight: 500;
+}
+
+/* 计数器主体样式 */
+.counter-main {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 40rpx;
+}
+
+.counter-btn {
+  width: 120rpx;
+  height: 120rpx;
+  border-radius: 50%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-size: 60rpx;
+  color: #A889C8;
+}
+
+.minus {
+  background: rgba(168, 137, 200, 0.1);
+}
+
+.plus {
+  background: rgba(168, 137, 200, 0.2);
+}
+
+.counter-number {
+  width: 200rpx;
+  height: 100rpx;
+  position: relative;
+  overflow: hidden;
+}
+
+.number-scroll {
+  position: absolute;
+  width: 100%;
+  transition: transform 0.3s ease-out;
+}
+
+.number-item {
+  height: 100rpx;
+  line-height: 100rpx;
+  text-align: center;
+  font-size: 80rpx;
+  font-weight: bold;
+  color: #333;
+}
+
+/* 计时器显示 */
+.timer-display {
+  text-align: center;
+  font-size: 32rpx;
+  color: #666;
+  margin-bottom: 40rpx;
+}
+
+/* 操作按钮 */
+.operation-buttons {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 40rpx;
+}
+
+.operation-buttons-left {
+  display: flex;
+  align-items: center;
+  gap: 20rpx;
+}
+
+.operation-buttons-right {
+  display: flex;
+  align-items: center;
+}
+
+.target-count {
+  color: #333333;
+  font-size: 32rpx;
+  font-weight: 500;
+  margin-left: 20rpx;
+}
+
+.operation-btn {
+  display: flex;
+  align-items: center;
+  justify-items: center;
+  box-sizing: border-box;
+  padding: 18rpx;
+  width: 80rpx;
+  height: 80rpx;
+  border-radius: 9999px;
+}
+
+.reset {
+  background-color: var(--main-bg-color);
+}
+.timer {
+  padding: 21rpx 21rpx 18rpx 21rpx;
+}
+.timer-start {
+  background-color: var(--main-bg-color);
+}
+.timer-stop {
+  background-color: var(--main-bg-color);
+}
+
+/* 历史记录部分 */
+.history-section {
+  background: #fff;
+  border-radius: 16rpx;
+  padding: 20rpx;
+}
+
+.history-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20rpx;
+  font-size: 28rpx;
+  color: #333;
+}
+
+.clear-history {
+  color: #A889C8;
+}
+
+.history-list {
+  max-height: 400rpx;
+  overflow-y: auto;
+}
+
+.history-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16rpx 0;
+  font-size: 24rpx;
+  color: #666;
+  border-bottom: 1rpx solid #f5f5f5;
+  animation: slideInFromRight 0.5s ease-out;
+  opacity: 1;
+}
+
+.history-item.fade-out {
+  animation: fadeOut 0.5s ease-out forwards;
+}
+
+.history-time {
+  color: #999;
+  flex: 2;
+}
+
+.history-action {
+  color: #666;
+  flex: 1;
+  text-align: center;
+}
+
+.history-count {
+  color: #A889C8;
+  flex: 1;
+  text-align: right;
+}
+
+.empty-history {
+  text-align: center;
+  color: #999;
+  padding: 40rpx 0;
+}
+
+/* 目标行数输入弹窗 */
+.target-input-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+.modal-content {
+  background: #fff;
+  border-radius: 16rpx;
+  padding: 30rpx;
+  width: 80%;
+  max-width: 600rpx;
+}
+
+.modal-title {
+  text-align: center;
+  font-size: 32rpx;
+  margin-bottom: 30rpx;
+}
+
+.modal-content input {
+  border: 1rpx solid #ddd;
+  border-radius: 8rpx;
+  padding: 20rpx;
+  text-align: center;
+  margin-bottom: 30rpx;
+}
+
+.modal-buttons {
+  display: flex;
+  justify-content: space-between;
+  gap: 20rpx;
+}
+
+.modal-buttons button {
+  flex: 1;
+  margin: 0;
+  font-size: 28rpx;
+}
+
+.modal-buttons button:first-child {
+  background: #f5f5f5;
+  color: #666;
+}
+
+.modal-buttons button:last-child {
+  background: #A889C8;
+  color: #fff;
+}
+
+@keyframes slideInFromRight {
+  from {
+    opacity: 0;
+    transform: translateX(100%);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes fadeOut {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}

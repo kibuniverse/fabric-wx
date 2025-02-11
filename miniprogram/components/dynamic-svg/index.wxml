@@ -1,0 +1,5 @@
+<image
+  src="{{ svgData }}"
+  class="svg-class"
+  mode="{{ mode }}"
+></image>

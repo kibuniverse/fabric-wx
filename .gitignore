@@ -1,0 +1,61 @@
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# Node.js
+node_modules/
+npm-debug.log
+yarn-error.log
+
+# WeChat Miniprogram specific
+miniprogram_npm/
+dist/
+
+# Dependency directories
+jspm_packages/
+bower_components/
+
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Environment files
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Editor directories and files
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Build output
+build/
+out/
+*.compiled
+*.min.js
+
+# Temporary files
+*.tmp
+*.bak
+*.swp
+.tmp/
+
+# Miscellaneous
+.cache
+.project
+.settings/
+.classpath
