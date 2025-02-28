@@ -63,15 +63,35 @@ Page({
     const newState = !this.data.isKeepScreenOn;
     this.setData({ isKeepScreenOn: newState });
     wx.setStorageSync(STORAGE_KEYS.KEEP_SCREEN, newState);
-    
+
     wx.setKeepScreenOn({
       keepScreenOn: newState
     });
     this.showToast(newState ? "屏幕常亮已开启" : "屏幕常亮已关闭");
   },
 
-  handleCounterDelete() {
-    // 可以在这里处理计数器删除后的逻辑
-    console.log('Counter deleted');
+  handleCounterDelete(e: { detail: { id: string } }) {
+    console.log('eee', e.detail.id)
+    // 添加确认删除计数器的弹窗
+    wx.showModal({
+      title: '确认删除',
+      content: '确定要删除这个计数器吗？',
+      confirmText: '删除',
+      confirmColor: '#FF0000',
+      cancelText: '取消',
+      success: (res) => {
+        if (res.confirm) {
+          // 用户点击了确认按钮
+          // 这里是删除计数器的回调函数，暂时留空
+          console.log('User confirmed deletion');
+
+          // TODO: 实现删除计数器的逻辑
+
+        } else if (res.cancel) {
+          // 用户点击了取消按钮
+          console.log('Counter deletion canceled');
+        }
+      }
+    });
   }
 });

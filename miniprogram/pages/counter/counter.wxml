@@ -1,9 +1,6 @@
-<!--pages/counter/counter.wxml-->
-
+<!-- pages/counter/counter.wxml -->
 <view class="title-container">
-  <view class="title-text">
-    行计数器
-  </view>
+  <view class="title-text">行计数器</view>
   <view class="title-operate">
     <view class="operate-icon {{isVoiceOn ? 'operate-icon-on': 'operate-icon-off'}}" bind:tap="toggleVoice">
       <dynamic-svg svg-class="operate-icon-inner" svg-path="/assets/enable_voice.svg" color="{{isVoiceOn ? '#A889C8' : '#00000066'}}" />
@@ -16,6 +13,5 @@
     </view>
   </view>
 </view>
-<counter vibrationOn="{{isVibrationOn}}" voiceOn="{{isVoiceOn}}" storageKey="default_counter" bind:onDelete="handleCounterDelete" />
-
+<counter vibrationOn="{{isVibrationOn}}" voiceOn="{{isVoiceOn}}" storageKey="default_counter" bindhandleCounterDelete="handleCounterDelete" bind:onDelete="handleCounterDelete" />
 <toast id="toast" duration="2000" />

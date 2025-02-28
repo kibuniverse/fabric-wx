@@ -28,6 +28,7 @@
   align-items: center;
   justify-content: center;
   border-radius: 50%;
+  overflow: hidden;
 }
 
 .operate-icon-on {
@@ -38,5 +39,7 @@
   background-color: rgba(0, 0, 0, 0.1);
 }
 
-.operate-icon-inner { 
+.operate-icon-inner {
+  width: 40rpx;
+  height: 40rpx;
 }

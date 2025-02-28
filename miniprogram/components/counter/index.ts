@@ -13,7 +13,6 @@ interface CounterData {
     id: number;
   }>;
   timerState: {
-    isRunning: boolean;
     startTimestamp: number;
     elapsedTime: number;
   };
@@ -26,7 +25,6 @@ const DEFAULT_COUNTER_DATA: CounterData = {
   startTime: 0,
   history: [],
   timerState: {
-    isRunning: false,
     startTimestamp: 0,
     elapsedTime: 0
   }
@@ -40,6 +38,10 @@ const TOAST_CONFIG = {
 
 Component({
   properties: {
+    onClickDelete: {
+      type: Object,
+      value: () => { } // 默认值为 null
+    },
     vibrationOn: {
       type: Boolean,
       value: false
@@ -51,13 +53,15 @@ Component({
     storageKey: {
       type: String,
       value: 'default_counter'
-    },
-    onDelete: {
-      type: Function,
-      value: () => { }
     }
   },
-
+  pageLifetimes: {
+    hide() {
+      console.log('页面隐藏，组件已感知');
+      // 在这里可以执行一些逻辑，例如保存数据或暂停操作
+      this.stopTimer();
+    }
+  },
   data: {
     counterData: DEFAULT_COUNTER_DATA,
     timerDisplay: '00:00:00',
@@ -68,10 +72,10 @@ Component({
     options: {
       during: 1,            // (number) 动画时间
       height: 40,           // (number) 滚动行高 px
-      cellWidth: 24,        // (number) 单个数字宽度 px
+      cellWidth: 30,        // (number) 单个数字宽度 px
       ease: 'cubic-bezier(0, 1, 0, 1)',   // (string) 动画过渡效果
-      color: '#A889C8',     // (string) 字体颜色
-      columnStyle: '',      // (string) 字体单元 覆盖样式
+      color: '#000000',     // (string) 字体颜色
+      columnStyle: 'font-size: 48px;',      // (string) 字体单元 覆盖样式
     }
   },
 
@@ -80,9 +84,8 @@ Component({
       this.loadCounterData();
       this.restoreTimerState();
     },
-
     detached() {
-      this.clearTimer();
+      this.stopTimer();
     }
   },
 
@@ -112,10 +115,40 @@ Component({
     },
 
     // 计数器操作相关
-    async handleCountChange(type: 'increase' | 'decrease') {
+    async handleCountChange(type: 'increase' | 'decrease' | 'reset') {
       const { currentCount, targetCount } = this.data.counterData;
-      const isIncrease = type === 'increase';
+      console.log('voiceOn', this.properties.voiceOn)
+      if (this.properties.voiceOn) {
+        const innerAudioContext = wx.createInnerAudioContext()
+        innerAudioContext.autoplay = true
+        innerAudioContext.src = '/assets/audio_voice.m4a'
+        innerAudioContext.onPlay(() => {
+          console.log('开始播放')
+        })
+        innerAudioContext.onError((res) => {
+          console.log(res.errMsg)
+          console.log(res.errCode)
+        })
+      }
 
+      if (this.properties.vibrationOn) {
+        vibrate();
+      }
+
+      if (type === 'reset') {
+        this.showModal({
+          title: '确认重置',
+          content: '确定要重置计数器吗？',
+          success: async (res: WechatMiniprogram.ShowModalSuccessCallbackResult) => {
+            if (res.confirm) {
+              await this.updateCount(0, '重置计数');
+            }
+          }
+        });
+        return;
+      }
+
+      const isIncrease = type === 'increase';
 
       if (!isIncrease && currentCount <= 0) {
         this.showToast('已经是最小值了');
@@ -215,27 +248,25 @@ Component({
     // 计时器相关
     restoreTimerState() {
       const { counterData } = this.data;
-      if (counterData && counterData.timerState.isRunning) {
+      if (counterData) {
         const totalElapsed = this.calculateTotalElapsed();
         this.setData({
           timerDisplay: this.formatTime(totalElapsed),
-          isTimerRunning: true
+          isTimerRunning: false
         });
-        this.startTimer(totalElapsed);
       }
     },
 
     calculateTotalElapsed(): number {
-      const { elapsedTime, startTimestamp } = this.data.counterData.timerState;
-      const timeSinceLastStop = startTimestamp ? Date.now() - startTimestamp : 0;
-      return elapsedTime + timeSinceLastStop;
+      const { elapsedTime } = this.data.counterData.timerState;
+      return elapsedTime;
     },
 
     toggleTimer() {
       if (this.data.isTimerRunning) {
         this.stopTimer();
       } else {
-        this.startTimer();
+        this.startTimer(this.data.counterData.timerState.elapsedTime);
       }
     },
 
@@ -249,7 +280,6 @@ Component({
       }, 1000);
 
       const counterData = this.data.counterData;
-      counterData.timerState.isRunning = true;
       counterData.timerState.startTimestamp = startTime;
 
       this.setData({
@@ -264,13 +294,11 @@ Component({
       this.clearTimer();
 
       const counterData = this.data.counterData;
-      counterData.timerState.isRunning = false;
       counterData.timerState.elapsedTime = this.getCurrentElapsedTime();
-      counterData.timerState.startTimestamp = 0;
 
       this.setData({
+        counterData,
         isTimerRunning: false,
-        counterData
       });
       this.saveCounterData();
     },
@@ -361,11 +389,11 @@ Component({
 
     // 删除相关
     handleCounterDelete() {
-      if (typeof this.data.onDelete === 'function') {
-        this.data.onDelete();
-      } else {
-        this.showToast('无法删除计数器');
-      }
+      var myEventDetail = {
+        id: 1
+      } // detail对象，提供给事件监听函数
+      var myEventOption = {} // 触发事件的选项
+      this.triggerEvent('handleCounterDelete', myEventDetail, myEventOption)
     },
 
     // 公共方法
@@ -375,6 +403,9 @@ Component({
 
     decrease() {
       this.handleCountChange('decrease');
-    }
-  }
+    },
+    showResetConfirm() {
+      this.handleCountChange('reset')
+    },
+  },
 });

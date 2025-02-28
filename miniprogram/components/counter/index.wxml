@@ -3,19 +3,25 @@
   <view class="counter-header">
     <view class="counter-name-container">
       <text class="counter-name">{{counterData.name || '默认计数器'}}</text>
-      <view class="counter-delete-btn" bindtap="handleCounterDelete">
-        <image class="delete-icon" src="/assets/delete.svg" />
+
+      <view class="target-count" bindtap="showTargetInput">
+        <view>目标行数：</view>
+        <view class="target-num">{{counterData.targetCount}}</view>
       </view>
     </view>
   </view>
 
   <!-- 计数器主体 -->
   <view class="counter-main">
-    <view class="counter-btn minus" bindtap="decrease">-</view>
-    <view class="counter-number">
-      <animate-numbers value="{{counterData.currentCount}}" min='{{0}}' max='{{999}}' options='{{options}}'/>
+    <view class="counter-btn minus" bindtap="decrease">
+      <image class='minus-icon' src="/assets/minus.svg" />
     </view>
-    <view class="counter-btn plus" bindtap="increase">+</view>
+    <view class="counter-number" style="transform: translateX({{counterData.currentCount < 10 ? '-60' : counterData.currentCount < 100 ? '-30' : '0'}}rpx); transition: transform 0.3s ease;">
+      <animate-numbers value="{{counterData.currentCount}}" min='{{0}}' max='{{999}}' options='{{options}}' />
+    </view>
+    <view class="counter-btn plus" bindtap="increase">
+      <image class='plus-icon' src="/assets/plus.svg" />
+    </view>
   </view>
 
   <!-- 计时器显示 -->
@@ -24,38 +30,45 @@
   <!-- 操作按钮 -->
   <view class="operation-buttons">
     <view class="operation-buttons-left">
+      <view class="counter-delete-btn" bindtap="handleCounterDelete">
+        <image class="delete-icon" src="/assets/delete.svg" />
+        <view class="delete-text">删除计数器</view>
+      </view>
+    </view>
+    <view class="operation-buttons-right">
       <view class="operation-btn reset" bindtap="showResetConfirm">
         <image class="reset-icon" src="/assets/reset.svg" />
       </view>
       <view class="operation-btn timer {{isTimerRunning ? 'timer-start' : 'timer-stop'}}" bindtap="toggleTimer">
-        <image src="{{isTimerRunning ? '/assets/clock_colorful.svg' : '/assets/clock.svg'}}" />
-      </view>
-    </view>
-    <view class="operation-buttons-right">
-      <view class="target-count" bindtap="showTargetInput">
-        <view>目标行数：</view>
-        <view class="target-num">{{counterData.targetCount}}</view>
+        <image class="timer-icon" src="{{isTimerRunning ? '/assets/clock_colorful.svg' : '/assets/clock.svg'}}" />
       </view>
     </view>
   </view>
 
   <!-- 历史记录 -->
   <view class="history-section">
-    <view class="history-header">
+    <view wx:if="{{counterData.history.length > 0}}" class="history-header">
       <text>操作记录</text>
       <view class="clear-history" bindtap="clearHistory" wx:if="{{counterData.history.length > 0}}">
         <text>清除记录</text>
       </view>
     </view>
-    <scroll-view scroll-y class="history-list">
-      <block wx:for="{{counterData.history}}" wx:key="index">
-        <view class="history-item {{item.isNew ? 'slide-in' : ''}}">
-          <view class="history-time">{{item.time}}</view>
-          <view class="history-action">{{item.action}}</view>
-          <view class="history-count">{{item.count}}</view>
-        </view>
-      </block>
-    </scroll-view>
+
+    <block wx:if="{{counterData.history.length > 0}}">
+      <scroll-view scroll-y class="history-list">
+        <block wx:for="{{counterData.history}}" wx:key="index">
+          <view class="history-item {{item.isNew ? 'slide-in' : ''}}">
+            <view class="history-time">{{item.time}}</view>
+            <view class="history-action">{{item.action}}</view>
+            <view class="history-count">{{item.count}}</view>
+          </view>
+        </block>
+      </scroll-view>
+    </block>
+    <view wx:else class="history-empty">
+      <image src="/assets/history_empty.png" mode="aspectFit" class="empty-image"></image>
+    </view>
+
   </view>
 
   <!-- 目标行数输入弹窗 -->
