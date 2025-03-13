@@ -14,7 +14,7 @@ npm-debug.log
 yarn-error.log
 
 # WeChat Miniprogram specific
-miniprogram_npm/
+**/miniprogram_npm/**
 dist/
 
 # Dependency directories

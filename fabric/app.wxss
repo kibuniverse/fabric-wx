@@ -4,6 +4,10 @@ page {
   --main-color: #A889C8;
   --main-bg-color: #E6E6FA;
   --td-brand-color: #A889C8;
+
+
+
+  --tab-bar-height: 96rpx;
 }
 .container {
   height: 100%;

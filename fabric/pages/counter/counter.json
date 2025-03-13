@@ -5,6 +5,7 @@
     "mp-toptips": "weui-miniprogram/toptips/toptips",
     "dynamic-svg": "/components/dynamic-svg/index",
     "toast": "/components/toast/index",
-    "counter": "/components/counter/index"
+    "counter": "/components/counter/index",
+    "mp-tabs": "@miniprogram-component-plus/tabs"
   }
 }

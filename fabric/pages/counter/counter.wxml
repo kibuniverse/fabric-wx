@@ -1,0 +1,28 @@
+<!-- pages/counter/counter.wxml -->
+<view class="page-container">
+  <view class="title-container">
+    <view class="title-text">行计数器</view>
+    <view class="title-operate">
+      <view class="operate-icon {{isVoiceOn ? 'operate-icon-on': 'operate-icon-off'}}" bind:tap="toggleVoice">
+        <dynamic-svg svg-class="operate-icon-inner" svg-path="/assets/enable_voice.svg" color="{{isVoiceOn ? '#A889C8' : '#00000066'}}" />
+      </view>
+      <view class="operate-icon {{isVibrationOn ? 'operate-icon-on': 'operate-icon-off'}}" bind:tap="toggleVibration">
+        <dynamic-svg svg-class="operate-icon-inner" svg-path="/assets/vibration_on.svg" color="{{isVibrationOn ? '#A889C8' : '#00000066'}}" />
+      </view>
+      <view class="operate-icon {{isKeepScreenOn ? 'operate-icon-on': 'operate-icon-off'}}" bind:tap="toggleKeepScreen">
+        <dynamic-svg svg-class="operate-icon-inner" svg-path="/assets/keep_screen_on.svg" color="{{isKeepScreenOn ? '#A889C8' : '#00000066'}}" />
+      </view>
+    </view>
+  </view>
+  <view class="tab-container">
+    <mp-tabs tab-class="custom-weui-tabs" tab-underline-color="#A889C8" tabs="{{counterKeys}}" activeTab="{{activeTab}}" swiperClass="weui-tabs-swiper" bindtabclick="onTabClick" bindchange="onChange" activeClass="tab-bar-title-selected">
+      <block wx:for="{{counterKeys}}" wx:key="title">
+        <view class="tab-content" data-set="{{item.key}}" slot="tab-content-{{index}}">
+          <counter vibrationOn="{{isVibrationOn}}" voiceOn="{{isVoiceOn}}" storageKey="{{item.key}}" bindhandleCounterDelete="handleCounterDelete" bind:onDelete="handleCounterDelete" />
+        </view>
+      </block>
+    </mp-tabs>
+  </view>
+
+</view>
+<toast id="toast" duration="2000" />

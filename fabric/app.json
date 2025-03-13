@@ -7,7 +7,7 @@
   ],
   "window": {
     "navigationBarTextStyle": "black",
-    "navigationBarTitleText": "知织",
+    "navigationBarTitleText": "fabric",
     "navigationBarBackgroundColor": "#E6E6FA"
   },
   "componentFramework": "glass-easel",

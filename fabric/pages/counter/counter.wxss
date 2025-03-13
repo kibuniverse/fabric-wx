@@ -1,0 +1,105 @@
+/* pages/counter/counter.wxss */
+page {
+  background-color: #FFFFFF;
+  height: calc(100% - var(--tab-bar-height) - env(safe-area-inset-bottom));
+}
+
+.page-container {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.title-container {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 40rpx 30rpx 20rpx;
+  background: #fff;
+  margin-bottom: 20rpx;
+}
+
+.title-text {
+  font-weight: 500;
+  font-size: 52rpx;
+  color: #000000;
+}
+
+.title-operate {
+  display: flex;
+  gap: 20rpx;
+}
+
+.operate-icon {
+  width: 80rpx;
+  height: 80rpx;
+  box-sizing: border-box;
+  padding: 16rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  overflow: hidden;
+}
+
+.operate-icon-on {
+  background-color: rgba(168, 137, 200, 0.1);
+}
+
+.operate-icon-off {
+  background-color: rgba(0, 0, 0, 0.1);
+}
+
+.operate-icon-inner {
+  width: 40rpx;
+  height: 40rpx;
+}
+
+.tab-container {
+  height: calc(100% - 140rpx);
+}
+.weui-tabs-bar__wrp {
+  height: 60rpx;
+}
+.weui-tabs {
+  height: 100%;
+  width: 100%;
+}
+
+.custom-weui-tabs {
+  font-size: 16px;
+  font-weight: 500;
+  line-height: 44rpx;
+  margin-left: 44rpx;
+  font-family: "PingFang SC";
+  height: 60rpx;
+}
+
+.tab-bar-title-selected {
+  color: var(--main-color);
+  border-bottom: none !important;
+  position: relative;
+}
+
+.tab-bar-title-selected::after {
+  content: '';
+  position: absolute;
+  bottom: 0rpx;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 40rpx;
+  height: 4rpx;
+  background-color: var(--main-color);
+  border-radius: 3rpx;
+}
+
+.weui-tabs-swiper {
+  height: 100%;
+}
+
+.tab-content {
+  height: 100%;
+}
+scroll-view {
+  border-bottom: 1px solid #0000001A;
+}
