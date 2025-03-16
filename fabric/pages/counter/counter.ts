@@ -20,9 +20,16 @@ Page({
     isKeepScreenOn: false,
     isVoiceOn: false,
     // 增加计数器key列表
-    counterKeys: [] as { key: string, name: string }[],
+    counterKeys: [] as { key: string, title: string }[],
     activeKey: '',
-    activeTab: 0
+    activeTab: 0,
+    // 添加新计数器相关
+    showAddCounter: false,
+    newCounterName: '',
+    addCounterButtons: [
+      { text: "取消", className: "cancel-btn" },
+      { text: "确定", className: "confirm-btn" }
+    ]
   },
 
   onLoad() {
@@ -99,6 +106,63 @@ Page({
       keepScreenOn: newState
     });
     this.showToast(newState ? "屏幕常亮已开启" : "屏幕常亮已关闭");
+  },
+
+  // 添加新计数器相关方法
+  showAddCounterDialog() {
+    this.setData({
+      showAddCounter: true,
+      newCounterName: ''
+    });
+  },
+
+  onNewCounterNameInput(e: any) {
+    this.setData({
+      newCounterName: e.detail.value
+    });
+  },
+
+  handleAddCounterDialogButton(e: any) {
+    const { index } = e.detail;
+    if (index === 0) {
+      // 取消按钮
+      this.setData({
+        showAddCounter: false
+      });
+    } else if (index === 1) {
+      // 确定按钮
+      this.addNewCounter();
+    }
+  },
+
+  addNewCounter() {
+    const { newCounterName } = this.data;
+    if (!newCounterName.trim()) {
+      this.showToast('计数器名称不能为空');
+      return;
+    }
+
+    // 生成唯一key
+    const timestamp = new Date().getTime();
+    const randomStr = Math.random().toString(36).substring(2, 8);
+    const newKey = `counter_${timestamp}_${randomStr}`;
+    
+    // 添加新计数器
+    const newCounterKeys = [...this.data.counterKeys, {
+      key: newKey,
+      title: newCounterName.trim()
+    }];
+    
+    // 更新本地存储和数据
+    wx.setStorageSync(STORAGE_KEYS.COUNTER_KEYS, newCounterKeys);
+    
+    this.setData({
+      counterKeys: newCounterKeys,
+      showAddCounter: false,
+      activeTab: newCounterKeys.length - 1  // 切换到新添加的计数器
+    });
+    
+    this.showToast('计数器添加成功');
   },
 
   handleCounterDelete(e: { detail: { id: string } }) {

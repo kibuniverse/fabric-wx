@@ -76,7 +76,11 @@ Component({
       ease: 'cubic-bezier(0, 1, 0, 1)',   // (string) 动画过渡效果
       color: '#000000',     // (string) 字体颜色
       columnStyle: 'font-size: 48px;',      // (string) 字体单元 覆盖样式
-    }
+    },
+    modifyCounterButton: [
+      { text: "取消", className: "cancel-btn" },
+      { text: "确定", className: "confirm-btn" }
+    ]
   },
 
   lifetimes: {
@@ -345,6 +349,14 @@ Component({
       this.setData({
         targetInputValue: e.detail.value
       });
+    },
+    tapDialogButton(e: any) {
+      const { index } = e.detail;
+      if (index === 0) {
+        this.cancelTargetInput();
+      } else if (index === 1) {
+        this.confirmTargetInput();
+      }
     },
     cancelTargetInput() {
       this.setData({

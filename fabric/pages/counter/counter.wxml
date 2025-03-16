@@ -15,14 +15,26 @@
     </view>
   </view>
   <view class="tab-container">
-    <mp-tabs tab-class="custom-weui-tabs" tab-underline-color="#A889C8" tabs="{{counterKeys}}" activeTab="{{activeTab}}" swiperClass="weui-tabs-swiper" bindtabclick="onTabClick" bindchange="onChange" activeClass="tab-bar-title-selected">
-      <block wx:for="{{counterKeys}}" wx:key="title">
-        <view class="tab-content" data-set="{{item.key}}" slot="tab-content-{{index}}">
-          <counter vibrationOn="{{isVibrationOn}}" voiceOn="{{isVoiceOn}}" storageKey="{{item.key}}" bindhandleCounterDelete="handleCounterDelete" bind:onDelete="handleCounterDelete" />
-        </view>
-      </block>
-    </mp-tabs>
+    <view class="tabs-header">
+      <mp-tabs tab-class="custom-weui-tabs" tab-underline-color="#A889C8" tabs="{{counterKeys}}" activeTab="{{activeTab}}" swiperClass="weui-tabs-swiper" bindtabclick="onTabClick" bindchange="onChange" activeClass="tab-bar-title-selected">
+        <block wx:for="{{counterKeys}}" wx:key="title">
+          <view class="tab-content" data-set="{{item.key}}" slot="tab-content-{{index}}">
+            <counter vibrationOn="{{isVibrationOn}}" voiceOn="{{isVoiceOn}}" storageKey="{{item.key}}" bindhandleCounterDelete="handleCounterDelete" bind:onDelete="handleCounterDelete" />
+          </view>
+        </block>
+      </mp-tabs>
+      <view class="add-counter-btn" bindtap="showAddCounterDialog">
+        <dynamic-svg svg-class="add-icon" svg-path="/assets/plus.svg" color="#333333" />
+      </view>
+    </view>
   </view>
-
 </view>
+
+<!-- 添加计数器对话框 -->
+<mp-dialog title="添加新计数器" buttons="{{addCounterButtons}}" show="{{showAddCounter}}" bindbuttontap="handleAddCounterDialogButton">
+  <view class="dialog-content">
+    <input type="text" value="{{newCounterName}}" bindinput="onNewCounterNameInput" placeholder="请输入计数器名称" focus="{{showAddCounter}}" maxlength="10" />
+  </view>
+</mp-dialog>
+
 <toast id="toast" duration="2000" />
