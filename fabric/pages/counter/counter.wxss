@@ -122,15 +122,15 @@ scroll-view {
   display: flex;
   justify-content: center;
   align-items: center;
-  background: linear-gradient(to right, rgba(255, 255, 255, 0), rgba(255, 255, 255, 1) 50%, rgba(255, 255, 255, 1));
+  background: linear-gradient(to right, rgba(255, 255, 255, 0), rgba(255, 255, 255, 1) 80%, rgba(255, 255, 255, 1));
   z-index: 100;
 }
 
 .weui-tabs-bar__wrp {
-  width
+  width: calc(100% - 70rpx) !important;
+}
 
-.add-: calc(100% - 70rpx) !important;
-}icon {
+.add-icon {
   width: 44rpx;
   height: 44rpx;
 }

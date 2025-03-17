@@ -310,3 +310,21 @@
   background: #A889C8;
   color: #fff;
 }
+
+/* 调整mp-dialog位置，避免被键盘遮挡 */
+.weui-dialog {
+  transform: translateY(-30vh);
+  position: fixed;
+  z-index: 5000;
+}
+
+/* 确保弹窗内容在移动后也居中显示 */
+.weui-dialog__bd {
+  padding: 0 30rpx 30rpx;
+  min-height: 80rpx;
+  font-size: 28rpx;
+  line-height: 1.6;
+  word-wrap: break-word;
+  word-break: break-all;
+  color: #000000;
+}
