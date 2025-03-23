@@ -402,7 +402,7 @@ Component({
     // 删除相关
     handleCounterDelete() {
       var myEventDetail = {
-        id: 1
+        id: this.properties.storageKey
       } // detail对象，提供给事件监听函数
       var myEventOption = {} // 触发事件的选项
       this.triggerEvent('handleCounterDelete', myEventDetail, myEventOption)

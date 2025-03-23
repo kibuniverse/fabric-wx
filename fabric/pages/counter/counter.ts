@@ -196,6 +196,7 @@ Page({
           );
           wx.setStorageSync(STORAGE_KEYS.COUNTER_KEYS, newCounterKeys);
           this.setData({ counterKeys: newCounterKeys });
+          this.setData({ activeTab: newCounterKeys.length - 1 });
         } else if (res.cancel) {
           // 用户点击了取消按钮
           console.log("Counter deletion canceled");
