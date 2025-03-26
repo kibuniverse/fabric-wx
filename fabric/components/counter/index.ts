@@ -1,4 +1,4 @@
-import { vibrate } from '../../utils/vibrate';
+import { vibrate } from "../../utils/vibrate";
 
 interface CounterData {
   name: string;
@@ -19,68 +19,73 @@ interface CounterData {
 }
 
 const DEFAULT_COUNTER_DATA: CounterData = {
-  name: '默认计数器',
+  name: "默认计数器",
   targetCount: 999,
   currentCount: 0,
   startTime: 0,
   history: [],
   timerState: {
     startTimestamp: 0,
-    elapsedTime: 0
-  }
+    elapsedTime: 0,
+  },
 };
 
 // 通用的提示配置
 const TOAST_CONFIG = {
-  icon: 'none' as const,
-  duration: 1500
+  icon: "none" as const,
+  duration: 1500,
+};
+
+const voiceConfig = {
+  src: "/assets/audio_voice.m4a",
+  enableOperate: ["increase", "decrease"],
 };
 
 Component({
   properties: {
     onClickDelete: {
       type: Object,
-      value: () => { } // 默认值为 null
+      value: () => {}, // 默认值为 null
     },
     vibrationOn: {
       type: Boolean,
-      value: false
+      value: false,
     },
     voiceOn: {
       type: Boolean,
-      value: false
+      value: false,
     },
     storageKey: {
       type: String,
-      value: 'default_counter'
-    }
+      value: "default_counter",
+    },
   },
   pageLifetimes: {
     hide() {
-      console.log('页面隐藏，组件已感知');
+      console.log("页面隐藏，组件已感知");
       // 在这里可以执行一些逻辑，例如保存数据或暂停操作
       this.stopTimer();
-    }
+    },
   },
   data: {
     counterData: DEFAULT_COUNTER_DATA,
-    timerDisplay: '00:00:00',
+    timerDisplay: "00:00:00",
     isTimerRunning: false,
     timerInterval: 0,
     showTargetInput: false,
-    targetInputValue: '',
+    targetInputValue: "",
     options: {
-      during: 1,            // (number) 动画时间
-      height: 40,           // (number) 滚动行高 px
-      cellWidth: 30,        // (number) 单个数字宽度 px
-      ease: 'cubic-bezier(0, 1, 0, 1)',   // (string) 动画过渡效果
-      color: '#000000',     // (string) 字体颜色
-      columnStyle: 'font-size: 48px;',      // (string) 字体单元 覆盖样式
+      during: 1, // (number) 动画时间
+      height: 40, // (number) 滚动行高 px
+      cellWidth: 30, // (number) 单个数字宽度 px
+      ease: "cubic-bezier(0, 1, 0, 1)", // (string) 动画过渡效果
+      color: "#000000", // (string) 字体颜色
+      columnStyle: "font-size: 48px;", // (string) 字体单元 覆盖样式
     },
     modifyCounterButton: [
       { text: "取消", className: "cancel-btn" },
-      { text: "确定", className: "confirm-btn" }
-    ]
+      { text: "确定", className: "confirm-btn" },
+    ],
   },
 
   lifetimes: {
@@ -90,7 +95,7 @@ Component({
     },
     detached() {
       this.stopTimer();
-    }
+    },
   },
 
   methods: {
@@ -104,13 +109,13 @@ Component({
             ...savedData,
             timerState: {
               ...DEFAULT_COUNTER_DATA.timerState,
-              ...(savedData.timerState || {})
-            }
+              ...(savedData.timerState || {}),
+            },
           };
           this.setData({ counterData });
         }
       } catch (error) {
-        console.error('Failed to load counter data:', error);
+        console.error("Failed to load counter data:", error);
       }
     },
 
@@ -119,56 +124,57 @@ Component({
     },
 
     // 计数器操作相关
-    async handleCountChange(type: 'increase' | 'decrease' | 'reset') {
+    async handleCountChange(type: "increase" | "decrease" | "reset") {
       const { currentCount, targetCount } = this.data.counterData;
-      console.log('voiceOn', this.properties.voiceOn)
-      if (this.properties.voiceOn) {
-        const innerAudioContext = wx.createInnerAudioContext()
-        innerAudioContext.autoplay = true
-        innerAudioContext.src = '/assets/audio_voice.m4a'
+      if (this.properties.voiceOn && voiceConfig.enableOperate.includes(type)) {
+        const innerAudioContext = wx.createInnerAudioContext();
+        innerAudioContext.autoplay = true;
+        innerAudioContext.src = "/assets/audio_voice.m4a";
         innerAudioContext.onPlay(() => {
-          console.log('开始播放')
-        })
+          console.log("开始播放");
+        });
         innerAudioContext.onError((res) => {
-          console.log(res.errMsg)
-          console.log(res.errCode)
-        })
+          console.log(res.errMsg);
+          console.log(res.errCode);
+        });
       }
 
       if (this.properties.vibrationOn) {
         vibrate();
       }
 
-      if (type === 'reset') {
+      if (type === "reset") {
         this.showModal({
-          title: '确认重置',
-          content: '确定要重置计数器吗？',
-          success: async (res: WechatMiniprogram.ShowModalSuccessCallbackResult) => {
+          title: "确认重置",
+          content: "确定要重置计数器吗？",
+          success: async (
+            res: WechatMiniprogram.ShowModalSuccessCallbackResult
+          ) => {
             if (res.confirm) {
-              await this.updateCount(0, '重置计数');
+              await this.updateCount(0, "重置计数");
             }
-          }
+          },
         });
         return;
       }
 
-      const isIncrease = type === 'increase';
+      const isIncrease = type === "increase";
 
       if (!isIncrease && currentCount <= 0) {
-        this.showToast('已经是最小值了');
+        this.showToast("已经是最小值了");
         return;
       }
 
       const newCount = currentCount + (isIncrease ? 1 : -1);
       if (isIncrease && newCount === targetCount) {
-        this.showToast('🎉已达到目标行数');
+        this.showToast("🎉已达到目标行数");
       }
-      await this.updateCount(newCount, isIncrease ? '行+1' : '行-1');
+      await this.updateCount(newCount, isIncrease ? "行+1" : "行-1");
     },
 
     async updateCount(newCount: number, action: string) {
       this.setData({
-        'counterData.currentCount': newCount
+        "counterData.currentCount": newCount,
       });
 
       // 保存数据并添加历史记录
@@ -178,7 +184,7 @@ Component({
     showToast(title: string) {
       wx.showToast({
         title,
-        ...TOAST_CONFIG
+        ...TOAST_CONFIG,
       });
     },
 
@@ -196,9 +202,9 @@ Component({
       const timeString = this.formatDateTime(now);
 
       // 先将所有现有记录的 isNew 标记移除
-      const currentHistory = this.data.counterData.history.map(item => ({
+      const currentHistory = this.data.counterData.history.map((item) => ({
         ...item,
-        isNew: false
+        isNew: false,
       }));
 
       // 创建新的历史记录项
@@ -207,7 +213,7 @@ Component({
         action,
         count: this.data.counterData.currentCount,
         isNew: true,
-        id: Date.now() // 添加唯一标识符
+        id: Date.now(), // 添加唯一标识符
       };
 
       // 更新历史记录列表
@@ -215,19 +221,19 @@ Component({
 
       // 设置新的历史记录
       this.setData({
-        'counterData.history': newHistory
+        "counterData.history": newHistory,
       });
 
       // 延迟移除动画类
       setTimeout(() => {
         if (this.data.counterData.history.length > 0) {
-          const updatedHistory = this.data.counterData.history.map(item => ({
+          const updatedHistory = this.data.counterData.history.map((item) => ({
             ...item,
-            isNew: false
+            isNew: false,
           }));
 
           this.setData({
-            'counterData.history': updatedHistory
+            "counterData.history": updatedHistory,
           });
         }
       }, 300);
@@ -236,17 +242,16 @@ Component({
     },
 
     clearHistory() {
-
       // 清空历史记录
       this.setData({
-        'counterData.history': []
+        "counterData.history": [],
       });
 
       // 保存数据
       this.saveCounterData();
 
       // 显示清除成功提示
-      this.showToast('记录已清除');
+      this.showToast("记录已清除");
     },
 
     // 计时器相关
@@ -256,7 +261,7 @@ Component({
         const totalElapsed = this.calculateTotalElapsed();
         this.setData({
           timerDisplay: this.formatTime(totalElapsed),
-          isTimerRunning: false
+          isTimerRunning: false,
         });
       }
     },
@@ -279,7 +284,7 @@ Component({
       const timerInterval = setInterval(() => {
         const elapsed = initialElapsed + (Date.now() - startTime);
         this.setData({
-          timerDisplay: this.formatTime(elapsed)
+          timerDisplay: this.formatTime(elapsed),
         });
       }, 1000);
 
@@ -289,7 +294,7 @@ Component({
       this.setData({
         timerInterval,
         isTimerRunning: true,
-        counterData
+        counterData,
       });
       this.saveCounterData();
     },
@@ -330,24 +335,26 @@ Component({
     },
 
     formatDateTime(date: Date): string {
-      const pad = (n: number) => String(n).padStart(2, '0');
-      return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}`;
+      const pad = (n: number) => String(n).padStart(2, "0");
+      return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(
+        date.getDate()
+      )} ${pad(date.getHours())}:${pad(date.getMinutes())}`;
     },
 
     padNumbers(...numbers: number[]): string {
-      return numbers.map(n => n.toString().padStart(2, '0')).join(':');
+      return numbers.map((n) => n.toString().padStart(2, "0")).join(":");
     },
 
     // 目标设置相关
     showTargetInput() {
       this.setData({
         showTargetInput: true,
-        targetInputValue: String(this.data.counterData.targetCount)
+        targetInputValue: String(this.data.counterData.targetCount),
       });
     },
     onTargetInput(e: any) {
       this.setData({
-        targetInputValue: e.detail.value
+        targetInputValue: e.detail.value,
       });
     },
     tapDialogButton(e: any) {
@@ -361,7 +368,7 @@ Component({
     cancelTargetInput() {
       this.setData({
         showTargetInput: false,
-        targetInputValue: ''
+        targetInputValue: "",
       });
     },
 
@@ -369,32 +376,32 @@ Component({
       const value = parseInt(this.data.targetInputValue);
       if (isNaN(value)) {
         wx.showToast({
-          title: '请输入有效数字',
-          icon: 'none'
+          title: "请输入有效数字",
+          icon: "none",
         });
         return;
       }
 
       if (value < 0) {
         wx.showToast({
-          title: '目标行数不能小于0',
-          icon: 'none'
+          title: "目标行数不能小于0",
+          icon: "none",
         });
         return;
       }
 
       if (value > 999) {
         wx.showToast({
-          title: '目标行数不能超过999',
-          icon: 'none'
+          title: "目标行数不能超过999",
+          icon: "none",
         });
         return;
       }
 
       this.setData({
-        'counterData.targetCount': value,
+        "counterData.targetCount": value,
         showTargetInput: false,
-        targetInputValue: ''
+        targetInputValue: "",
       });
       this.saveCounterData();
     },
@@ -402,22 +409,22 @@ Component({
     // 删除相关
     handleCounterDelete() {
       var myEventDetail = {
-        id: this.properties.storageKey
-      } // detail对象，提供给事件监听函数
-      var myEventOption = {} // 触发事件的选项
-      this.triggerEvent('handleCounterDelete', myEventDetail, myEventOption)
+        id: this.properties.storageKey,
+      }; // detail对象，提供给事件监听函数
+      var myEventOption = {}; // 触发事件的选项
+      this.triggerEvent("handleCounterDelete", myEventDetail, myEventOption);
     },
 
     // 公共方法
     increase() {
-      this.handleCountChange('increase');
+      this.handleCountChange("increase");
     },
 
     decrease() {
-      this.handleCountChange('decrease');
+      this.handleCountChange("decrease");
     },
     showResetConfirm() {
-      this.handleCountChange('reset')
+      this.handleCountChange("reset");
     },
   },
 });
