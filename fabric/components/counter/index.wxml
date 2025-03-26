@@ -32,20 +32,25 @@
       </view>
     </view>
     <view class="operation-buttons-right">
-      <view class="operation-btn reset" bindtap="showResetConfirm">
-        <image class="reset-icon" src="/assets/reset.svg" />
-      </view>
       <view class="operation-btn timer {{isTimerRunning ? 'timer-start' : 'timer-stop'}}" bindtap="toggleTimer">
         <image class="timer-icon" src="{{isTimerRunning ? '/assets/clock_colorful.svg' : '/assets/clock.svg'}}" />
+      </view>
+      <view class="operation-btn reset" bindtap="showResetConfirm">
+        <image class="reset-icon" src="/assets/reset.svg" />
       </view>
     </view>
   </view>
   <!-- 历史记录 -->
   <view class="history-section">
     <view wx:if="{{counterData.history.length > 0}}" class="history-header">
-      <text>操作记录</text>
       <view class="clear-history" bindtap="clearHistory" wx:if="{{counterData.history.length > 0}}">
         <text>清除记录</text>
+      </view>
+      <view class="history-title">
+        <image class='history-icon' src="/assets/history.svg" />
+        <text class="history-text">操作记录</text>
+      </view>
+      <view>
       </view>
     </view>
     <block wx:if="{{counterData.history.length > 0}}">

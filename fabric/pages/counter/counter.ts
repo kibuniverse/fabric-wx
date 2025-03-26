@@ -62,14 +62,14 @@ Page({
       });
     }
   },
-  onTabClick(e) {
+  onTabClick(e: { detail: { index: number } }) {
     const index = e.detail.index;
     this.setData({
       activeTab: index,
     });
   },
 
-  onChange(e) {
+  onChange(e: { detail: { index: number } }) {
     const index = e.detail.index;
     this.setData({
       activeTab: index,

@@ -1,5 +1,9 @@
 .counter-wrapper {
   padding: 44rpx;
+  height: calc(100% - 108rpx);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
 }
 
 /* 头部样式 */
@@ -189,6 +193,23 @@
   color: #333;
 }
 
+.history-title {
+  display: flex;
+  align-items: center;
+}
+
+.history-icon {
+  width: 32rpx;
+  height: 32rpx;
+  margin-right: 12rpx;
+}
+
+.history-text {
+  font-size: 16px;
+  line-height: 22px;
+  color: #00000066;
+}
+
 .clear-history {
   color: #A889C8;
 }
@@ -200,17 +221,7 @@
 
 /* 滚动条样式 */
 ::-webkit-scrollbar {
-  width: 2px;
-}
-
-::-webkit-scrollbar-thumb {
-  background-color: #A889C8;
-  border-radius: 4px;
-}
-
-::-webkit-scrollbar-track {
-  background-color: #f1f1f1;
-  border-radius: 4px;
+  width: 0px;
 }
 
 .history-items-container {
@@ -268,7 +279,7 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 40rpx 0;
+  padding: 0 0 40rpx 0;
 }
 
 .empty-image {

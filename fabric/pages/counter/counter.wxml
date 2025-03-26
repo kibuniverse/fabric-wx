@@ -26,6 +26,8 @@
       <view class="add-counter-btn" bindtap="showAddCounterDialog">
         <dynamic-svg svg-class="add-icon" svg-path="/assets/plus.svg" color="#333333" />
       </view>
+      <view class="tab-line">
+      </view>
     </view>
   </view>
 </view>
