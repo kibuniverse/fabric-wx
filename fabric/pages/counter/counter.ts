@@ -191,12 +191,21 @@ Page({
           }
 
           // 删除 counterkeys中的key
+          // 找到被删除的计数器在原数组中的索引
+          const deletedIndex = this.data.counterKeys.findIndex((key) => key.key === e.detail.id);
           const newCounterKeys = this.data.counterKeys.filter(
             (key) => key.key !== e.detail.id
           );
           wx.setStorageSync(STORAGE_KEYS.COUNTER_KEYS, newCounterKeys);
           this.setData({ counterKeys: newCounterKeys });
-          this.setData({ activeTab: newCounterKeys.length - 1 });
+          
+          // 如果删除的是第一个计数器，则激活第二个计数器（新的第一个）
+          // 否则激活被删除计数器的前一个
+          let newActiveTab = deletedIndex === 0 ? 0 : deletedIndex - 1;
+          // 确保索引有效
+          newActiveTab = Math.min(newActiveTab, newCounterKeys.length - 1);
+          this.setData({ activeTab: newActiveTab });
+          this.showToast("计数器删除成功");
         } else if (res.cancel) {
           // 用户点击了取消按钮
           console.log("Counter deletion canceled");
