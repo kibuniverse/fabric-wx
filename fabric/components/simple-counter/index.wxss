@@ -1,0 +1,70 @@
+/* components/simple-counter/index.wxss */
+.counter-container {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  background-color: #ffffff;
+}
+
+.counter-main {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+}
+
+.counter-btn {
+  width: 120rpx;
+  height: 120rpx;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 15px;
+}
+
+.decrease-btn {
+  background-color: #f0f0f0;
+}
+
+.increase-btn {
+  background-color: #f0f0f0;
+}
+
+.counter-center {
+  flex: 1;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-width: 128rpx;
+}
+
+.counter-value {
+  font-size: 26px;
+  min-width: 40px;
+  text-align: center;
+}
+
+.reset-btn {
+  position: absolute;
+  bottom: 0;
+  right: -96rpx;
+  width: 60rpx;
+  height: 60rpx;
+  border-radius: 50%;
+  background-color: #f0f0f0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.reset-btn image {
+  width: 32rpx;
+  height: 32rpx;
+}
+
+.counter-btn image {
+  width: 64rpx;
+  height: 64rpx;
+}

@@ -1,0 +1,4 @@
+{
+  "usingComponents": { "simple-counter": "/components/simple-counter/index" },
+  "navigationBarTitleText": "图解详情"
+}

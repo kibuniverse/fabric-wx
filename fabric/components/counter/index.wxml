@@ -14,7 +14,7 @@
     <view class="counter-btn minus" bindtap="decrease">
       <image class='minus-icon' src="/assets/minus.svg" />
     </view>
-    <view class="counter-number" style="transform: translateX({{counterData.currentCount < 10 ? '-60' : counterData.currentCount < 100 ? '-30' : '0'}}rpx); transition: transform 0.3s ease;">
+    <view class="counter-number">
       <animate-numbers value="{{counterData.currentCount}}" min='{{0}}' max='{{999}}' options='{{options}}' />
     </view>
     <view class="counter-btn plus" bindtap="increase">

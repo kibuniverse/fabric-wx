@@ -1,3 +1,7 @@
 {
-  "usingComponents": {}
+  "navigationBarTitleText": "知织",
+  "usingComponents": {
+    "action-sheet": "weui-miniprogram/actionsheet/actionsheet",
+    "mp-dialog": "weui-miniprogram/dialog/dialog"
+  }
 }

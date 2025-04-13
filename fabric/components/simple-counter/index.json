@@ -1,0 +1,6 @@
+{
+  "component": true,
+  "usingComponents": {
+    "animate-numbers": "/components/animate-numbers/index"
+  }
+}

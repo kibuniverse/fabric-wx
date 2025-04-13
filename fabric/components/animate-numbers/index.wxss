@@ -4,13 +4,13 @@
   width: 100%;
   height: 100%;
   display: flex;
-  justify-content: space-between;
+  justify-content: center;
   align-items: center;
 }
 .viewport{
-  /* width: 24px;
-  height: 40px; */
   overflow: hidden;
+  /* 确保每列都能够显示完整 */
+  flex-shrink: 0;
 }
 .column-wrap{
   width: 100%;
@@ -24,4 +24,6 @@
   text-align: center;
   font-size: 40px;
   font-weight: bold;
+  /* 确保数字不会被压缩 */
+  white-space: nowrap;
 }

@@ -1,0 +1,136 @@
+/* pages/detail/detail.wxss */
+.detail-container {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  background-color: #ffffff;
+}
+
+/* 图解预览区域样式 */
+.preview-area {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: #f8f8f8;
+  overflow: hidden;
+  position: relative;
+}
+
+/* 可缩放的区域样式 */
+.movable-area {
+  width: 100%;
+  height: 100%;
+  position: relative;
+  overflow: hidden;
+  background-color: transparent;
+}
+
+.movable-view {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  transition: transform 0.1s ease-out;
+  will-change: transform, scale;
+}
+.image-mask {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+}
+
+.preview-image {
+  width: 100%;
+  height: 100%;
+  transform-origin: center center;
+  will-change: transform;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+.preview-pdf {
+  width: 100%;
+  height: 100%;
+}
+
+.loading-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  color: #999999;
+}
+
+/* 数量操作区域样式 */
+.counter-section {
+  padding: 24rpx 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 120rpx;
+  background-color: var(--main-bg-color);
+}
+
+.counter-btn {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 15px;
+}
+
+.decrease-btn {
+  background-color: #f0f0f0;
+}
+
+.increase-btn {
+  background-color: #e6e6fa;
+}
+
+.counter-value {
+  font-size: 26px;
+  min-width: 40px;
+  text-align: center;
+}
+
+.reset-btn {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background-color: #f0f0f0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-left: 15px;
+}
+
+.reset-btn image {
+  width: 16px;
+  height: 16px;
+}
+
+/* 进度指示器 */
+.progress-indicator {
+  position: absolute;
+  bottom: 12px;
+  right: 12px;
+  background-color: rgba(0, 0, 0, 0.5);
+  color: white;
+  padding: 4px 8px;
+  border-radius: 12px;
+  font-size: 12px;
+}
+image {
+  -webkit-touch-callout: none;
+  pointer-events: none;
+  -webkit-user-drag: none;
+  -webkit-tap-highlight-color: transparent;
+}

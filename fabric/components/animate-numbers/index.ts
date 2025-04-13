@@ -45,6 +45,11 @@ Component({
   attached() {
     this.setRange()
     this.renderStyle()
+    
+    // 确保初始渲染时使用的是当前值的列数
+    if (this.properties.value !== undefined) {
+      this.run(this.properties.value)
+    }
   },
 
   /**
@@ -52,12 +57,18 @@ Component({
    */
   methods: {
     setRange() {
-      let { max, min } = this.properties
+      let { max, min, value } = this.properties
 
       min = min >= 0 ? min : 0
       max = max > min ? max : min
-
-      let columns = this.initColumn(max);
+      
+      // 优先使用当前值初始化列，确保宽度正确
+      let columns;
+      if (value !== undefined) {
+        columns = this.initColumn(value);
+      } else {
+        columns = this.initColumn(max);
+      }
 
       this.setData({
         columns,
@@ -75,6 +86,14 @@ Component({
       let digit = (n + '').length,
         arr = [],
         rows = [' ', '0', '1', '2', '3', '4', '5', '6', '7', '8', '9'];
+      
+      // 如果是个位数，只需要一列
+      if (digit === 1) {
+        arr.push(rows.slice(1));
+        return arr;
+      }
+      
+      // 多位数的情况，从右向左构建每一列
       for (let i = 0; i < digit; i++) {
         if (i) {
           arr.unshift(rows)
@@ -93,6 +112,19 @@ Component({
       let valueArr = value.toString().split(''),
         lengths = this.data.columns.length,
         indexs = [];
+      
+      // 处理数字位数与列数不匹配的情况
+      if (value.toString().length !== lengths) {
+        // 重新初始化列
+        const columns = this.initColumn(value);
+        this.setData({ columns });
+        lengths = columns.length;
+        
+        // 确保重新渲染样式，适应新的列数
+        setTimeout(() => {
+          this.renderStyle();
+        }, 0);
+      }
 
       while (valueArr.length) {
         let figure = valueArr.pop();
@@ -102,9 +134,12 @@ Component({
           indexs.unshift(parseInt(figure!))
         }
       }
+      
+      // 对于多位数，填充左侧空位
       while (indexs.length < lengths) {
         indexs.unshift(0)
       }
+      
       this.setData({
         keys: indexs
       })

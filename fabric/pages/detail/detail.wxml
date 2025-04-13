@@ -1,0 +1,61 @@
+<!-- pages/detail/detail.wxml -->
+<view class="detail-container">
+
+  <!-- 计数器区域 -->
+  <view class="counter-section">
+    <simple-counter 
+      id="detail-counter" 
+      bindchange="onCounterChange" 
+      backgroundColor="transparent"
+      enableVibration="{{true}}"
+      enableVoice="{{true}}"
+    ></simple-counter>
+  </view>
+  
+  <!-- 进度指示器 -->
+  <view class="progress-indicator" wx:if="{{itemType === 'pdf'}}">
+    {{currentPage}}/{{totalPages}}
+  </view>
+
+  <!-- 图解预览区域 -->
+  <view class="preview-area">
+    <!-- 图片预览 支持手动缩放 -->
+    <movable-area 
+      wx:if="{{itemType === 'image'}}" 
+      class="movable-area">
+      <movable-view 
+        class="movable-view" 
+        direction="all" 
+        scale="true" 
+        scale-min="0.5" 
+        scale-max="5" 
+        scale-value="{{imageScale}}" 
+        damping="60"
+        friction="2"
+        animation="{{true}}"
+        bind:change="onMovableViewChange"
+        bind:scale="onImageScale">
+        <view class="image-mask"></view>
+        <image 
+          src="{{itemPath}}" 
+          mode="aspectFit" 
+          bindtap="previewImage"
+          class="preview-image"
+          catchlongtap="onLongTap"></image>
+      </movable-view>
+    </movable-area>
+    
+    <!-- PDF预览 -->
+    <pdf-viewer 
+      wx:elif="{{itemType === 'pdf'}}" 
+      filePath="{{itemPath}}" 
+      class="preview-pdf"></pdf-viewer>
+    
+    <!-- 加载中或错误状态 -->
+    <view wx:else class="loading-state">
+      <text>加载中...</text>
+    </view>
+  </view>
+
+
+</view>

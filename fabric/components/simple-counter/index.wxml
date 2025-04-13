@@ -1,0 +1,17 @@
+<!-- components/simple-counter/index.wxml -->
+<view class="counter-container" style="background-color: {{backgroundColor}};">
+  <view class="counter-main">
+    <view class="counter-btn decrease-btn" bindtap="decreaseCount">
+      <image src="/assets/minus.svg" mode="aspectFit"></image>
+    </view>
+    <view class="counter-center">
+      <animate-numbers value="{{count}}" min='{{0}}' max='{{999}}' options='{{options}}' />
+    </view>
+    <view class="counter-btn increase-btn" bindtap="increaseCount">
+      <image src="/assets/plus.svg" mode="aspectFit"></image>
+    </view>
+  </view>
+  <view class="reset-btn" bindtap="resetCount">
+    <image src="/assets/reset.svg" mode="aspectFit"></image>
+  </view>
+</view>
