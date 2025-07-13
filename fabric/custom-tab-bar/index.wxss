@@ -37,5 +37,4 @@
 
 .tab-bar-item view {
   font-size: 20rpx;
-  line-height: 1;
 }

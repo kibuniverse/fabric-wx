@@ -1,9 +1,11 @@
 .counter-wrapper {
   padding: 44rpx;
-  height: calc(100% - 108rpx);
+  height: calc(100% - 138rpx);
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  margin-top: 4rpx;
+  border-top: 2rpx solid #0000001a;
 }
 
 /* 头部样式 */
@@ -23,7 +25,7 @@
 
 .counter-name {
   font-size: 32rpx;
-  color: #333;
+  color: var(--main-default-gray);
 }
 
 .counter-delete-btn {
@@ -47,6 +49,7 @@
 }
 
 .target-count {
+  flex-shrink: 0;
   color: #333333;
   font-size: 32rpx;
   font-weight: 500;
@@ -105,7 +108,7 @@
 .timer-display {
   text-align: center;
   font-size: 32rpx;
-  color: #666;
+  color: var(--main-default-gray);
   margin-bottom: 52rpx;
 }
 
@@ -130,6 +133,8 @@
 }
 
 .target-count {
+  display: flex;
+  align-items: center;
   color: #333333;
   font-size: 32rpx;
   font-weight: 500;
@@ -138,6 +143,7 @@
 }
 
 .target-num {
+  font-size: 40rpx;
   color: var(--main-color);
 }
 
@@ -160,9 +166,6 @@
   height: 42rpx;
 }
 
-.timer {
-  padding: 21rpx 21rpx 18rpx 21rpx;
-}
 
 .timer-icon {
   width: 37rpx;
@@ -212,11 +215,33 @@
 
 .clear-history {
   color: #A889C8;
+  font-size: 14px;
+  font-weight: 400;
 }
 
+::-webkit-scrollbar {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+  background: transparent !important;
+}
+
+/* 微信小程序 scroll-view 隐藏滚动条 */
+scroll-view {
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+scroll-view::-webkit-scrollbar {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+  background: transparent !important;
+}
 .history-list {
   max-height: 400rpx;
   overflow-y: auto;
+  
 }
 
 /* 滚动条样式 */

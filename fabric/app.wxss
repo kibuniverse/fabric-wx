@@ -4,6 +4,8 @@ page {
   --main-color: #A889C8;
   --main-bg-color: #E6E6FA;
   --td-brand-color: #A889C8;
+  --main-default-black: #212121ff;
+  --main-default-gray: #00000066;
   --tab-bar-height: 96rpx;
 }
 .container {

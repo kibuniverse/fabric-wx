@@ -16,6 +16,7 @@ interface CounterData {
     startTimestamp: number;
     elapsedTime: number;
   };
+  showDeleteBtn: boolean;
 }
 
 const DEFAULT_COUNTER_DATA: CounterData = {
@@ -28,6 +29,7 @@ const DEFAULT_COUNTER_DATA: CounterData = {
     startTimestamp: 0,
     elapsedTime: 0,
   },
+  showDeleteBtn: true,
 };
 
 // 通用的提示配置
@@ -41,11 +43,20 @@ const voiceConfig = {
   enableOperate: ["increase", "decrease"],
 };
 
+// 在 methods 外部直接暴露 stopTimer，保证父组件可直接调用
+function stopTimerProxy(this: any) {
+  if (this && this.stopTimer) {
+    this.stopTimer();
+  } else if (this && this.methods && this.methods.stopTimer) {
+    this.methods.stopTimer.call(this);
+  }
+}
+
 Component({
   properties: {
     onClickDelete: {
       type: Object,
-      value: () => {}, // 默认值为 null
+      value: () => { }, // 默认值为 null
     },
     vibrationOn: {
       type: Boolean,
@@ -58,6 +69,10 @@ Component({
     storageKey: {
       type: String,
       value: "default_counter",
+    },
+    showDeleteBtn: {
+      type: Boolean,
+      value: true,
     },
   },
   pageLifetimes: {
@@ -86,10 +101,15 @@ Component({
       { text: "取消", className: "cancel-btn" },
       { text: "确定", className: "confirm-btn" },
     ],
+    historyScrollTop: 0, // 新增 scrollTop 绑定
   },
 
   lifetimes: {
     attached() {
+      console.log('this.properties.showDeleteBtn', this.properties.showDeleteBtn)
+      this.setData({
+        showDeleteBtn: this.properties.showDeleteBtn,
+      });
       this.loadCounterData();
       this.restoreTimerState();
     },
@@ -103,6 +123,7 @@ Component({
     loadCounterData() {
       try {
         const savedData = wx.getStorageSync(this.properties.storageKey);
+        console.log('saveDatat', savedData)
         if (savedData) {
           const counterData = {
             ...DEFAULT_COUNTER_DATA,
@@ -144,6 +165,10 @@ Component({
       }
 
       if (type === "reset") {
+        if (this.data.counterData.currentCount === 0) {
+          this.showToast("当前行数为0，无需重置");
+          return;
+        }
         this.showModal({
           title: "确认重置",
           content: "确定要重置计数器吗？",
@@ -167,7 +192,7 @@ Component({
 
       const newCount = currentCount + (isIncrease ? 1 : -1);
       if (isIncrease && newCount === targetCount) {
-        this.showToast("🎉已达到目标行数");
+        this.showToast("🎉 已达到目标行数");
       }
       await this.updateCount(newCount, isIncrease ? "行+1" : "行-1");
     },
@@ -216,12 +241,13 @@ Component({
         id: Date.now(), // 添加唯一标识符
       };
 
-      // 更新历史记录列表
-      const newHistory = [newHistoryItem, ...currentHistory].slice(0, 50);
+      // 更新历史记录列表，只保留最近20条
+      const newHistory = [newHistoryItem, ...currentHistory].slice(0, 20);
 
       // 设置新的历史记录
       this.setData({
         "counterData.history": newHistory,
+        historyScrollTop: 0 // 新增 scrollTop 绑定
       });
 
       // 延迟移除动画类
@@ -428,3 +454,15 @@ Component({
     },
   },
 });
+// 兼容 selectComponent/AllComponents 调用
+// @ts-ignore
+Component.prototype.stopTimer = stopTimerProxy;
+
+/**
+ * 该文件为计数器组件（counter）的主逻辑文件：
+ * - 管理计数器的数据（名称、目标、当前值、历史记录、计时器等）
+ * - 提供计数操作（加、减、重置）、目标设置、历史记录、计时器等功能
+ * - 支持震动、声音、删除等交互
+ * - 历史记录只保留最近20条，超出自动丢弃旧记录
+ * - 组件数据持久化到本地 storage，支持多计数器独立存储
+ */

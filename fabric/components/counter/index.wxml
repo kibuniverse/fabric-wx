@@ -55,7 +55,7 @@
       </view>
     </view>
     <block wx:if="{{counterData.history.length > 0}}">
-      <scroll-view scroll-y class="history-list">
+      <scroll-view scroll-y class="history-list" id="historyList" scroll-top="{{historyScrollTop}}">
         <block wx:for="{{counterData.history}}" wx:key="index">
           <view class="history-item {{item.isNew ? 'slide-in' : ''}}">
             <view class="history-time">{{item.time}}</view>

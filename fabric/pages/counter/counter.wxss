@@ -2,6 +2,7 @@
 page {
   background-color: #ffffff;
   height: calc(100% - var(--tab-bar-height) - env(safe-area-inset-bottom));
+  --tab-font-size: 16px;
 }
 
 .page-container {
@@ -14,7 +15,7 @@ page {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 40rpx 30rpx 20rpx;
+  padding: 40rpx 30rpx 0;
   background: #fff;
   margin-bottom: 20rpx;
 }
@@ -27,7 +28,7 @@ page {
 
 .title-operate {
   display: flex;
-  gap: 20rpx;
+  gap: 32rpx;
 }
 
 .operate-icon {
@@ -59,48 +60,42 @@ page {
   height: calc(100% - 140rpx);
 }
 
-.weui-tabs-bar__wrp {
-  height: 60rpx;
-}
-
-.weui-tabs {
-  height: 100%;
-  width: 100%;
-}
-
-.custom-weui-tabs {
-  font-size: 16px;
-  font-weight: 500;
-  line-height: 44rpx;
-  margin-left: 44rpx;
-  font-family: "PingFang SC";
-  height: 60rpx;
-}
-
-.tab-bar-title-selected {
-  color: var(--main-color);
-  border-bottom: none !important;
-  position: relative;
-}
-
-.tab-bar-title-selected::after {
-  content: "";
-  position: absolute;
-  bottom: 0rpx;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 40rpx;
-  height: 4rpx;
-  background-color: var(--main-color);
-  border-radius: 3rpx;
-}
-
-.weui-tabs-swiper {
-  height: 100%;
+.nav-class {
+  background-color: red !important;
 }
 
 .tab-content {
   height: calc(100% - 60rpx);
+}
+
+.custom-nav-left {
+  width: 22rpx;
+}
+.custom-nav-right {
+  width: 100rpx;
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.scroll-shadow {
+  position: absolute;
+  left: -30px;
+  top: 0;
+  width: 30px;
+  height: 100%;
+  background: linear-gradient(to right, transparent, rgba(255, 255, 255, 0.8));
+  pointer-events: none;
+  z-index: 10;
+}
+
+.van-tab {
+  flex: none !important;
+  padding: 0 22rpx !important;
+}
+
+.van-tab:first-child {
+  padding-left: 44rpx;
 }
 
 .tabs-header {
@@ -109,23 +104,26 @@ page {
   height: 100%;
 }
 
+.tab-content-container {
+  width: 60rpx;
+}
+
 .add-counter-btn {
   position: absolute;
   right: 0rpx;
   top: -7rpx;
   width: 100rpx;
-  height: 68rpx;
+  height: 88rpx;
   display: flex;
   justify-content: center;
   align-items: center;
-  background: linear-gradient(
-    to right,
-    rgba(255, 255, 255, 0),
-    rgba(255, 255, 255, 1) 80%,
-    rgba(255, 255, 255, 1)
-  );
+  background: linear-gradient(to right,
+      rgba(255, 255, 255, 0),
+      rgba(255, 255, 255, 1) 80%,
+      rgba(255, 255, 255, 1));
   z-index: 100;
 }
+
 .tab-line {
   position: absolute;
   top: 64rpx;
@@ -134,6 +132,10 @@ page {
   height: 1px;
   background-color: #0000001A;
   z-index: 11;
+}
+
+.tab-custom-line {
+  border: 1px sloid red;
 }
 
 .weui-tabs-bar__wrp {
@@ -150,4 +152,25 @@ page {
   border-radius: 8rpx;
   padding: 20rpx;
   text-align: center;
+}
+
+/* 隐藏所有滚动条（兼容微信小程序和主流浏览器） */
+::-webkit-scrollbar {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+  background: transparent !important;
+}
+
+/* 微信小程序 scroll-view 隐藏滚动条 */
+scroll-view {
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+scroll-view::-webkit-scrollbar {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+  background: transparent !important;
 }

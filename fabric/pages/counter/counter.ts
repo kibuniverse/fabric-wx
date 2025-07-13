@@ -74,11 +74,24 @@ Page({
     this.setData({
       activeTab: index,
     });
+    wx.nextTick(() => {
+      // 切换 tab 后，确保 counter 组件已渲染再暂停计时器
+      const components = this.selectAllComponents('#counter');
+      console.log('components', components);
+      if (components && components.length) {
+        components.forEach((comp) => {
+          if (comp && comp.stopTimer) {
+            comp.stopTimer();
+          }
+        });
+      }
+    });
   },
   showToast(message: string) {
-    const toast = this.selectComponent("#toast");
-    if (!toast) return;
-    toast.showToast(message);
+    wx.showToast({
+      title: message,
+      icon: "none",
+    });
   },
 
   toggleVibration() {
@@ -160,6 +173,19 @@ Page({
     // 更新本地存储和数据
     wx.setStorageSync(STORAGE_KEYS.COUNTER_KEYS, newCounterKeys);
 
+    const DEFAULT_COUNTER_DATA = {
+      name: newCounterName.trim(),
+      targetCount: 999,
+      currentCount: 0,
+      startTime: 0,
+      history: [],
+      timerState: {
+        startTimestamp: 0,
+        elapsedTime: 0,
+      },
+    };
+    wx.setStorageSync(newKey, DEFAULT_COUNTER_DATA);
+
     this.setData({
       counterKeys: newCounterKeys,
       showAddCounter: false,
@@ -182,13 +208,8 @@ Page({
           // 用户点击了确认按钮
           // 如果只剩余了一个计时器，则提示不能删除
           const counterKeys = this.data.counterKeys;
-          if (counterKeys.length === 1) {
-            wx.showToast({
-              title: "不能删除最后一个计数器",
-              icon: "none",
-            });
-            return;
-          }
+          const deletedCounter = counterKeys.find((key) => key.key === e.detail.id);
+          const deletedCounterTitle = deletedCounter?.title;
 
           // 删除 counterkeys中的key
           // 找到被删除的计数器在原数组中的索引
@@ -198,14 +219,15 @@ Page({
           );
           wx.setStorageSync(STORAGE_KEYS.COUNTER_KEYS, newCounterKeys);
           this.setData({ counterKeys: newCounterKeys });
-          
+
           // 如果删除的是第一个计数器，则激活第二个计数器（新的第一个）
           // 否则激活被删除计数器的前一个
           let newActiveTab = deletedIndex === 0 ? 0 : deletedIndex - 1;
           // 确保索引有效
           newActiveTab = Math.min(newActiveTab, newCounterKeys.length - 1);
           this.setData({ activeTab: newActiveTab });
-          this.showToast("计数器删除成功");
+          this.showToast(`计数器 ${deletedCounterTitle} 已删除`);
+          this.selectComponent('#tabs').resize();
         } else if (res.cancel) {
           // 用户点击了取消按钮
           console.log("Counter deletion canceled");

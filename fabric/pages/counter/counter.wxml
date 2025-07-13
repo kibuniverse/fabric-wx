@@ -15,28 +15,35 @@
     </view>
   </view>
   <view class="tab-container">
-    <view class="tabs-header">
-      <mp-tabs tab-class="custom-weui-tabs" tab-underline-color="#A889C8" tabs="{{counterKeys}}" activeTab="{{activeTab}}" swiperClass="weui-tabs-swiper" bindtabclick="onTabClick" bindchange="onChange" activeClass="tab-bar-title-selected">
-        <block wx:for="{{counterKeys}}" wx:key="title">
-          <view class="tab-content" data-set="{{item.key}}" slot="tab-content-{{index}}">
-            <counter vibrationOn="{{isVibrationOn}}" voiceOn="{{isVoiceOn}}" storageKey="{{item.key}}" bindhandleCounterDelete="handleCounterDelete" bind:onDelete="handleCounterDelete" />
+    <van-tabs line-width="16" swipe-threshold="2" title-active-color="#A889C8" active="{{activeTab}}" bind:change="onChange" swipeable animated color="#A889C8" id="tabs">
+      <view slot="nav-right" class="custom-nav-right">
+        <view class="scroll-shadow"></view>
+        <view class="add-counter-btn" bindtap="showAddCounterDialog">
+          <dynamic-svg svg-class="add-icon" svg-path="/assets/plus.svg" color="#333333" />
+        </view>
+      </view>
+      <view slot="nav-left" class="custom-nav-left">
+        <view class="custom-nav-left"/>
+      </view>
+      <block wx:for="{{counterKeys}}" wx:key="title">
+        <van-tab tab-class="tab-content-container" 
+          title="{{item.title.length > 8 ? item.title.slice(0, 8) + '…' : item.title}}"
+          title-class="tab-title"
+          title-style="max-width: 260rpx; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;"
+          title="{{item.title}}"
+        >
+          <view class="tab-content" data-set="{{item.key}}">
+            <counter showDeleteBtn="{{counterKeys.length > 1}}" vibrationOn="{{isVibrationOn}}" voiceOn="{{isVoiceOn}}" storageKey="{{item.key}}" bindhandleCounterDelete="handleCounterDelete" bind:onDelete="handleCounterDelete" />
           </view>
-        </block>
-      </mp-tabs>
-      <view class="add-counter-btn" bindtap="showAddCounterDialog">
-        <dynamic-svg svg-class="add-icon" svg-path="/assets/plus.svg" color="#333333" />
-      </view>
-      <view class="tab-line">
-      </view>
-    </view>
+        </van-tab>
+      </block>
+    </van-tabs>
   </view>
 </view>
-
 <!-- 添加计数器对话框 -->
 <mp-dialog title="添加新计数器" buttons="{{addCounterButtons}}" show="{{showAddCounter}}" bindbuttontap="handleAddCounterDialogButton">
   <view class="dialog-content">
-    <input type="text" value="{{newCounterName}}" bindinput="onNewCounterNameInput" placeholder="请输入计数器名称" focus="{{showAddCounter}}" maxlength="10" />
+    <input type="text" value="{{newCounterName}}" bindinput="onNewCounterNameInput" placeholder="请输入计数器名称" focus="{{showAddCounter}}" maxlength="30" />
   </view>
 </mp-dialog>
-
 <toast id="toast" duration="2000" />

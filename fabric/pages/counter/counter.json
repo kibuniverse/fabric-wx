@@ -6,6 +6,8 @@
     "dynamic-svg": "/components/dynamic-svg/index",
     "toast": "/components/toast/index",
     "counter": "/components/counter/index",
-    "mp-tabs": "@miniprogram-component-plus/tabs"
+    "van-button": "@vant/weapp/button/index",
+    "van-tab": "@vant/weapp/tab/index",
+    "van-tabs": "@vant/weapp/tabs/index"
   }
 }
