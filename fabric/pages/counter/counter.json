@@ -9,5 +9,10 @@
     "van-button": "@vant/weapp/button/index",
     "van-tab": "@vant/weapp/tab/index",
     "van-tabs": "@vant/weapp/tabs/index"
+  },
+   "globalStyle": {
+    "rpxCalcMaxDeviceWidth": 768,
+    "rpxCalcBaseDeviceWidth": 375,
+    "rpxCalcIncludeWidth": 750
   }
 }

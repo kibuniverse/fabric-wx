@@ -1,6 +1,6 @@
 .counter-wrapper {
   padding: 44rpx;
-  height: calc(100% - 138rpx);
+  height: calc(100vh - 500rpx);
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -185,6 +185,7 @@
   background: #fff;
   border-radius: 16rpx;
   padding: 20rpx;
+  position: relative;
 }
 
 .history-header {
@@ -232,16 +233,17 @@ scroll-view {
   scrollbar-width: none;
   -ms-overflow-style: none;
 }
+
 scroll-view::-webkit-scrollbar {
   display: none !important;
   width: 0 !important;
   height: 0 !important;
   background: transparent !important;
 }
+
 .history-list {
-  max-height: 400rpx;
+  height: 328rpx;
   overflow-y: auto;
-  
 }
 
 /* 滚动条样式 */

@@ -27,13 +27,12 @@
       </view>
       <block wx:for="{{counterKeys}}" wx:key="title">
         <van-tab tab-class="tab-content-container" 
-          title="{{item.title.length > 8 ? item.title.slice(0, 8) + '…' : item.title}}"
+          title="{{item.title}}"
           title-class="tab-title"
           title-style="max-width: 260rpx; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;"
-          title="{{item.title}}"
         >
           <view class="tab-content" data-set="{{item.key}}">
-            <counter showDeleteBtn="{{counterKeys.length > 1}}" vibrationOn="{{isVibrationOn}}" voiceOn="{{isVoiceOn}}" storageKey="{{item.key}}" bindhandleCounterDelete="handleCounterDelete" bind:onDelete="handleCounterDelete" />
+            <counter id="counter" showDeleteBtn="{{counterKeys.length > 1}}" vibrationOn="{{isVibrationOn}}" voiceOn="{{isVoiceOn}}" storageKey="{{item.key}}" bindhandleCounterDelete="handleCounterDelete" bind:onDelete="handleCounterDelete" />
           </view>
         </van-tab>
       </block>
@@ -43,7 +42,7 @@
 <!-- 添加计数器对话框 -->
 <mp-dialog title="添加新计数器" buttons="{{addCounterButtons}}" show="{{showAddCounter}}" bindbuttontap="handleAddCounterDialogButton">
   <view class="dialog-content">
-    <input type="text" value="{{newCounterName}}" bindinput="onNewCounterNameInput" placeholder="请输入计数器名称" focus="{{showAddCounter}}" maxlength="30" />
+    <input type="text" value="{{newCounterName}}" bindinput="onNewCounterNameInput" placeholder="请输入计数器名称" focus="{{showAddCounter}}" maxlength="20" />
   </view>
 </mp-dialog>
 <toast id="toast" duration="2000" />

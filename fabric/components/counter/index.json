@@ -3,6 +3,7 @@
   "usingComponents": {
     "dynamic-svg": "/components/dynamic-svg/index",
     "animate-numbers": "/components/animate-numbers/index",
-    "mp-dialog": "weui-miniprogram/dialog/dialog"
+    "mp-dialog": "weui-miniprogram/dialog/dialog",
+    "van-dialog": "@vant/weapp/dialog/index"
   }
 }

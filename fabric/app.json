@@ -1,8 +1,8 @@
 {
   "pages": [
+    "pages/counter/counter",
     "pages/home/home",
     "pages/library/library",
-    "pages/counter/counter",
     "pages/settings/settings",
     "pages/detail/detail"
   ],
@@ -16,28 +16,5 @@
   "useExtendedLib": {
     "weui": true
   },
-  "tabBar": {
-    "custom": true,
-    "color": "#000000",
-    "selectedColor": "#000000",
-    "backgroundColor": "#000000",
-    "list": [
-      {
-        "pagePath": "pages/home/home",
-        "text": "首页"
-      },
-      {
-        "pagePath": "pages/library/library",
-        "text": "资料库"
-      },
-      {
-        "pagePath": "pages/counter/counter",
-        "text": "计数器"
-      },
-      {
-        "pagePath": "pages/settings/settings",
-        "text": "设置"
-      }
-    ]
-  }
+  "resizable": true
 }

@@ -1,3 +1,4 @@
+import Dialog from "@vant/weapp/dialog/dialog";
 import { vibrate } from "../../utils/vibrate";
 
 interface CounterData {
@@ -77,7 +78,6 @@ Component({
   },
   pageLifetimes: {
     hide() {
-      console.log("页面隐藏，组件已感知");
       // 在这里可以执行一些逻辑，例如保存数据或暂停操作
       this.stopTimer();
     },
@@ -106,7 +106,6 @@ Component({
 
   lifetimes: {
     attached() {
-      console.log('this.properties.showDeleteBtn', this.properties.showDeleteBtn)
       this.setData({
         showDeleteBtn: this.properties.showDeleteBtn,
       });
@@ -123,7 +122,6 @@ Component({
     loadCounterData() {
       try {
         const savedData = wx.getStorageSync(this.properties.storageKey);
-        console.log('saveDatat', savedData)
         if (savedData) {
           const counterData = {
             ...DEFAULT_COUNTER_DATA,
@@ -143,24 +141,29 @@ Component({
     saveCounterData() {
       wx.setStorageSync(this.properties.storageKey, this.data.counterData);
     },
-
+    playVoice() {
+      const innerAudioContext = wx.createInnerAudioContext();
+      innerAudioContext.autoplay = true;
+      innerAudioContext.src = "/assets/audio_voice.m4a";
+      innerAudioContext.onPlay(() => {
+        console.log("开始播放");
+      });
+      innerAudioContext.onError((res) => {
+        console.log(res.errMsg);
+        console.log(res.errCode);
+      });
+    },
     // 计数器操作相关
     async handleCountChange(type: "increase" | "decrease" | "reset") {
       const { currentCount, targetCount } = this.data.counterData;
-      if (this.properties.voiceOn && voiceConfig.enableOperate.includes(type)) {
-        const innerAudioContext = wx.createInnerAudioContext();
-        innerAudioContext.autoplay = true;
-        innerAudioContext.src = "/assets/audio_voice.m4a";
-        innerAudioContext.onPlay(() => {
-          console.log("开始播放");
-        });
-        innerAudioContext.onError((res) => {
-          console.log(res.errMsg);
-          console.log(res.errCode);
-        });
+      const canShowVoice =
+        this.properties.voiceOn && voiceConfig.enableOperate.includes(type);
+      if (canShowVoice) {
+        this.playVoice();
       }
 
-      if (this.properties.vibrationOn) {
+      const canShowVibration = this.properties.vibrationOn;
+      if (canShowVibration) {
         vibrate();
       }
 
@@ -191,10 +194,19 @@ Component({
       }
 
       const newCount = currentCount + (isIncrease ? 1 : -1);
+      this.updateCount(newCount, isIncrease ? "行+1" : "行-1");
+
       if (isIncrease && newCount === targetCount) {
-        this.showToast("🎉 已达到目标行数");
+        Dialog.confirm({
+          context: this,
+          title: "🎉\u00A0\u00A0\u00A0已达到目标行数",
+          message: "已经完成了上次设置的目标～",
+          cancelButtonText: "重置当前行",
+          confirmButtonText: "继续织",
+        }).catch(() => {
+          this.updateCount(0, "重置计数");
+        });
       }
-      await this.updateCount(newCount, isIncrease ? "行+1" : "行-1");
     },
 
     async updateCount(newCount: number, action: string) {
@@ -247,7 +259,7 @@ Component({
       // 设置新的历史记录
       this.setData({
         "counterData.history": newHistory,
-        historyScrollTop: 0 // 新增 scrollTop 绑定
+        historyScrollTop: 0, // 新增 scrollTop 绑定
       });
 
       // 延迟移除动画类
@@ -279,75 +291,81 @@ Component({
       // 显示清除成功提示
       this.showToast("记录已清除");
     },
-
-    // 计时器相关
-    restoreTimerState() {
-      const { counterData } = this.data;
-      if (counterData) {
-        const totalElapsed = this.calculateTotalElapsed();
-        this.setData({
-          timerDisplay: this.formatTime(totalElapsed),
-          isTimerRunning: false,
-        });
-      }
-    },
-
-    calculateTotalElapsed(): number {
-      const { elapsedTime } = this.data.counterData.timerState;
-      return elapsedTime;
-    },
-
     toggleTimer() {
       if (this.data.isTimerRunning) {
         this.stopTimer();
       } else {
-        this.startTimer(this.data.counterData.timerState.elapsedTime);
+        this.startTimer();
       }
     },
 
-    startTimer(initialElapsed: number = 0) {
+    // 计时器相关
+    startTimer() {
+      // 1. 读取已累计的 elapsedTime
+      let initialElapsed = this.data.counterData.timerState.elapsedTime || 0;
+      // 2. 记录当前开始时间
       const startTime = Date.now();
+      // 3. 清理旧的定时器
+      this.clearTimer();
+      // 4. 启动新定时器
       const timerInterval = setInterval(() => {
         const elapsed = initialElapsed + (Date.now() - startTime);
         this.setData({
           timerDisplay: this.formatTime(elapsed),
         });
       }, 1000);
-
+      // 5. 更新状态
       const counterData = this.data.counterData;
       counterData.timerState.startTimestamp = startTime;
-
       this.setData({
         timerInterval,
         isTimerRunning: true,
         counterData,
       });
+      // 6. 立即存储当前状态
       this.saveCounterData();
     },
 
     stopTimer() {
+      // 1. 清理定时器
       this.clearTimer();
-
+      // 2. 计算累计用时
       const counterData = this.data.counterData;
-      counterData.timerState.elapsedTime = this.getCurrentElapsedTime();
-
+      const elapsed = this.getCurrentElapsedTime();
+      counterData.timerState.elapsedTime = elapsed;
+      counterData.timerState.startTimestamp = 0;
+      // 3. 更新状态
       this.setData({
         counterData,
         isTimerRunning: false,
       });
+      // 4. 存储当前状态
       this.saveCounterData();
     },
 
     clearTimer() {
       if (this.data.timerInterval) {
         clearInterval(this.data.timerInterval);
+        this.setData({ timerInterval: 0 });
       }
     },
 
     getCurrentElapsedTime(): number {
       const { startTimestamp, elapsedTime } = this.data.counterData.timerState;
-      if (!startTimestamp) return elapsedTime || 0;
+      if (!this.data.isTimerRunning || !startTimestamp) return elapsedTime || 0;
       return (elapsedTime || 0) + (Date.now() - startTimestamp);
+    },
+
+    // 组件挂载时自动恢复计时器状态
+    restoreTimerState() {
+      const { counterData } = this.data;
+      if (counterData) {
+        const totalElapsed = counterData.timerState.elapsedTime || 0;
+        this.setData({
+          timerDisplay: this.formatTime(totalElapsed),
+          isTimerRunning: false,
+        });
+      }
     },
 
     // 格式化相关

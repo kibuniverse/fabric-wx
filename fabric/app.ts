@@ -7,6 +7,9 @@ App<IAppOption>({
     logs.unshift(Date.now())
     wx.setStorageSync('logs', logs)
 
+    const info = wx.getSystemInfoSync()
+    console.log('info', info)
+
     // 登录
     wx.login({
       success: res => {

@@ -26,10 +26,12 @@
   <!-- 操作按钮 -->
   <view class="operation-buttons">
     <view class="operation-buttons-left">
-      <view class="counter-delete-btn" bindtap="handleCounterDelete">
-        <image class="delete-icon" src="/assets/delete.svg" />
-        <view class="delete-text">删除计数器</view>
-      </view>
+      <block wx:if="{{showDeleteBtn}}">
+        <view class="counter-delete-btn" bindtap="handleCounterDelete">
+          <image class="delete-icon" src="/assets/delete.svg" />
+          <view class="delete-text">删除计数器</view>
+        </view>
+      </block>
     </view>
     <view class="operation-buttons-right">
       <view class="operation-btn timer {{isTimerRunning ? 'timer-start' : 'timer-stop'}}" bindtap="toggleTimer">
@@ -63,6 +65,7 @@
             <view class="history-count">{{item.count}}</view>
           </view>
         </block>
+        <view class="history-bottom-shadow"></view>
       </scroll-view>
     </block>
     <view wx:else class="history-empty">
@@ -75,4 +78,5 @@
       <input type="number" value="{{targetInputValue}}" bindinput="onTargetInput" focus="{{showTargetInput}}" maxlength="3" />
     </view>
   </mp-dialog>
+  <van-dialog id="van-dialog" confirm-button-color="#A889C8" />
 </view>

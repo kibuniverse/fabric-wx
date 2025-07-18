@@ -39,7 +39,6 @@ Page({
     const keys =
       wx.getStorageSync(STORAGE_KEYS.COUNTER_KEYS) || defaultCounterKeys;
     this.setData({ counterKeys: keys });
-    console.log("keys", keys);
     const activeKey = wx.getStorageSync(STORAGE_KEYS.ACTIVE_KEY);
     this.setData({ activeKey });
     // Load saved states from storage
@@ -58,7 +57,7 @@ Page({
   onShow() {
     if (typeof this.getTabBar === "function" && this.getTabBar()) {
       this.getTabBar().setData({
-        selected: 2,
+        selected: 1,
       });
     }
   },
