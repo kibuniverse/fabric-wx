@@ -396,18 +396,13 @@ Component({
         targetInputValue: String(this.data.counterData.targetCount),
       });
     },
+    closeModifyTargetModal() {
+      this.cancelTargetInput()
+    },
     onTargetInput(e: any) {
       this.setData({
         targetInputValue: e.detail.value,
       });
-    },
-    tapDialogButton(e: any) {
-      const { index } = e.detail;
-      if (index === 0) {
-        this.cancelTargetInput();
-      } else if (index === 1) {
-        this.confirmTargetInput();
-      }
     },
     cancelTargetInput() {
       this.setData({

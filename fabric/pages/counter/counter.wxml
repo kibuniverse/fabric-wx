@@ -15,7 +15,7 @@
     </view>
   </view>
   <view class="tab-container">
-    <van-tabs line-width="16" swipe-threshold="2" title-active-color="#A889C8" active="{{activeTab}}" bind:change="onChange" swipeable animated color="#A889C8" id="tabs">
+    <van-tabs line-width="16" custom-class="my-tabs" swipe-threshold="2" title-active-color="#A889C8" active="{{activeTab}}" bind:change="onChange" swipeable animated color="#A889C8" id="tabs">
       <view slot="nav-right" class="custom-nav-right">
         <view class="scroll-shadow"></view>
         <view class="add-counter-btn" bindtap="showAddCounterDialog">

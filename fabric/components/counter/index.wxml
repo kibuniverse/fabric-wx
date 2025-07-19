@@ -73,10 +73,10 @@
     </view>
   </view>
   <!-- 目标行数输入弹窗 -->
-  <mp-dialog title="设置目标行数" buttons="{{modifyCounterButton}}" show="{{showTargetInput}}" bindbuttontap="tapDialogButton">
+  <van-dialog use-slot z-index="9999" overlay-style="{{overlayStyleObj}}" title="设置目标行数" show="{{ showTargetInput }}" show-cancel-button bind:close="closeModifyTargetModal" bind:confirm="confirmTargetInput" confirm-button-color="#A889C8">
     <view class="modal-content">
-      <input type="number" value="{{targetInputValue}}" bindinput="onTargetInput" focus="{{showTargetInput}}" maxlength="3" />
+      <input type="number" placeholder="请输入目标行数" value="{{targetInputValue}}" bindinput="onTargetInput" focus="{{showTargetInput}}" maxlength="3" />
     </view>
-  </mp-dialog>
-  <van-dialog id="van-dialog" confirm-button-color="#A889C8" />
+  </van-dialog>
+  <van-dialog z-index="9999" id="van-dialog" confirm-button-color="#A889C8" />
 </view>
