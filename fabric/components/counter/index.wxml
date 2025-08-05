@@ -79,7 +79,7 @@
       <input type="number" class="modal-content-input" placeholder="请输入目标行数" value="{{targetInputValue}}" bindinput="onTargetInput" focus="{{showTargetInput}}" maxlength="3" />
     </view>
   </van-dialog>
-  <van-dialog use-slot z-index="9999" title="修改计数器名称" transition="fade" show="{{ showModifyCounterName }}" show-cancel-button bind:close="closeModifyCounterNameModal" bind:confirm="confirmModifyInputData" confirm-button-color="#A889C8">
+  <van-dialog use-slot z-index="9999" title="修改计数器名称" transition="fade" show="{{ showModifyCounterName }}" show-cancel-button bind:close="closeModifyCounterNameModal" bind:confirm="confirmModifyCounterName" confirm-button-color="#A889C8">
     <view class="modal-content">
       <input class="modal-content-input" placeholder="请输入计数器名称" value="{{targetInputValue}}" bindinput="onTargetInput" maxlength="30" />
     </view>
