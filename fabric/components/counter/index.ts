@@ -102,6 +102,8 @@ Component({
       { text: "确定", className: "confirm-btn" },
     ],
     historyScrollTop: 0, // 新增 scrollTop 绑定
+    showModifyCounterName: false, // 控制修改计数器名称的弹窗显示
+    showModifyCount: false, // 控制修改当前行数的弹窗显示
   },
 
   lifetimes: {
@@ -208,6 +210,69 @@ Component({
         });
       }
     },
+    handleClickModifyCount() {
+      this.setData({
+        showModifyCount: true,
+        targetInputValue: String(this.data.counterData.currentCount),
+      });
+    },
+    closeModifyCountModal() {
+      this.setData({
+        showModifyCount: false,
+        targetInputValue: String(this.data.counterData.currentCount),
+      });
+    },
+    confirmModifyCountData() {
+      const newCount = parseInt(this.data.targetInputValue);
+      if (isNaN(newCount)) {
+        wx.showToast({
+          title: "请输入有效数字",
+          icon: "none",
+        });
+        return;
+      }
+      if (newCount < 0) {
+        wx.showToast({
+          title: "行数不能小于0",
+          icon: "none",
+        });
+        return;
+      }
+      this.updateCount(newCount, `修改行数为${newCount}`);
+    },
+
+    handleClickModifyCounterName() {
+      this.setData({
+        showModifyCounterName: true,
+        targetInputValue: this.data.counterData.name,
+      });
+    },
+    closeModifyCounterNameModal() {
+      this.setData({
+        showModifyCounterName: false,
+        targetInputValue: this.data.counterData.name,
+      });
+    },
+    confirmModifyCounterName() {
+      const newName = this.data.targetInputValue.trim();
+      if (newName === "") {
+        wx.showToast({
+          title: "计数器名称不能为空",
+          icon: "none",
+        });
+        return;
+      }
+      this.setData({
+        "counterData.name": newName,
+        showModifyCounterName: false,
+        targetInputValue: newName
+      });
+      this.saveCounterData();
+      this.triggerEvent('modifyName', { data: { name: newName } }, {
+        bubbles: true,     // 是否冒泡
+        composed: true     // 是否跨组件边界
+      });
+    },
 
     async updateCount(newCount: number, action: string) {
       this.setData({
@@ -293,8 +358,16 @@ Component({
     },
     toggleTimer() {
       if (this.data.isTimerRunning) {
+        wx.showToast({
+          title: "暂停计时",
+          icon: "none",
+        });
         this.stopTimer();
       } else {
+        wx.showToast({
+          title: "开启计时",
+          icon: "none",
+        });
         this.startTimer();
       }
     },
@@ -382,7 +455,7 @@ Component({
       const pad = (n: number) => String(n).padStart(2, "0");
       return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(
         date.getDate()
-      )} ${pad(date.getHours())}:${pad(date.getMinutes())}`;
+      )} ${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
     },
 
     padNumbers(...numbers: number[]): string {

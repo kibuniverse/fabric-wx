@@ -1,6 +1,6 @@
 .counter-wrapper {
   padding: 44rpx;
-  height: calc(100vh - 500rpx);
+  /* height: calc(100vh - 500rpx); */
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -14,19 +14,27 @@
   justify-content: space-between;
   align-items: center;
   margin-bottom: 120rpx;
-}
-
-.counter-name-container {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
   width: 100%;
 }
+
+.counter-name-wrapper {
+  display: flex;
+  align-items: flex-end;
+}
+
 
 .counter-name {
   max-width: 320rpx;
   font-size: 32rpx;
   color: var(--main-default-gray);
+}
+
+.edit-icon {
+  width: 32rpx;
+  height: 32rpx;
+  color: var(--main-default-gray);
+  margin-left: 8rpx;
+  transform: translateY(-10rpx);
 }
 
 .counter-delete-btn {
@@ -44,8 +52,8 @@
 .delete-text {
   font-family: PingFang SC;
   font-weight: 400;
-  font-size: 14px;
-  line-height: 22px;
+  font-size: 28rpx;
+  line-height: 44rpx;
   color: #b22222e5;
 }
 
@@ -152,7 +160,7 @@
   box-sizing: border-box;
   width: 80rpx;
   height: 80rpx;
-  border-radius: 9999px;
+  border-radius: 19998rpx;
 }
 
 .reset {
@@ -206,14 +214,14 @@
 }
 
 .history-text {
-  font-size: 16px;
-  line-height: 22px;
+  font-size: 32rpx;
+  line-height: 44rpx;
   color: #00000066;
 }
 
 .clear-history {
   color: #a889c8;
-  font-size: 14px;
+  font-size: 28rpx;
   font-weight: 400;
 }
 
@@ -245,7 +253,7 @@ scroll-view::-webkit-scrollbar {
 
 /* 滚动条样式 */
 ::-webkit-scrollbar {
-  width: 0px;
+  width: 0rpx;
 }
 
 .history-items-container {
@@ -264,6 +272,7 @@ scroll-view::-webkit-scrollbar {
   opacity: 1;
   will-change: transform, opacity;
 }
+
 
 .history-item.slide-in {
   animation: slideInFromRight 0.3s ease-out;
@@ -284,6 +293,7 @@ scroll-view::-webkit-scrollbar {
 .history-time {
   color: #999;
   flex: 2;
+  font-size: 26rpx;
 }
 
 .history-action {
@@ -292,8 +302,16 @@ scroll-view::-webkit-scrollbar {
   text-align: center;
 }
 
+.history-item:first-child .history-action {
+  color: var(--main-color);
+}
+.history-item:first-child .history-time {
+  color: var(--main-color);
+}
+.history-item:first-child .history-count {
+  color: var(--main-color);
+}
 .history-count {
-  color: #a889c8;
   flex: 1;
   text-align: right;
 }
@@ -329,13 +347,17 @@ scroll-view::-webkit-scrollbar {
 }
 
 .modal-content {
-  padding: 40rpx;
-}
-
-.modal-content input {
+  margin: 40rpx;
   border: 1rpx solid #ddd;
   border-radius: 8rpx;
   padding: 20rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.modal-content-input {
+  width: 100%;
   text-align: center;
 }
 
@@ -367,7 +389,7 @@ scroll-view::-webkit-scrollbar {
   color: #000000;
 }
 
-@media (min-width: 500px) {
+/* @media (min-width: 500px) {
   .counter-wrapper {
     padding: 22px;
     height: calc(100vh - 250px);
@@ -381,12 +403,12 @@ scroll-view::-webkit-scrollbar {
 
   .counter-name {
     max-width: 160px;
-    font-size: 16px;
+    font-size: 24px;
     color: var(--main-default-gray);
   }
 
   .target-num {
-    font-size: 22px;
+    font-size: 28px;
   }
 
   .delete-icon {
@@ -475,4 +497,4 @@ scroll-view::-webkit-scrollbar {
   .modal-content input {
     padding: 12px;
   }
-}
+} */

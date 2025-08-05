@@ -1,7 +1,7 @@
 /* pages/counter/counter.wxss */
 page {
   background-color: #ffffff;
-  height: calc(100% - var(--tab-bar-height) - env(safe-area-inset-bottom));
+  /* height: calc(100% - var(--tab-bar-height) - env(safe-area-inset-bottom)); */
   --tab-font-size: 16px;
 }
 
@@ -65,7 +65,7 @@ page {
 }
 
 .tab-content {
-  height: calc(100% - 60rpx);
+  /* height: calc(100% - 60rpx); */
 }
 
 .custom-nav-left {
@@ -132,6 +132,10 @@ page {
   background-color: #0000001a;
 }
 
+.tab-item {
+  font-size: 32rpx !important;
+}
+
 .tab-custom-line {
   border: 1px sloid red;
 }
@@ -184,7 +188,7 @@ scroll-view::-webkit-scrollbar {
 }
 
 
-
+/* 
 @media (min-width: 500px) {
   .title-container {
     padding: 20px 15px 0;
@@ -227,4 +231,4 @@ scroll-view::-webkit-scrollbar {
     width: 24px;
     height: 24px;
   }
-}
+} */

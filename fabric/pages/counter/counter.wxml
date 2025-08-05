@@ -15,7 +15,7 @@
     </view>
   </view>
   <view class="tab-container">
-    <van-tabs line-width="16" custom-class="my-tabs" swipe-threshold="2" title-active-color="#A889C8" active="{{activeTab}}" bind:change="onChange" swipeable animated color="#A889C8" id="tabs">
+    <van-tabs line-width="32rpx" tab-class="tab-item" custom-class="my-tabs" swipe-threshold="2" title-active-color="#A889C8" active="{{activeTab}}" bind:change="onChange" swipeable animated color="#A889C8" id="tabs">
       <view slot="nav-right" class="custom-nav-right">
         <view class="scroll-shadow"></view>
         <view class="add-counter-btn" bindtap="showAddCounterDialog">
@@ -23,16 +23,12 @@
         </view>
       </view>
       <view slot="nav-left" class="custom-nav-left">
-        <view class="custom-nav-left"/>
+        <view class="custom-nav-left" />
       </view>
       <block wx:for="{{counterKeys}}" wx:key="title">
-        <van-tab tab-class="tab-content-container" 
-          title="{{item.title}}"
-          title-class="tab-title"
-          title-style="max-width: 260rpx; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;"
-        >
+        <van-tab tab-class="tab-content-container" title="{{item.title}}" title-class="tab-title" title-style="max-width: 260rpx; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
           <view class="tab-content" data-set="{{item.key}}">
-            <counter id="counter" showDeleteBtn="{{counterKeys.length > 1}}" vibrationOn="{{isVibrationOn}}" voiceOn="{{isVoiceOn}}" storageKey="{{item.key}}" bindhandleCounterDelete="handleCounterDelete" bind:onDelete="handleCounterDelete" />
+            <counter id="counter" showDeleteBtn="{{counterKeys.length > 1}}" data-id="{{item.key}}" vibrationOn="{{isVibrationOn}}" voiceOn="{{isVoiceOn}}" storageKey="{{item.key}}" bindhandleCounterDelete="handleCounterDelete" bind:onDelete="handleCounterDelete" bind:modifyName="modifyName" />
           </view>
         </van-tab>
       </block>

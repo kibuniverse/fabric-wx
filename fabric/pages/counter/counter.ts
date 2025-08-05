@@ -193,6 +193,27 @@ Page({
 
     this.showToast("计数器添加成功");
   },
+  modifyName(e: any) {
+    const key = e.currentTarget.dataset.id;
+    const newName = e.detail.data.name.trim();
+    const counter = this.data.counterKeys.find((item) => item.key === key);
+    if (!counter) {
+      this.showToast("计数器不存在");
+      return;
+    }
+    const newCounterKeys = this.data.counterKeys.map((item) => {
+      if (item.key === key) {
+        return { ...item, title: newName };
+      }
+      return item;
+    });
+    this.setData({
+      counterKeys: newCounterKeys
+    })
+    wx.setStorageSync(STORAGE_KEYS.COUNTER_KEYS, newCounterKeys);
+
+    this.selectComponent('#tabs').resize();
+  },
 
   handleCounterDelete(e: { detail: { id: string } }) {
     // 添加确认删除计数器的弹窗

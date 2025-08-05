@@ -15,6 +15,5 @@
   "lazyCodeLoading": "requiredComponents",
   "useExtendedLib": {
     "weui": true
-  },
-  "resizable": true
+  }
 }
