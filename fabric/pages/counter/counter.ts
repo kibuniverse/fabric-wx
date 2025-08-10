@@ -15,6 +15,13 @@ const defaultCounterKeys = [
 ];
 
 Page({
+  onShareAppMessage() {
+    return {
+      title: "织毛线怕忘行数？用知织！",
+      path: "pages/counter/counter",
+      imageUrl: "/assets/share.png",
+    }
+  },
   data: {
     isVibrationOn: false,
     isKeepScreenOn: false,
@@ -52,6 +59,7 @@ Page({
     wx.setKeepScreenOn({
       keepScreenOn: this.data.isKeepScreenOn,
     });
+
   },
 
   onShow() {
