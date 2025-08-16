@@ -1,3 +1,5 @@
+import { eventBus } from "../../utils/event_bus";
+
 Page({
   data: {
     key: '',
@@ -6,7 +8,6 @@ Page({
   },
 
   onLoad(options) {
-    console.log('Received options:', options);
     const key = options.key;
     // 从本地存储获取上次修改时间
     const lastModified = wx.getStorageSync(`memo_${key}_lastModified`);
@@ -30,17 +31,22 @@ Page({
   },
 
   handleConfirm() {
-    const eventChannel = this.getOpenerEventChannel()
-    const data = {
-      key: this.data.key,
-      content: this.data.content
-    }
-    eventChannel.emit('onMemoContentChange', data)
+    this.handleFillBackData();
     wx.navigateBack();
   },
 
   handleCancel() {
     wx.navigateBack();
+  },
+
+  handleFillBackData() {
+    const eventChannel = this.getOpenerEventChannel()
+    const data = {
+      key: this.data.key,
+      content: this.data.content
+    }
+    eventChannel.emit('onMemoContentChange', data);
+    eventBus.emit('onMemoContentChange', void 0);
   },
 
   handleClear() {
@@ -59,10 +65,12 @@ Page({
           const currentTime = new Date().toLocaleString();
           wx.setStorageSync(`memo_${this.data.key}_lastModified`, currentTime);
 
+          const content = '';
           this.setData({
-            content: '',
+            content,
             lastModified: currentTime
           });
+          this.handleFillBackData()
         }
       }
     });

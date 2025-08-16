@@ -1,3 +1,4 @@
+import { eventBus } from "../../utils/event_bus";
 import { vibrate } from "../../utils/vibrate";
 
 // pages/counter/counter.ts
@@ -13,6 +14,9 @@ const defaultCounterKeys = [
   { key: "default_counter", title: "默认计数器" },
   { key: "default_counter_1", title: "默认计数器1" },
 ];
+
+/** 监听是否有备忘录的修改 */
+let isMemoModified = false;
 
 Page({
   onShareAppMessage() {
@@ -40,9 +44,6 @@ Page({
   },
 
   onLoad() {
-    const systemInfo = wx.getSystemInfoSync();
-    const tabBarHeight = systemInfo.screenHeight - systemInfo.safeArea.height;
-    console.log("tabBar高度为：", tabBarHeight);
     const keys =
       wx.getStorageSync(STORAGE_KEYS.COUNTER_KEYS) || defaultCounterKeys;
     this.setData({ counterKeys: keys });
@@ -60,6 +61,9 @@ Page({
       keepScreenOn: this.data.isKeepScreenOn,
     });
 
+    eventBus.on('onMemoContentChange', () => {
+      isMemoModified = true;
+    })
   },
 
   onShow() {
@@ -67,6 +71,16 @@ Page({
       this.getTabBar().setData({
         selected: 1,
       });
+    }
+    if (isMemoModified) {
+      setTimeout(() => {
+        wx.showToast({
+          title: '备忘录已更新',
+          icon: 'none',
+        })
+        isMemoModified = false;
+      }, 300)
+
     }
   },
   onTabClick(e: { detail: { index: number } }) {
@@ -84,7 +98,6 @@ Page({
     wx.nextTick(() => {
       // 切换 tab 后，确保 counter 组件已渲染再暂停计时器
       const components = this.selectAllComponents('#counter');
-      console.log('components', components);
       if (components && components.length) {
         components.forEach((comp) => {
           if (comp && comp.stopTimer) {

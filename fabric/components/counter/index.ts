@@ -153,12 +153,6 @@ Component({
           onMemoContentChange: (data: { key: string, content: string }) => {
             if (data.key === memoKey && typeof data.content === 'string') {
               this.updateMemo(data.content);
-              setTimeout(() => {
-                wx.showToast({
-                  title: '备忘录已更新',
-                  icon: 'none',
-                })
-              }, 400)
             }
           }
         }
