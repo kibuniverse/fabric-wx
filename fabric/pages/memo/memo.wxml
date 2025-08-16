@@ -1,0 +1,12 @@
+<view class="memo-page">
+  <view class="memo-header">
+    <view class="header-info" wx:if="{{lastModified}}">
+      <text class="last-modified">上次修改：{{lastModified}}</text>
+    </view>
+    <view class="header-actions">
+      <view class="header-btn clear" bindtap="handleClear">清空</view>
+      <view class="header-btn confirm" bindtap="handleConfirm">保存</view>
+    </view>
+  </view>
+  <textarea class="memo-content" placeholder="在这里记录一下备忘录吧～" value="{{content}}" bindinput="handleInput" maxlength="-1" auto-height />
+</view>

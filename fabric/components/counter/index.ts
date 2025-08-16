@@ -18,6 +18,7 @@ interface CounterData {
     elapsedTime: number;
   };
   showDeleteBtn: boolean;
+  memo: string; // 添加备忘录字段
 }
 
 const DEFAULT_COUNTER_DATA: CounterData = {
@@ -31,6 +32,7 @@ const DEFAULT_COUNTER_DATA: CounterData = {
     elapsedTime: 0,
   },
   showDeleteBtn: true,
+  memo: "", // 默认备忘录为空
 };
 
 // 通用的提示配置
@@ -104,6 +106,7 @@ Component({
     historyScrollTop: 0, // 新增 scrollTop 绑定
     showModifyCounterName: false, // 控制修改计数器名称的弹窗显示
     showModifyCount: false, // 控制修改当前行数的弹窗显示
+    hasMemo: false,
   },
 
   lifetimes: {
@@ -133,11 +136,42 @@ Component({
               ...(savedData.timerState || {}),
             },
           };
-          this.setData({ counterData });
+          this.setData({
+            counterData,
+            hasMemo: !!savedData.memo, // 检查是否有备忘录
+          });
         }
       } catch (error) {
         console.error("Failed to load counter data:", error);
       }
+    },
+    handleMemoClick() {
+      const memoKey = `memo_${this.properties.storageKey}`;
+      wx.navigateTo({
+        url: `/pages/memo/memo?key=${memoKey}&content=${encodeURIComponent(this.data.counterData.memo || '')}`,
+        events: {
+          onMemoContentChange: (data: { key: string, content: string }) => {
+            if (data.key === memoKey && typeof data.content === 'string') {
+              this.updateMemo(data.content);
+              setTimeout(() => {
+                wx.showToast({
+                  title: '备忘录已更新',
+                  icon: 'none',
+                })
+              }, 400)
+            }
+          }
+        }
+      });
+    },
+
+    // 添加更新备忘录的方法
+    updateMemo(content: string) {
+      this.setData({
+        'counterData.memo': content,
+        hasMemo: !!content
+      });
+      this.saveCounterData();
     },
 
     saveCounterData() {

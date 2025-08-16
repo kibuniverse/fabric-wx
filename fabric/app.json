@@ -4,7 +4,8 @@
     "pages/home/home",
     "pages/library/library",
     "pages/settings/settings",
-    "pages/detail/detail"
+    "pages/detail/detail",
+    "pages/memo/memo"
   ],
   "window": {
     "navigationBarTextStyle": "black",

@@ -35,6 +35,9 @@
       </block>
     </view>
     <view class="operation-buttons-right">
+      <view class="operation-btn memo {{hasMemo ? 'memo-active' : ''}}" bindtap="handleMemoClick">
+        <image class="memo-icon" src="{{hasMemo ? '/assets/memorandum_colorful.svg' : '/assets/memorandum.svg'}}" />
+      </view>
       <view class="operation-btn timer {{isTimerRunning ? 'timer-start' : 'timer-stop'}}" bindtap="toggleTimer">
         <image class="timer-icon" src="{{isTimerRunning ? '/assets/clock_colorful.svg' : '/assets/clock.svg'}}" />
       </view>
