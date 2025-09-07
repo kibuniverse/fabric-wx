@@ -10,7 +10,8 @@
   "window": {
     "navigationBarTextStyle": "black",
     "navigationBarTitleText": "fabric",
-    "navigationBarBackgroundColor": "#E6E6FA"
+    "navigationBarBackgroundColor": "#E6E6FA",
+    "backgroundColor": "#E6E6FA"
   },
   "componentFramework": "glass-easel",
   "lazyCodeLoading": "requiredComponents",

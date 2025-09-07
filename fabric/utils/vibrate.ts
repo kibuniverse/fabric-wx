@@ -17,7 +17,7 @@ const VIBRATE_CONFIG = {
  * @param type 振动类型，可选 'light' | 'medium' | 'heavy'
  * @returns Promise
  */
-export const vibrate = (type: VibrateType = 'medium'): Promise<void> => {
+export const vibrate = (type: VibrateType = 'heavy'): Promise<void> => {
   return new Promise((resolve, reject) => {
     wx.vibrateShort({
       ...VIBRATE_CONFIG[type],

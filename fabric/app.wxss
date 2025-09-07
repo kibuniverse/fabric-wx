@@ -7,6 +7,7 @@ page {
   --main-default-black: #212121ff;
   --main-default-gray: #00000066;
   --tab-bar-height: 96rpx;
+  background-color: #E6E6FA;
 }
 
 /* iPad 适配：所有 rpx 值缩小为原来的 50% */
