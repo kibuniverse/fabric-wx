@@ -187,48 +187,55 @@ scroll-view::-webkit-scrollbar {
   z-index: 0 !important;
 }
 
+.area {
+  position: fixed;
+  left: 0;
+  top: 0;
+  width: 100vw;
+  height: 100vh;
+  pointer-events: none;
+  /* 让事件穿透到页面 */
+  z-index: 999;
+}
 
-/* 
-@media (min-width: 500px) {
-  .title-container {
-    padding: 20px 15px 0;
-    margin-bottom: 10px;
-  }
+.ball {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding-top: 18rpx;
+  box-sizing: border-box;
+  width: 100rpx;
+  height: 100rpx;
+  background-color: var(--main-bg-color);
+  border-radius: 50%;
+  pointer-events: auto;
+  transition: opacity 0.3s;
+   box-shadow: 0 2px 6px rgba(0, 0, 0, .15);
+  /* 默认小阴影 */
+  transition: box-shadow .3s ease, opacity 0.3s ease;
+  /* 只有球本身可点 */
+}
 
-  .title-text {
-    font-size: 26px;
-  }
 
-  .title-operate {
-    gap: 16rpx;
-  }
+.ball:hover {
+  box-shadow: 0 8px 24px rgba(0, 0, 0, .25);
+  /* 悬浮：更远+更虚+更深 */
+  transform: translateY(-4px);
+  /* 可选：轻微“抬起” */
+}
 
-  .operate-icon {
-    width: 40px;
-    height: 40px;
-    padding: 8px;
-  }
+.ball image {
+  width: 40rpx;
+  height: 40rpx;
+}
 
-  .operate-icon-inner {
-    width: 20px;
-    height: 20px;
-  }
+.ball text {
+  font-size: 16rpx;
+  color: var(--highlight-brand-color);
+}
 
-  .custom-nav-right {
-    width: 50px;
-  }
-
-  .tab-content-container {
-    width: 30px;
-  }
-
-  .add-counter-btn {
-    width: 50px;
-    height: 50px;
-  }
-
-  .add-icon {
-    width: 24px;
-    height: 24px;
-  }
-} */
+.levitate-count {
+  width: 480rpx;
+  height: 232rpx;
+  padding: 32rpx;
+}

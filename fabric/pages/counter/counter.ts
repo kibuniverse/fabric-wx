@@ -1,5 +1,6 @@
 import { eventBus } from "../../utils/event_bus";
 import { vibrate } from "../../utils/vibrate";
+import { loadStorageData } from "../../utils/util";
 
 // pages/counter/counter.ts
 const STORAGE_KEYS = {
@@ -41,30 +42,82 @@ Page({
       { text: "取消", className: "cancel-btn" },
       { text: "确定", className: "confirm-btn" },
     ],
+    floatBall: {
+      x: 0,               // movable-view 坐标
+      y: 0,
+      winW: 0,            // 屏幕宽高
+      winH: 0,
+      ballW: 50,          // 球尺寸（px）
+      ballH: 50,
+      opacity: 0
+    },
+    /** 悬浮计数器位置 */
+    floatLevitateCount: {
+      x: 0,
+      y: 0,
+    }
   },
 
-  onLoad() {
-    const keys =
-      wx.getStorageSync(STORAGE_KEYS.COUNTER_KEYS) || defaultCounterKeys;
-    this.setData({ counterKeys: keys });
-    const activeKey = wx.getStorageSync(STORAGE_KEYS.ACTIVE_KEY);
-    this.setData({ activeKey });
-    // Load saved states from storage
+  // 在Page对象内新增方法
+  initStorageSettings() {
+    const keys = loadStorageData(STORAGE_KEYS.COUNTER_KEYS, defaultCounterKeys);
+    const activeKey = loadStorageData(STORAGE_KEYS.ACTIVE_KEY, '');
+
     this.setData({
-      isVibrationOn: wx.getStorageSync(STORAGE_KEYS.VIBRATION) || false,
-      isKeepScreenOn: wx.getStorageSync(STORAGE_KEYS.KEEP_SCREEN) || false,
-      isVoiceOn: wx.getStorageSync(STORAGE_KEYS.VOICE) || false,
+      counterKeys: keys,
+      activeKey,
+      isVibrationOn: loadStorageData(STORAGE_KEYS.VIBRATION, false),
+      isKeepScreenOn: loadStorageData(STORAGE_KEYS.KEEP_SCREEN, false),
+      isVoiceOn: loadStorageData(STORAGE_KEYS.VOICE, false)
     });
+  },
 
-    // Initialize keep screen state
+  initKeepScreen() {
     wx.setKeepScreenOn({
-      keepScreenOn: this.data.isKeepScreenOn,
+      keepScreenOn: this.data.isKeepScreenOn
     });
+  },
 
+  initEventListeners() {
     eventBus.on('onMemoContentChange', () => {
       isMemoModified = true;
-    })
+    });
   },
+
+  initFloatPosition() {
+    const sys = wx.getSystemInfoSync();
+    const { windowWidth, windowHeight } = sys;
+    const margin = 10;
+
+    const query = wx.createSelectorQuery();
+    query.select('#connect-ball').boundingClientRect(rect => {
+      console.log('Float ball rect:', rect);
+      const floatPos = wx.getStorageSync('floatPos') || { x: windowWidth - rect.width - margin, y: windowHeight * 0.75 };
+      this.setData({
+        'floatBall.winW': windowWidth,
+        'floatBall.winH': windowHeight,
+        'floatBall.x': floatPos.x, // 右下角定位
+        'floatBall.y': floatPos.y,
+        'floatBall.ballW': rect.width,
+        'floatBall.ballH': rect.height,
+      });
+      setTimeout(() => {
+        this.setData({
+          'floatBall.opacity': 1,
+        });
+      }, 1000);
+    }).exec();
+
+  },
+
+  // 优化后的onLoad
+  onLoad() {
+    this.initStorageSettings();
+    this.initKeepScreen();
+    this.initEventListeners();
+    this.initFloatPosition();
+  },
+
 
   onShow() {
     if (typeof this.getTabBar === "function" && this.getTabBar()) {
@@ -90,6 +143,38 @@ Page({
     });
   },
 
+  onConnectChange(e: any) {
+    if (e.detail.source === 'touch') {
+      // 实时记录
+      this.moveX = e.detail.x;
+      this.moveY = e.detail.y;
+    }
+  },
+
+  onTouchend() {
+    const { floatBall: float } = this.data;
+    const centerX = (this.moveX ?? float.x) + float.ballW / 2;
+    const margin = 10;
+    const finalX = centerX > float.winW / 2
+      ? float.winW - float.ballW - margin
+      : margin;
+    // 只改 x，y 保持手指离开时的值
+    this.setData({
+      'floatBall.x': finalX,
+      'floatBall.y': this.moveY ?? float.y
+    });
+    wx.setStorageSync('floatPos', { x: finalX, y: this.moveY ?? float.y });
+  },
+  onLevitateCountTouchend() {
+    const { floatLevitateCount } = this.data;
+    console.log('levitate count touchend', floatLevitateCount);
+  },
+  /**
+   * 点击连接按钮时触发的事件处理函数
+   */
+  onClickConnect() {
+    console.log('onClick connect')
+  },
   onChange(e: { detail: { index: number } }) {
     const index = e.detail.index;
     this.setData({

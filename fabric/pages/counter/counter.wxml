@@ -35,6 +35,13 @@
     </van-tabs>
   </view>
 </view>
+<movable-area class="area">
+  <movable-view class="ball" id="connect-ball" style="opacity: {{floatBall.opacity}};" direction="all" x="{{floatBall.x}}" y="{{floatBall.y}}" bindchange="onConnectChange" bindtouchend="onTouchend" bind:tap="onClickConnect">
+    <image src="/assets/connect.svg" mode="aspectFill" />
+    <text class="text">关联计数</text>
+  </movable-view>
+</movable-area>
+
 <!-- 添加计数器对话框 -->
 <mp-dialog title="添加新计数器" buttons="{{addCounterButtons}}" show="{{showAddCounter}}" bindbuttontap="handleAddCounterDialogButton">
   <view class="dialog-content">
