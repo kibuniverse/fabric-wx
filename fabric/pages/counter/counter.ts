@@ -136,7 +136,7 @@ Page({
     if (isMemoModified) {
       setTimeout(() => {
         wx.showToast({
-          title: "备忘录已更新",
+          title: "备忘录已更新~",
           icon: "none",
         });
         isMemoModified = false;
