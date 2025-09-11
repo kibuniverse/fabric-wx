@@ -209,7 +209,7 @@ Page({
     const newState = !this.data.isVibrationOn;
     this.setData({ isVibrationOn: newState });
     wx.setStorageSync(STORAGE_KEYS.VIBRATION, newState);
-    this.showToast(newState ? "震动反馈已开启" : "震动反馈已关闭");
+    this.showToast(newState ? "震动反馈已开启~" : "震动反馈已关闭~");
     if (newState) {
       vibrate();
     }
