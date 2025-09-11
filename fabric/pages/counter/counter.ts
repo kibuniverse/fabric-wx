@@ -20,12 +20,16 @@ const defaultCounterKeys = [
 let isMemoModified = false;
 
 Page({
+  // 用于记录浮球移动的坐标
+  moveX: 0,
+  moveY: 0,
+
   onShareAppMessage() {
     return {
       title: "织毛线怕忘行数？用知织！",
       path: "pages/counter/counter",
       imageUrl: "/assets/share.png",
-    }
+    };
   },
   data: {
     isVibrationOn: false,
@@ -43,43 +47,43 @@ Page({
       { text: "确定", className: "confirm-btn" },
     ],
     floatBall: {
-      x: 0,               // movable-view 坐标
+      x: 0, // movable-view 坐标
       y: 0,
-      winW: 0,            // 屏幕宽高
+      winW: 0, // 屏幕宽高
       winH: 0,
-      ballW: 50,          // 球尺寸（px）
+      ballW: 50, // 球尺寸（px）
       ballH: 50,
-      opacity: 0
+      opacity: 0,
     },
     /** 悬浮计数器位置 */
     floatLevitateCount: {
       x: 0,
       y: 0,
-    }
+    },
   },
 
   // 在Page对象内新增方法
   initStorageSettings() {
     const keys = loadStorageData(STORAGE_KEYS.COUNTER_KEYS, defaultCounterKeys);
-    const activeKey = loadStorageData(STORAGE_KEYS.ACTIVE_KEY, '');
+    const activeKey = loadStorageData(STORAGE_KEYS.ACTIVE_KEY, "");
 
     this.setData({
       counterKeys: keys,
       activeKey,
       isVibrationOn: loadStorageData(STORAGE_KEYS.VIBRATION, false),
       isKeepScreenOn: loadStorageData(STORAGE_KEYS.KEEP_SCREEN, false),
-      isVoiceOn: loadStorageData(STORAGE_KEYS.VOICE, false)
+      isVoiceOn: loadStorageData(STORAGE_KEYS.VOICE, false),
     });
   },
 
   initKeepScreen() {
     wx.setKeepScreenOn({
-      keepScreenOn: this.data.isKeepScreenOn
+      keepScreenOn: this.data.isKeepScreenOn,
     });
   },
 
   initEventListeners() {
-    eventBus.on('onMemoContentChange', () => {
+    eventBus.on("onMemoContentChange", () => {
       isMemoModified = true;
     });
   },
@@ -90,24 +94,29 @@ Page({
     const margin = 10;
 
     const query = wx.createSelectorQuery();
-    query.select('#connect-ball').boundingClientRect(rect => {
-      console.log('Float ball rect:', rect);
-      const floatPos = wx.getStorageSync('floatPos') || { x: windowWidth - rect.width - margin, y: windowHeight * 0.75 };
-      this.setData({
-        'floatBall.winW': windowWidth,
-        'floatBall.winH': windowHeight,
-        'floatBall.x': floatPos.x, // 右下角定位
-        'floatBall.y': floatPos.y,
-        'floatBall.ballW': rect.width,
-        'floatBall.ballH': rect.height,
-      });
-      setTimeout(() => {
+    query
+      .select("#connect-ball")
+      .boundingClientRect((rect) => {
+        console.log("Float ball rect:", rect);
+        const floatPos = wx.getStorageSync("floatPos") || {
+          x: windowWidth - rect.width - margin,
+          y: windowHeight * 0.75,
+        };
         this.setData({
-          'floatBall.opacity': 1,
+          "floatBall.winW": windowWidth,
+          "floatBall.winH": windowHeight,
+          "floatBall.x": floatPos.x, // 右下角定位
+          "floatBall.y": floatPos.y,
+          "floatBall.ballW": rect.width,
+          "floatBall.ballH": rect.height,
         });
-      }, 1000);
-    }).exec();
-
+        setTimeout(() => {
+          this.setData({
+            "floatBall.opacity": 1,
+          });
+        }, 1000);
+      })
+      .exec();
   },
 
   // 优化后的onLoad
@@ -118,7 +127,6 @@ Page({
     this.initFloatPosition();
   },
 
-
   onShow() {
     if (typeof this.getTabBar === "function" && this.getTabBar()) {
       this.getTabBar().setData({
@@ -128,12 +136,11 @@ Page({
     if (isMemoModified) {
       setTimeout(() => {
         wx.showToast({
-          title: '备忘录已更新',
-          icon: 'none',
-        })
+          title: "备忘录已更新",
+          icon: "none",
+        });
         isMemoModified = false;
-      }, 300)
-
+      }, 300);
     }
   },
   onTabClick(e: { detail: { index: number } }) {
@@ -144,7 +151,7 @@ Page({
   },
 
   onConnectChange(e: any) {
-    if (e.detail.source === 'touch') {
+    if (e.detail.source === "touch") {
       // 实时记录
       this.moveX = e.detail.x;
       this.moveY = e.detail.y;
@@ -155,25 +162,24 @@ Page({
     const { floatBall: float } = this.data;
     const centerX = (this.moveX ?? float.x) + float.ballW / 2;
     const margin = 10;
-    const finalX = centerX > float.winW / 2
-      ? float.winW - float.ballW - margin
-      : margin;
+    const finalX =
+      centerX > float.winW / 2 ? float.winW - float.ballW - margin : margin;
     // 只改 x，y 保持手指离开时的值
     this.setData({
-      'floatBall.x': finalX,
-      'floatBall.y': this.moveY ?? float.y
+      "floatBall.x": finalX,
+      "floatBall.y": this.moveY ?? float.y,
     });
-    wx.setStorageSync('floatPos', { x: finalX, y: this.moveY ?? float.y });
+    wx.setStorageSync("floatPos", { x: finalX, y: this.moveY ?? float.y });
   },
   onLevitateCountTouchend() {
     const { floatLevitateCount } = this.data;
-    console.log('levitate count touchend', floatLevitateCount);
+    console.log("levitate count touchend", floatLevitateCount);
   },
   /**
    * 点击连接按钮时触发的事件处理函数
    */
   onClickConnect() {
-    console.log('onClick connect')
+    console.log("onClick connect");
   },
   onChange(e: { detail: { index: number } }) {
     const index = e.detail.index;
@@ -182,7 +188,7 @@ Page({
     });
     wx.nextTick(() => {
       // 切换 tab 后，确保 counter 组件已渲染再暂停计时器
-      const components = this.selectAllComponents('#counter');
+      const components = this.selectAllComponents("#counter");
       if (components && components.length) {
         components.forEach((comp) => {
           if (comp && comp.stopTimer) {
@@ -314,11 +320,11 @@ Page({
       return item;
     });
     this.setData({
-      counterKeys: newCounterKeys
-    })
+      counterKeys: newCounterKeys,
+    });
     wx.setStorageSync(STORAGE_KEYS.COUNTER_KEYS, newCounterKeys);
 
-    this.selectComponent('#tabs').resize();
+    this.selectComponent("#tabs").resize();
   },
 
   handleCounterDelete(e: { detail: { id: string } }) {
@@ -334,12 +340,16 @@ Page({
           // 用户点击了确认按钮
           // 如果只剩余了一个计时器，则提示不能删除
           const counterKeys = this.data.counterKeys;
-          const deletedCounter = counterKeys.find((key) => key.key === e.detail.id);
+          const deletedCounter = counterKeys.find(
+            (key) => key.key === e.detail.id
+          );
           const deletedCounterTitle = deletedCounter?.title;
 
           // 删除 counterkeys中的key
           // 找到被删除的计数器在原数组中的索引
-          const deletedIndex = this.data.counterKeys.findIndex((key) => key.key === e.detail.id);
+          const deletedIndex = this.data.counterKeys.findIndex(
+            (key) => key.key === e.detail.id
+          );
           const newCounterKeys = this.data.counterKeys.filter(
             (key) => key.key !== e.detail.id
           );
@@ -353,7 +363,7 @@ Page({
           newActiveTab = Math.min(newActiveTab, newCounterKeys.length - 1);
           this.setData({ activeTab: newActiveTab });
           this.showToast(`计数器 ${deletedCounterTitle} 已删除`);
-          this.selectComponent('#tabs').resize();
+          this.selectComponent("#tabs").resize();
         } else if (res.cancel) {
           // 用户点击了取消按钮
           console.log("Counter deletion canceled");
