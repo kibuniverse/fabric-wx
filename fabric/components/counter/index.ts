@@ -219,7 +219,11 @@ Component({
       const isIncrease = type === "increase";
 
       if (!isIncrease && currentCount <= 0) {
-        this.showToast("已经是最小值了");
+        this.showToast("已经是最小值了~");
+        return;
+      }
+      if (isIncrease && currentCount >= 999) {
+        this.showToast("已经是最大值了~");
         return;
       }
 
