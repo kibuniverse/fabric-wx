@@ -12,13 +12,13 @@
   </view>
   <!-- 计数器主体 -->
   <view class="counter-main">
-    <view class="counter-btn minus" bindtap="decrease">
+    <view class="counter-btn minus" bindtap="decrease" data-isFromChildCounter="false">
       <image class='minus-icon' src="/assets/minus.svg" />
     </view>
     <view class="counter-number" bindtap="handleClickModifyCount">
       <animate-numbers value="{{counterData.currentCount}}" min='{{0}}' max='{{999}}' options='{{options}}' />
     </view>
-    <view class="counter-btn plus" bindtap="increase">
+    <view class="counter-btn plus" bindtap="increase" data-isFromChildCounter="false">
       <image class='plus-icon' src="/assets/plus.svg" />
     </view>
   </view>

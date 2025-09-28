@@ -34,14 +34,13 @@
       </block>
     </van-tabs>
   </view>
+  <movable-area class="area" wx:if="{{!showRepeatCounter}}">
+    <movable-view class="ball" id="connect-ball" style="opacity: {{floatBall.opacity}};" direction="all" x="{{floatBall.x}}" y="{{floatBall.y}}" bindchange="onConnectChange" bindtouchend="onTouchend" bindtap="showRepeatCounterDialog">
+      <image src="/assets/connect.svg" mode="aspectFill" />
+      <text class="text">子计数器</text>
+    </movable-view>
+  </movable-area>
 </view>
-<movable-area class="area">
-  <movable-view class="ball" id="connect-ball" style="opacity: {{floatBall.opacity}};" direction="all" x="{{floatBall.x}}" y="{{floatBall.y}}" bindchange="onConnectChange" bindtouchend="onTouchend" bind:tap="onClickConnect">
-    <image src="/assets/connect.svg" mode="aspectFill" />
-    <text class="text">关联计数</text>
-  </movable-view>
-</movable-area>
-
 <!-- 添加计数器对话框 -->
 <mp-dialog title="添加新计数器" buttons="{{addCounterButtons}}" show="{{showAddCounter}}" bindbuttontap="handleAddCounterDialogButton">
   <view class="dialog-content">
@@ -49,3 +48,31 @@
   </view>
 </mp-dialog>
 <toast id="toast" duration="2000" />
+<!-- 重复计数器弹窗 -->
+<van-dialog use-slot z-index="9999" title="创建一个子计数器" transition="fade" show="{{ showRepeatStartInputDialog }}" show-cancel-button confirm-button-color="#A889C8" bind:confirm="onConfirmRepeatStartInputDialog">
+  <view class="modal-content">
+    <input type="number" class=".modal-content-input" placeholder="从第几行开始？" bindinput="onBindRepeatStartInput" value="{{repeatCounterStartValue}}" />
+  </view>
+</van-dialog>
+<!-- 重复计数器 -->
+<view class="repeat-counter" wx:if="{{showRepeatCounter}}">
+  <view class="connect-counter-left">
+    <image class="repeat-counter-close" src="/assets/close.svg" bindtap="onCloseRepeatCounter" />
+    <text class="content-counter-number">正在重复第 {{repeatTimes}} 次</text>
+    <!-- 重复计数器主体 -->
+    <view class="counter-repeat">
+      <view class="counter-repeat-button minus" bindtap="decreaseRepeatNumber">
+        <image class='repeat-minus-icon' src="/assets/minus.svg" />
+      </view>
+      <view class="counter-repeat-number">
+        <animate-numbers value="{{repeatCounterCurValue}}" min='{{0}}' max='{{999}}' options='{{options}}' bindtap='onRepeatCountChange' />
+      </view>
+      <view class=" counter-repeat-button plus" bindtap="increaseRepeatNumber">
+        <image class='repeat-minus-icon' src="/assets/plus.svg" />
+      </view>
+    </view>
+  </view>
+  <view class="content-counter-right" bindtap="onRepat">
+    <text class="content-counter-repeat">重复</text>
+  </view>
+</view>

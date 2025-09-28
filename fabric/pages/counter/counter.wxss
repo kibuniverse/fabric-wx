@@ -235,7 +235,121 @@ scroll-view::-webkit-scrollbar {
 }
 
 .levitate-count {
-  width: 480rpx;
+  width: 478rpx;
   height: 232rpx;
   padding: 32rpx;
+}
+
+.repeat-counter {
+  position: fixed;         /* 固定定位，脱离文档流 */
+  left: 50%;               /* 水平居中 */
+  bottom: 114rpx;           /* 距离底部40rpx，可根据需要调整 */
+  top: auto;               /* 取消top居中 */
+  transform: translateX(-50%); /* 只在水平方向居中 */
+  z-index: 100;           /* 保持在当前层级 */
+  width: 480rpx;
+  height: 232rpx;
+  display: flex;
+  flex-direction: row;
+}
+
+.connect-counter-left {
+  width: 378rpx;
+  height: 232rpx;
+  background-color: #ffffff;
+  border-top-left-radius: 40rpx;
+  border-bottom-left-radius: 40rpx;
+  border: 2rpx solid #E6E6FA;
+  display: flex;
+  flex-direction: column;
+  border-right: none; /* 不描边左侧 */
+  align-items: center;      /* 水平居中内容 */
+  justify-content: flex-start;
+  position: relative;
+  
+}
+.content-counter-right {
+  width: 100rpx;
+  height: 232rpx;
+  border: 2rpx solid #E6E6FA;
+  border-top-right-radius: 40rpx;
+  border-bottom-right-radius: 40rpx;
+  border-left: none; /* 不描边左侧 */
+  background-color: #E6E6FA;
+  display: flex;
+  align-items: center;      /* 垂直居中内容 */
+  justify-content: center;  /* 水平居中内容 */
+}
+
+.content-counter-number {
+  font-size: 32rpx;
+  color: #000000;
+  text-align: center;
+  margin-top: 32rpx;
+}
+
+.content-counter-repeat {
+  font-size: 32rpx;
+  color: #6A0DAD;
+  text-align: center;
+}
+
+.counter-repeat {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 24rpx;
+}
+
+.counter-repeat-button {
+  width: 100rpx;
+  height: 100rpx;
+  border-radius: 50%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.counter-repeat-number {
+  width: 114rpx;
+  color: #000000;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.repeat-minus-icon {
+  width: 64rpx;
+  height: 64rpx;
+}
+
+.plus {
+  background: var(--main-bg-color);
+}
+
+.minus {
+  background: #0000001a;
+}
+.repeat-counter-close {
+  width: 68rpx;
+  height: 68rpx;
+  position: absolute;    /* 绝对定位 */
+  top: 0rpx;
+  right: 10rpx;
+  z-index: 9999;
+}
+
+.modal-content-input {
+  width: 100%;
+  text-align: center;
+}
+
+.modal-content {
+  margin: 40rpx;
+  border: 1rpx solid #ddd;
+  border-radius: 8rpx;
+  padding: 20rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }

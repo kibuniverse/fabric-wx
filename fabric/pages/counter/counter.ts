@@ -39,8 +39,30 @@ Page({
     counterKeys: [] as { key: string; title: string }[],
     activeKey: "",
     activeTab: 0,
+    // 操作是否来源于子计数器
+    isFromChildCounter: false,
     // 添加新计数器相关
     showAddCounter: false,
+    // 重复计数器在哪一个主计数器下创建
+    childCounterParentTab: 0,
+    // 重复计数器-起始值输入弹窗
+    showRepeatStartInputDialog: false,
+    // 重复计数器-起始值
+    repeatCounterStartValue: "",
+    // 重复计数器-当前值
+    repeatCounterCurValue: 0,
+    // 重复计数器显示控制
+    showRepeatCounter: false,
+    // 重复次数
+    repeatTimes: 1,
+    options: {
+      during: 1, // (number) 动画时间
+      height: 40, // (number) 滚动行高 px
+      cellWidth: 18, // (number) 单个数字宽度 px
+      ease: "cubic-bezier(0, 1, 0, 1)", // (string) 动画过渡效果
+      color: "#000000", // (string) 字体颜色
+      columnStyle: "font-size: 54rpx;", // (string) 字体单元 覆盖样式
+    },
     newCounterName: "",
     addCounterButtons: [
       { text: "取消", className: "cancel-btn" },
@@ -176,12 +198,7 @@ Page({
     const { floatLevitateCount } = this.data;
     console.log("levitate count touchend", floatLevitateCount);
   },
-  /**
-   * 点击连接按钮时触发的事件处理函数
-   */
-  onClickConnect() {
-    console.log("onClick connect");
-  },
+
   onChange(e: { detail: { index: number } }) {
     const index = e.detail.index;
     this.setData({
@@ -240,6 +257,121 @@ Page({
       showAddCounter: true,
       newCounterName: "",
     });
+  },
+
+  // 点击悬浮球时 打开重复计数器-弹窗
+  showRepeatCounterDialog() {
+    this.setData({
+      showRepeatStartInputDialog: true,
+      childCounterParentTab: this.data.activeTab,
+    });
+  },
+
+  onBindRepeatStartInput(e: any) {
+    let v = e.detail.value; // 字符串
+    if (v === "") return; // 允许空，保留 placeholder
+
+    v = Number(v); // 转数字
+    if (isNaN(v)) v = 0; // 输字母时兜底
+    if (v > 999) v = 999; // 上限截断
+    if (v < 0) v = 0; // 顺便把负数也禁掉
+    this.setData({
+      repeatCounterCurValue: v,
+      repeatCounterStartValue: v,
+    });
+  },
+
+  onConfirmRepeatStartInputDialog() {
+    this.setData({
+      showRepeatStartInputDialog: false,
+      showRepeatCounter: true,
+    });
+  },
+  onCloseRepeatCounter() {
+    this.setData({
+      showRepeatCounter: false,
+      repeatCounterStartValue: "",
+      repeatCounterCurValue: 0,
+      repeatTimes: 1,
+    });
+  },
+
+  // 获取对应index的计数器实例
+  getCounterByIndex(index: number): any {
+    const counters = this.selectAllComponents("#counter");
+    if (counters && counters.length > index) {
+      return counters[index];
+    }
+    return null;
+  },
+
+  // 重复计数器 加 操作
+  increaseRepeatNumber() {
+    this.backToMainCounter();
+    const mainCounter = this.getCounterByIndex(this.data.childCounterParentTab);
+    // 主计数器当前值
+    const mainCounterValue =
+      mainCounter && mainCounter.getCurrentCount
+        ? mainCounter.getCurrentCount()
+        : 0;
+    // 重复计数器当前值
+    const repeatCounterValue = Number(this.data.repeatCounterCurValue);
+    // 主计数器/重复计数器值不合法时，禁止加
+    if (repeatCounterValue >= 999 || mainCounterValue >= 999) {
+      this.showToast("已经是最大值了~");
+      return;
+    }
+    if (mainCounter && mainCounter.increase) {
+      this.setData({
+        repeatCounterCurValue: this.data.repeatCounterCurValue + 1,
+        isFromChildCounter: true,
+      });
+      mainCounter.increase(true);
+    }
+  },
+
+  // 重复计数器 减 操作
+  decreaseRepeatNumber() {
+    this.backToMainCounter();
+    // 子计数器所依附的主计数器
+    const mainCounter = this.getCounterByIndex(this.data.childCounterParentTab);
+    // 主计数器当前值
+    const mainCounterValue =
+      mainCounter && mainCounter.getCurrentCount
+        ? mainCounter.getCurrentCount()
+        : 0;
+    // 重复计数器当前值
+    const repeatCounterValue = Number(this.data.repeatCounterCurValue);
+    // 主计数器/重复计数器值不合法时，禁止减
+    if (repeatCounterValue <= 0 || mainCounterValue <= 0) {
+      this.showToast("已经是最小值了~");
+      return;
+    }
+    if (mainCounter && mainCounter.decrease) {
+      this.setData({
+        repeatCounterCurValue: this.data.repeatCounterCurValue - 1,
+        isFromChildCounter: true,
+      });
+      mainCounter.decrease(true);
+    }
+  },
+
+  // 跳转到创建当前子计数器的tab下
+  backToMainCounter() {
+    if (this.data.childCounterParentTab !== this.data.activeTab) {
+      this.setData({
+        activeTab: this.data.childCounterParentTab,
+      });
+    }
+  },
+
+  // 点击 重复计数器的 “重复”
+  onRepat() {
+    this.setData({
+      repeatCounterCurValue: Number(this.data.repeatCounterStartValue),
+      repeatTimes: this.data.repeatTimes + 1,
+    });
+    this.showToast("子计数器已恢复到初始值～");
   },
 
   onNewCounterNameInput(e: any) {
@@ -365,6 +497,13 @@ Page({
           this.setData({ activeTab: newActiveTab });
           this.showToast(`计数器 ${deletedCounterTitle} 已删除`);
           this.selectComponent("#tabs").resize();
+          // 如果删除的计数器是子计数器绑定的计数器，则关闭子计数器
+          if (
+            this.data.showRepeatCounter &&
+            this.data.childCounterParentTab === deletedIndex
+          ) {
+            this.onCloseRepeatCounter();
+          }
         } else if (res.cancel) {
           // 用户点击了取消按钮
           console.log("Counter deletion canceled");

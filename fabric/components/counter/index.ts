@@ -59,7 +59,7 @@ Component({
   properties: {
     onClickDelete: {
       type: Object,
-      value: () => { }, // 默认值为 null
+      value: () => {}, // 默认值为 null
     },
     vibrationOn: {
       type: Boolean,
@@ -148,22 +148,24 @@ Component({
     handleMemoClick() {
       const memoKey = `memo_${this.properties.storageKey}`;
       wx.navigateTo({
-        url: `/pages/memo/memo?key=${memoKey}&content=${encodeURIComponent(this.data.counterData.memo || '')}`,
+        url: `/pages/memo/memo?key=${memoKey}&content=${encodeURIComponent(
+          this.data.counterData.memo || ""
+        )}`,
         events: {
-          onMemoContentChange: (data: { key: string, content: string }) => {
-            if (data.key === memoKey && typeof data.content === 'string') {
+          onMemoContentChange: (data: { key: string; content: string }) => {
+            if (data.key === memoKey && typeof data.content === "string") {
               this.updateMemo(data.content);
             }
-          }
-        }
+          },
+        },
       });
     },
 
     // 添加更新备忘录的方法
     updateMemo(content: string) {
       this.setData({
-        'counterData.memo': content,
-        hasMemo: !!content
+        "counterData.memo": content,
+        hasMemo: !!content,
       });
       this.saveCounterData();
     },
@@ -184,7 +186,10 @@ Component({
       });
     },
     // 计数器操作相关
-    async handleCountChange(type: "increase" | "decrease" | "reset") {
+    async handleCountChange(
+      type: "increase" | "decrease" | "reset",
+      isFromChildCounter = false
+    ) {
       const { currentCount, targetCount } = this.data.counterData;
       const canShowVoice =
         this.properties.voiceOn && voiceConfig.enableOperate.includes(type);
@@ -226,10 +231,16 @@ Component({
         this.showToast("已经是最大值了~");
         return;
       }
-
       const newCount = currentCount + (isIncrease ? 1 : -1);
-      this.updateCount(newCount, isIncrease ? "行+1" : "行-1");
 
+      if (isFromChildCounter) {
+        this.updateCount(
+          newCount,
+          isIncrease ? "行+1 (子计数)" : "行-1 (子计数)"
+        );
+      } else {
+        this.updateCount(newCount, isIncrease ? "行+1" : "行-1");
+      }
       if (isIncrease && newCount === targetCount) {
         Dialog.confirm({
           context: this,
@@ -297,13 +308,17 @@ Component({
       this.setData({
         "counterData.name": newName,
         showModifyCounterName: false,
-        targetInputValue: newName
+        targetInputValue: newName,
       });
       this.saveCounterData();
-      this.triggerEvent('modifyName', { data: { name: newName } }, {
-        bubbles: true,     // 是否冒泡
-        composed: true     // 是否跨组件边界
-      });
+      this.triggerEvent(
+        "modifyName",
+        { data: { name: newName } },
+        {
+          bubbles: true, // 是否冒泡
+          composed: true, // 是否跨组件边界
+        }
+      );
     },
 
     async updateCount(newCount: number, action: string) {
@@ -487,7 +502,9 @@ Component({
       const pad = (n: number) => String(n).padStart(2, "0");
       return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(
         date.getDate()
-      )} ${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
+      )} ${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(
+        date.getSeconds()
+      )}`;
     },
 
     padNumbers(...numbers: number[]): string {
@@ -502,7 +519,7 @@ Component({
       });
     },
     closeModifyTargetModal() {
-      this.cancelTargetInput()
+      this.cancelTargetInput();
     },
     onTargetInput(e: any) {
       this.setData({
@@ -560,15 +577,18 @@ Component({
     },
 
     // 公共方法
-    increase() {
-      this.handleCountChange("increase");
+    increase(isFromChildCounter: boolean = false) {
+      this.handleCountChange("increase", isFromChildCounter === true);
     },
 
-    decrease() {
-      this.handleCountChange("decrease");
+    decrease(isFromChildCounter: boolean = false) {
+      this.handleCountChange("decrease", isFromChildCounter === true);
     },
     showResetConfirm() {
       this.handleCountChange("reset");
+    },
+    getCurrentCount(): number {
+      return this.data.counterData.currentCount;
     },
   },
 });
