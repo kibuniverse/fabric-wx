@@ -1,5 +1,6 @@
 import Dialog from "@vant/weapp/dialog/dialog";
 import { vibrate } from "../../utils/vibrate";
+import { eventBus } from "../../utils/event_bus";
 
 interface CounterData {
   name: string;
@@ -116,6 +117,11 @@ Component({
       });
       this.loadCounterData();
       this.restoreTimerState();
+      eventBus.on("refreshCounter", ({ counterKey }) => {
+        if (counterKey === this.properties.storageKey) {
+          this.loadCounterData();
+        }
+      });
     },
     detached() {
       this.stopTimer();
@@ -148,22 +154,24 @@ Component({
     handleMemoClick() {
       const memoKey = `memo_${this.properties.storageKey}`;
       wx.navigateTo({
-        url: `/pages/memo/memo?key=${memoKey}&content=${encodeURIComponent(this.data.counterData.memo || '')}`,
+        url: `/pages/memo/memo?key=${memoKey}&content=${encodeURIComponent(
+          this.data.counterData.memo || ""
+        )}`,
         events: {
-          onMemoContentChange: (data: { key: string, content: string }) => {
-            if (data.key === memoKey && typeof data.content === 'string') {
+          onMemoContentChange: (data: { key: string; content: string }) => {
+            if (data.key === memoKey && typeof data.content === "string") {
               this.updateMemo(data.content);
             }
-          }
-        }
+          },
+        },
       });
     },
 
     // 添加更新备忘录的方法
     updateMemo(content: string) {
       this.setData({
-        'counterData.memo': content,
-        hasMemo: !!content
+        "counterData.memo": content,
+        hasMemo: !!content,
       });
       this.saveCounterData();
     },
@@ -184,7 +192,10 @@ Component({
       });
     },
     // 计数器操作相关
-    async handleCountChange(type: "increase" | "decrease" | "reset") {
+    async handleCountChange(
+      type: "increase" | "decrease" | "reset",
+      isFromChildCounter = false
+    ) {
       const { currentCount, targetCount } = this.data.counterData;
       const canShowVoice =
         this.properties.voiceOn && voiceConfig.enableOperate.includes(type);
@@ -219,13 +230,23 @@ Component({
       const isIncrease = type === "increase";
 
       if (!isIncrease && currentCount <= 0) {
-        this.showToast("已经是最小值了");
+        this.showToast("已经是最小值了~");
         return;
       }
-
+      if (isIncrease && currentCount >= 999) {
+        this.showToast("已经是最大值了~");
+        return;
+      }
       const newCount = currentCount + (isIncrease ? 1 : -1);
-      this.updateCount(newCount, isIncrease ? "行+1" : "行-1");
 
+      if (isFromChildCounter) {
+        this.updateCount(
+          newCount,
+          isIncrease ? "行+1 (子计数)" : "行-1 (子计数)"
+        );
+      } else {
+        this.updateCount(newCount, isIncrease ? "行+1" : "行-1");
+      }
       if (isIncrease && newCount === targetCount) {
         Dialog.confirm({
           context: this,
@@ -239,69 +260,21 @@ Component({
       }
     },
     handleClickModifyCount() {
-      this.setData({
-        showModifyCount: true,
-        targetInputValue: String(this.data.counterData.currentCount),
+      // 触发修改当前行数事件
+      this.triggerEvent('showModifyCount', {
+        key: this.properties.storageKey,
+        currentCount: this.data.counterData.currentCount
       });
-    },
-    closeModifyCountModal() {
-      this.setData({
-        showModifyCount: false,
-        targetInputValue: String(this.data.counterData.currentCount),
-      });
-    },
-    confirmModifyCountData() {
-      const newCount = parseInt(this.data.targetInputValue);
-      if (isNaN(newCount)) {
-        wx.showToast({
-          title: "请输入有效数字",
-          icon: "none",
-        });
-        return;
-      }
-      if (newCount < 0) {
-        wx.showToast({
-          title: "行数不能小于0",
-          icon: "none",
-        });
-        return;
-      }
-      this.updateCount(newCount, `修改行数为${newCount}`);
     },
 
     handleClickModifyCounterName() {
-      this.setData({
-        showModifyCounterName: true,
-        targetInputValue: this.data.counterData.name,
+      console.log("handleClickModifyCounterName");
+      // 触发修改计数器名称事件
+      this.triggerEvent('showModifyName', {
+        key: this.properties.storageKey,
+        currentName: this.data.counterData.name
       });
     },
-    closeModifyCounterNameModal() {
-      this.setData({
-        showModifyCounterName: false,
-        targetInputValue: this.data.counterData.name,
-      });
-    },
-    confirmModifyCounterName() {
-      const newName = this.data.targetInputValue.trim();
-      if (newName === "") {
-        wx.showToast({
-          title: "计数器名称不能为空",
-          icon: "none",
-        });
-        return;
-      }
-      this.setData({
-        "counterData.name": newName,
-        showModifyCounterName: false,
-        targetInputValue: newName
-      });
-      this.saveCounterData();
-      this.triggerEvent('modifyName', { data: { name: newName } }, {
-        bubbles: true,     // 是否冒泡
-        composed: true     // 是否跨组件边界
-      });
-    },
-
     async updateCount(newCount: number, action: string) {
       this.setData({
         "counterData.currentCount": newCount,
@@ -483,7 +456,9 @@ Component({
       const pad = (n: number) => String(n).padStart(2, "0");
       return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(
         date.getDate()
-      )} ${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
+      )} ${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(
+        date.getSeconds()
+      )}`;
     },
 
     padNumbers(...numbers: number[]): string {
@@ -492,58 +467,11 @@ Component({
 
     // 目标设置相关
     showTargetInput() {
-      this.setData({
-        showTargetInput: true,
-        targetInputValue: String(this.data.counterData.targetCount),
+      // 触发设置目标行数事件
+      this.triggerEvent('showTargetInput', {
+        key: this.properties.storageKey,
+        currentTarget: this.data.counterData.targetCount
       });
-    },
-    closeModifyTargetModal() {
-      this.cancelTargetInput()
-    },
-    onTargetInput(e: any) {
-      this.setData({
-        targetInputValue: e.detail.value,
-      });
-    },
-    cancelTargetInput() {
-      this.setData({
-        showTargetInput: false,
-        targetInputValue: "",
-      });
-    },
-
-    confirmTargetInput() {
-      const value = parseInt(this.data.targetInputValue);
-      if (isNaN(value)) {
-        wx.showToast({
-          title: "请输入有效数字",
-          icon: "none",
-        });
-        return;
-      }
-
-      if (value < 0) {
-        wx.showToast({
-          title: "目标行数不能小于0",
-          icon: "none",
-        });
-        return;
-      }
-
-      if (value > 999) {
-        wx.showToast({
-          title: "目标行数不能超过999",
-          icon: "none",
-        });
-        return;
-      }
-
-      this.setData({
-        "counterData.targetCount": value,
-        showTargetInput: false,
-        targetInputValue: "",
-      });
-      this.saveCounterData();
     },
 
     // 删除相关
@@ -556,27 +484,40 @@ Component({
     },
 
     // 公共方法
-    increase() {
-      this.handleCountChange("increase");
+    increase(isFromChildCounter: boolean = false) {
+      this.handleCountChange("increase", isFromChildCounter === true);
     },
 
-    decrease() {
-      this.handleCountChange("decrease");
+    decrease(isFromChildCounter: boolean = false) {
+      this.handleCountChange("decrease", isFromChildCounter === true);
     },
     showResetConfirm() {
       this.handleCountChange("reset");
     },
+    getCurrentCount(): number {
+      return this.data.counterData.currentCount;
+    },
+
+    // 弹窗事件处理
+    handleShowTargetInput() {
+      this.triggerEvent('showTargetInput', {
+        key: this.properties.storageKey,
+        currentTarget: this.data.counterData.targetCount
+      });
+    },
+
+    handleShowModifyName() {
+      this.triggerEvent('showModifyName', {
+        key: this.properties.storageKey,
+        currentName: this.data.counterData.name
+      });
+    },
+
+    handleShowModifyCount() {
+      this.triggerEvent('showModifyCount', {
+        key: this.properties.storageKey,
+        currentCount: this.data.counterData.currentCount
+      });
+    },
   },
 });
-// 兼容 selectComponent/AllComponents 调用
-// @ts-ignore
-Component.prototype.stopTimer = stopTimerProxy;
-
-/**
- * 该文件为计数器组件（counter）的主逻辑文件：
- * - 管理计数器的数据（名称、目标、当前值、历史记录、计时器等）
- * - 提供计数操作（加、减、重置）、目标设置、历史记录、计时器等功能
- * - 支持震动、声音、删除等交互
- * - 历史记录只保留最近20条，超出自动丢弃旧记录
- * - 组件数据持久化到本地 storage，支持多计数器独立存储
- */
