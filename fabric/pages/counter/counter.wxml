@@ -28,7 +28,7 @@
       <block wx:for="{{counterKeys}}" wx:key="title">
         <van-tab tab-class="tab-content-container" title="{{item.title}}" title-class="tab-title" title-style="max-width: 260rpx; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
           <view class="tab-content" data-set="{{item.key}}">
-            <counter id="counter" showDeleteBtn="{{counterKeys.length > 1}}" data-id="{{item.key}}" vibrationOn="{{isVibrationOn}}" voiceOn="{{isVoiceOn}}" storageKey="{{item.key}}" bindhandleCounterDelete="handleCounterDelete" bind:onDelete="handleCounterDelete" bind:modifyName="modifyName" />
+            <counter id="counter" showDeleteBtn="{{counterKeys.length > 1}}" data-id="{{item.key}}" vibrationOn="{{isVibrationOn}}" voiceOn="{{isVoiceOn}}" storageKey="{{item.key}}" bind:handleCounterDelete="handleCounterDelete" bind:onDelete="handleCounterDelete" bind:showModifyName="handleShowModifyName" bind:showModifyCount="handleShowModifyCount" bind:showTargetInput="handleShowTargetInput" />
           </view>
         </van-tab>
       </block>
@@ -52,6 +52,24 @@
 <van-dialog use-slot z-index="9999" title="创建一个子计数器" transition="fade" show="{{ showRepeatStartInputDialog }}" show-cancel-button confirm-button-color="#A889C8" bind:confirm="onConfirmRepeatStartInputDialog">
   <view class="modal-content">
     <input type="number" class=".modal-content-input" placeholder="从第几行开始？" bindinput="onBindRepeatStartInput" value="{{repeatCounterStartValue}}" />
+  </view>
+</van-dialog>
+<!-- 目标行数输入弹窗 -->
+<van-dialog use-slot z-index="9999" title="设置目标行数" transition="fade" show="{{ showTargetInput }}" show-cancel-button bind:close="closeModifyTargetModal" bind:confirm="confirmTargetInput" confirm-button-color="#A889C8">
+  <view class="modal-content">
+    <input type="number" class="modal-content-input" placeholder="请输入目标行数" value="{{targetInputValue}}" bindinput="onTargetInput" focus="{{showTargetInput}}" maxlength="3" />
+  </view>
+</van-dialog>
+<!-- 修改计数器名称弹窗 -->
+<van-dialog use-slot z-index="9999" title="修改计数器名称" transition="fade" show="{{ showModifyCounterName }}" show-cancel-button bind:close="closeModifyCounterNameModal" bind:confirm="confirmModifyCounterName" confirm-button-color="#A889C8">
+  <view class="modal-content">
+    <input class="modal-content-input" placeholder="请输入计数器名称" value="{{targetInputValue}}" bindinput="onTargetInput" maxlength="30" />
+  </view>
+</van-dialog>
+<!-- 修改当前行数弹窗 -->
+<van-dialog use-slot z-index="9999" title="修改当前行数" transition="fade" show="{{ showModifyCount }}" show-cancel-button bind:close="closeModifyCountModal" bind:confirm="confirmModifyCountData" confirm-button-color="#A889C8">
+  <view class="modal-content">
+    <input type="number" class="modal-content-input" placeholder="请输入新的行数" value="{{targetInputValue}}" bindinput="onTargetInput" maxlength="3" />
   </view>
 </van-dialog>
 <!-- 重复计数器 -->
