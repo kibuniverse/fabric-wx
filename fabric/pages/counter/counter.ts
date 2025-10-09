@@ -39,6 +39,12 @@ Page({
     counterKeys: [] as { key: string; title: string }[],
     activeKey: "",
     activeTab: 0,
+    // 弹窗相关
+    showTargetInput: false,
+    showModifyCounterName: false,
+    showModifyCount: false,
+    targetInputValue: "",
+    currentEditingKey: "",
     // 操作是否来源于子计数器
     isFromChildCounter: false,
     // 添加新计数器相关
@@ -119,7 +125,6 @@ Page({
     query
       .select("#connect-ball")
       .boundingClientRect((rect) => {
-        console.log("Float ball rect:", rect);
         const floatPos = wx.getStorageSync("floatPos") || {
           x: windowWidth - rect.width - margin,
           y: windowHeight * 0.75,
@@ -140,6 +145,7 @@ Page({
       })
       .exec();
   },
+
 
   // 优化后的onLoad
   onLoad() {
@@ -196,7 +202,6 @@ Page({
   },
   onLevitateCountTouchend() {
     const { floatLevitateCount } = this.data;
-    console.log("levitate count touchend", floatLevitateCount);
   },
 
   onChange(e: { detail: { index: number } }) {
@@ -511,4 +516,119 @@ Page({
       },
     });
   },
+
+  // 处理设置目标行数
+  handleShowTargetInput(e: any) {
+    const { key, currentTarget } = e.detail;
+    this.setData({
+      showTargetInput: true,
+      targetInputValue: String(currentTarget),
+      currentEditingKey: key
+    });
+  },
+
+  // 处理修改计数器名称
+  handleShowModifyName(e: any) {
+    const { key, currentName } = e.detail;
+    this.setData({
+      showModifyCounterName: true,
+      targetInputValue: currentName,
+      currentEditingKey: key
+    });
+  },
+
+  // 处理修改当前行数
+  handleShowModifyCount(e: any) {
+    const { key, currentCount } = e.detail;
+    this.setData({
+      showModifyCount: true,
+      targetInputValue: String(currentCount),
+      currentEditingKey: key
+    });
+  },
+
+  // 目标输入相关方法
+  onTargetInput(e: any) {
+    this.setData({
+      targetInputValue: e.detail.value
+    });
+  },
+
+  closeModifyTargetModal() {
+    this.setData({
+      showTargetInput: false
+    });
+  },
+
+  closeModifyCounterNameModal() {
+    this.setData({
+      showModifyCounterName: false
+    });
+  },
+
+  closeModifyCountModal() {
+    this.setData({
+      showModifyCount: false
+    });
+  },
+
+  // 确认修改目标行数
+  confirmTargetInput() {
+    const newTarget = parseInt(this.data.targetInputValue);
+    if (isNaN(newTarget) || newTarget <= 0 || newTarget > 999) {
+      this.showToast("请输入1-999之间的数字");
+      return;
+    }
+
+    const counterData = wx.getStorageSync(this.data.currentEditingKey);
+    if (counterData) {
+      counterData.targetCount = newTarget;
+      wx.setStorageSync(this.data.currentEditingKey, counterData);
+    }
+    eventBus.emit('refreshCounter', { counterKey: this.data.currentEditingKey });
+    this.setData({
+      showTargetInput: false
+    });
+  },
+
+  // 确认修改计数器名称
+  confirmModifyCounterName() {
+    const newName = this.data.targetInputValue.trim();
+    if (!newName) {
+      this.showToast("名称不能为空");
+      return;
+    }
+
+    const counterData = wx.getStorageSync(this.data.currentEditingKey);
+    if (counterData) {
+      counterData.name = newName;
+      wx.setStorageSync(this.data.currentEditingKey, counterData);
+    }
+    eventBus.emit('refreshCounter', { counterKey: this.data.currentEditingKey });
+    this.setData({
+      showModifyCounterName: false
+    });
+  },
+
+  // 确认修改当前行数
+  confirmModifyCountData() {
+    const newCount = parseInt(this.data.targetInputValue);
+    if (isNaN(newCount) || newCount < 0 || newCount > 999) {
+      this.showToast("请输入0-999之间的数字");
+      return;
+    }
+    const counterData = wx.getStorageSync(this.data.currentEditingKey);
+    if (counterData) {
+      counterData.currentCount = newCount;
+      wx.setStorageSync(this.data.currentEditingKey, counterData);
+    }
+    eventBus.emit('refreshCounter', { counterKey: this.data.currentEditingKey });
+
+    this.setData({
+      showModifyCount: false
+    });
+  },
+
+
+
 });

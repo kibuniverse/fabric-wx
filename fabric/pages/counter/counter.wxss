@@ -64,10 +64,6 @@ page {
   background-color: red !important;
 }
 
-.tab-content {
-  /* height: calc(100% - 60rpx); */
-}
-
 .custom-nav-left {
   width: 22rpx;
 }
@@ -210,7 +206,7 @@ scroll-view::-webkit-scrollbar {
   border-radius: 50%;
   pointer-events: auto;
   transition: opacity 0.3s;
-   box-shadow: 0 2px 6px rgba(0, 0, 0, .15);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, .15);
   /* 默认小阴影 */
   transition: box-shadow .3s ease, opacity 0.3s ease;
   /* 只有球本身可点 */
@@ -241,16 +237,17 @@ scroll-view::-webkit-scrollbar {
 }
 
 .repeat-counter {
-  position: fixed;         /* 固定定位，脱离文档流 */
-  left: 50%;               /* 水平居中 */
-  bottom: 114rpx;           /* 距离底部40rpx，可根据需要调整 */
-  top: auto;               /* 取消top居中 */
-  transform: translateX(-50%); /* 只在水平方向居中 */
-  z-index: 100;           /* 保持在当前层级 */
+  position: fixed;
+  left: 50%;
+  bottom: 114rpx;
+  top: auto;
+  transform: translateX(-50%);
   width: 480rpx;
   height: 232rpx;
   display: flex;
   flex-direction: row;
+  overflow: hidden;
+  background-color: #fff;
 }
 
 .connect-counter-left {
@@ -262,23 +259,26 @@ scroll-view::-webkit-scrollbar {
   border: 2rpx solid #E6E6FA;
   display: flex;
   flex-direction: column;
-  border-right: none; /* 不描边左侧 */
-  align-items: center;      /* 水平居中内容 */
+  border-right: none;
+  /* 不描边左侧 */
+  align-items: center;
+  /* 水平居中内容 */
   justify-content: flex-start;
   position: relative;
-  
+
 }
+
 .content-counter-right {
   width: 100rpx;
   height: 232rpx;
   border: 2rpx solid #E6E6FA;
   border-top-right-radius: 40rpx;
   border-bottom-right-radius: 40rpx;
-  border-left: none; /* 不描边左侧 */
+  border-left: none;
   background-color: #E6E6FA;
   display: flex;
-  align-items: center;      /* 垂直居中内容 */
-  justify-content: center;  /* 水平居中内容 */
+  align-items: center;
+  justify-content: center;
 }
 
 .content-counter-number {
@@ -330,13 +330,14 @@ scroll-view::-webkit-scrollbar {
 .minus {
   background: #0000001a;
 }
+
 .repeat-counter-close {
   width: 68rpx;
   height: 68rpx;
-  position: absolute;    /* 绝对定位 */
+  position: absolute;
+  /* 绝对定位 */
   top: 0rpx;
   right: 10rpx;
-  z-index: 9999;
 }
 
 .modal-content-input {
