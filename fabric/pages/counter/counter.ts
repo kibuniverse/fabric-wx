@@ -619,6 +619,7 @@ Page({
     this.setData({
       showModifyCounterName: false
     });
+    this.selectComponent("#tabs").resize();
   },
 
   // 确认修改当前行数
