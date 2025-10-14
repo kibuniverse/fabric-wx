@@ -17,5 +17,25 @@
   "lazyCodeLoading": "requiredComponents",
   "useExtendedLib": {
     "weui": true
+  },
+  "tabBar": {
+    "custom": true,
+    "color": "#00000066",
+    "selectedColor": "#A889C8",
+    "backgroundColor": "#ffffff",
+    "list": [
+      {
+        "pagePath": "pages/home/home",
+        "text": "首页",
+        "iconPath": "/assets/home.png",
+        "selectedIconPath": "/assets/home_select.png"
+      },
+      {
+        "pagePath": "pages/counter/counter",
+        "text": "计数器",
+        "iconPath": "/assets/counter.png",
+        "selectedIconPath": "/assets/counter_select.png"
+      }
+    ]
   }
 }
