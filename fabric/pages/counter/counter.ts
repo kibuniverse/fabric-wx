@@ -599,6 +599,17 @@ Page({
       return;
     }
 
+    // 修改计数器名称
+    const newCounterKeys = this.data.counterKeys.map((item) => {
+      if (item.key === this.data.currentEditingKey) {
+        return { ...item, title: newName };
+      }
+      return item;
+    });
+    this.setData({
+      counterKeys: newCounterKeys,
+    });
+    wx.setStorageSync(STORAGE_KEYS.COUNTER_KEYS, newCounterKeys);
     const counterData = wx.getStorageSync(this.data.currentEditingKey);
     if (counterData) {
       counterData.name = newName;
@@ -608,6 +619,7 @@ Page({
     this.setData({
       showModifyCounterName: false
     });
+    this.selectComponent("#tabs").resize();
   },
 
   // 确认修改当前行数
