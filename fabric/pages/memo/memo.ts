@@ -28,6 +28,7 @@ Page({
       content: e.detail.value,
       lastModified: currentTime
     });
+    this.handleFillBackData();
   },
 
   handleConfirm() {
