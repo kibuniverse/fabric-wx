@@ -6,65 +6,59 @@
   position: relative;
   background-color: #FFFFFF;
 }
-
-/* 顶部标签导航栏 */
+/* 顶部标签导航栏 - 无底部浅灰横线、tab居中 */
 .tab-header {
   display: flex;
   position: relative;
-  padding: 10rpx 30rpx;
-  border-bottom: 1rpx solid #f0f0f0;
+  justify-content: center;
+  align-items: center;
+  padding: 16rpx 30rpx;
   background-color: #FFFFFF;
 }
-
 .tab {
   position: relative;
-  padding: 20rpx 0;
-  margin-right: 60rpx;
+  padding: 12rpx 0 6px; /* 底部padding设为6px，为下划线留出间距 */
 }
-
 .tab text {
   font-size: 32rpx;
   color: #666;
+  display: inline-block; /* 让文字高度可计算 */
+  line-height: 1; /* 重置行高，避免行高干扰间距 */
 }
-
 .tab.active text {
-  font-weight: bold;
-  color: #8a7bec;
+  font-weight: 600; /* semibold（半粗体）对应CSS的600 */
+  font-size: 32rpx; /* 字号32rpx */
+  line-height: 44rpx; /* 行高44rpx */
+  color: #A889C8CC; /* 80%透明度A889C8 */
 }
-
 .tab-line {
   position: absolute;
-  bottom: 0;
+  bottom: 0; /* 与文字底部间距12rpx */
   left: 50%;
   transform: translateX(-50%);
-  width: 0;
+  width: 40rpx;
   height: 6rpx;
-  background-color: #8a7bec;
+  background-color: #A889C8CC;
   border-radius: 4rpx;
   transition: width 0.3s;
 }
-
-.tab-line.active {
-  width: 40rpx;
-}
-
-/* 加号按钮 */
+/* 加号按钮容器 - 22×22rpx图标适配 */
 .add-btn {
   position: absolute;
   right: 30rpx;
-  top: 20rpx;
-  width: 50rpx;
-  height: 50rpx;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 40rpx;
+  height: 40rpx;
   display: flex;
-  justify-content: center;
   align-items: center;
+  justify-content: center;
 }
-
 .add-icon {
-  font-size: 48rpx;
-  color: #333;
+  width: 44rpx;
+  height: 44rpx;
+  /* tint-color: #A889C8CC; 可选：修改SVG颜色 */
 }
-
 /* 导入选项弹出层 */
 .import-options {
   position: absolute;
@@ -81,64 +75,56 @@
   transition: all 0.3s;
   border-bottom: 1px solid #00000005;
 }
-
 .import-options.show {
   opacity: 1;
   transform: translateY(0);
   visibility: visible;
 }
-
 .import-option {
   padding: 20rpx;
   display: flex;
   align-items: center;
 }
-
 .option-icon {
   width: 36rpx;
   height: 36rpx;
   margin-right: 20rpx;
 }
-
 .import-option text {
   font-size: 28rpx;
   color: #333;
 }
 
-/* 内容区域 */
+.tab-content {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
 .content-area {
   flex: 1;
   overflow-y: auto;
 }
-
-.tab-content {
-  height: 100%;
-}
-
-/* 空状态 */
 .empty-state {
+  width: 100%;
   height: 100%;
   display: flex;
-  flex-direction: column;
   justify-content: center;
   align-items: center;
-  padding: 40rpx;
 }
-
-.empty-text {
-  font-size: 28rpx;
-  color: #999;
-  text-align: center;
-  line-height: 1.6;
+/* 空状态图片 - 保留420×420，新增兜底居中 */
+.empty-diagram {
+  width: 210px;
+  height: 210px;
+  object-fit: contain;
 }
-
 /* 合并图解和文件网格 */
 .items-grid {
   display: flex;
   flex-wrap: wrap;
   padding: 20rpx;
 }
-
 .item {
   width: calc(33.33% - 20rpx);
   margin: 10rpx;
@@ -147,21 +133,17 @@
   background-color: #f5f1ff;
   position: relative;
 }
-
 .image-item {
-  border-left: 3px solid #8a7bec;
+  border-left: 3px solid #A889C8CC;
 }
-
 .file-item {
   border-left: 3px solid #56bfb5;
 }
-
 .item image {
   width: 100%;
   height: 200rpx;
   display: block;
 }
-
 .item-info {
   padding: 10rpx;
   display: flex;
@@ -169,7 +151,6 @@
   align-items: center;
   flex-wrap: wrap;
 }
-
 .item-name {
   font-size: 24rpx;
   color: #333;
@@ -178,7 +159,6 @@
   text-overflow: ellipsis;
   width: 70%;
 }
-
 .item-type {
   font-size: 20rpx;
   color: #999;
@@ -187,16 +167,14 @@
   border-radius: 8rpx;
   margin-left: auto;
 }
-
 .item-more {
   font-size: 28rpx;
-  color: #8a7bec;
+  color: #A889C8CC;
   width: 60rpx;
   text-align: center;
   padding: 0 10rpx;
   margin-left: 10rpx;
 }
-
 /* 遮罩层 */
 .mask {
   position: fixed;
@@ -208,11 +186,9 @@
   z-index: 5;
   visibility: hidden;
 }
-
 .mask.show {
   visibility: visible;
 }
-
 /* 重命名输入框 */
 .rename-input {
   width: 100%;
@@ -224,7 +200,6 @@
   margin: 20rpx 0;
   box-sizing: border-box;
 }
-
 /* 删除弹窗内容 */
 .delete-modal-content {
   padding: 20rpx 0;
@@ -233,11 +208,10 @@
   text-align: center;
   line-height: 1.6;
 }
-
 /* 三个点栏目样式 */
 .image-more, .file-more {
   font-size: 28rpx;
-  color: #8a7bec;
+  color: #A889C8CC;
   width: 60rpx;
   text-align: center;
   padding: 0 10rpx;
