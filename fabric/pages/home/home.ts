@@ -69,7 +69,7 @@ Page({
     
     // 合并并按创建时间排序
     const allItems = [...imageList, ...fileList].sort((a, b) => b.createTime - a.createTime);
-    
+    console.log('All Items:', allItems,imageList,fileList);
     this.setData({
       imageList,
       fileList,
@@ -181,13 +181,13 @@ Page({
    * 显示操作菜单
    */
   showActionSheet(e: any) {
+    // 阻止触发事件冒泡
     const id = e.currentTarget.dataset.id;
     const type = e.currentTarget.dataset.type; // 'image' 或 'file'
     
     // 根据类型获取当前项
-    const list = type === 'image' ? this.data.imageList : this.data.fileList;
-    const currentItem = list.find(item => item.id === id);
-    
+    const currentItem = this.data.allItems.find(item => item.id === id);
+
     if (currentItem) {
       this.setData({
         showActionSheet: true,
@@ -350,7 +350,7 @@ Page({
    */
   confirmDelete() {
     const { currentItemId, currentItemType } = this.data;
-    
+    console.log('Current Item ID:', currentItemId, 'Current Item Type:', currentItemType, this.data.imageList, this.data.fileList);
     // 从对应列表中删除项目
     if (currentItemType === 'image') {
       const updatedList = this.data.imageList.filter(item => item.id !== currentItemId);

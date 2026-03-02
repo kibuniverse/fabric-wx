@@ -8,7 +8,7 @@
     </view>
     <!-- 右上角加号按钮 -->
     <view class="add-btn" bindtap="toggleImportOptions">
-      <text class="add-icon">+</text>
+      <dynamic-svg svg-class="add-icon" svgPath="/assets/plus.svg" color="#333333" mode="aspectFit" />
     </view>
   </view>
   <!-- 导入选项弹出层 -->
@@ -33,12 +33,14 @@
       </block>
       <block wx:else>
         <view class="items-grid">
-          <view class="item {{item.type === 'image' ? 'image-item' : 'file-item'}}" wx:for="{{allItems}}" wx:key="id" bindtap="navigateToDetail" data-id="{{item.id}}">
-            <image src="{{item.path}}" mode="aspectFill"></image>
+          <view class="item" wx:for="{{allItems}}" wx:key="id" bindtap="navigateToDetail" data-id="{{item.id}}">
+            <image class="default-illustration" src="/assets/default_Illustration.png" mode="aspectFill"></image>
+            <image class="type-logo" src="/assets/{{item.type === 'image' ? 'image' : 'pdf_logo'}}.svg"></image>
             <view class="item-info">
               <text class="item-name">{{item.name}}</text>
-              <text class="item-type">{{item.type === 'image' ? '图片' : 'PDF'}}</text>
-              <text class="item-more" bindtap="showActionSheet" data-id="{{item.id}}" data-type="{{item.type}}">...</text>
+            </view>
+            <view class="item-operate-container" catchtap="showActionSheet" data-id="{{item.id}}" data-type="{{item.type}}">
+              <image src="/assets/more_action.svg" class="more-action" mode="aspectFill" />
             </view>
           </view>
         </view>
@@ -47,17 +49,14 @@
   </view>
   <!-- 遮罩层 -->
   <view class="mask {{showImportOptions ? 'show' : ''}}" bindtap="toggleImportOptions"></view>
-  
   <!-- WeUI ActionSheet -->
-  <action-sheet show="{{showActionSheet}}" actions="{{actions}}" bind:actiontap="handleActionClick" bind:close="closeActionSheet"/>
-  
+  <action-sheet show="{{showActionSheet}}" actions="{{actions}}" bind:actiontap="handleActionClick" bind:close="closeActionSheet" />
   <!-- 重命名对话框 -->
   <mp-dialog title="重命名" show="{{showRenameModal}}" bindbuttontap="handleRenameDialogButtonClick" buttons="{{renameButtons}}">
     <view>
       <input class="rename-input" type="text" value="{{newItemName}}" bindinput="onRenameInput" placeholder="请输入新名称" />
     </view>
   </mp-dialog>
-  
   <!-- 删除确认对话框 -->
   <mp-dialog title="确认删除" show="{{showDeleteModal}}" bindbuttontap="handleDeleteDialogButtonClick" buttons="{{deleteButtons}}">
     <view class="delete-modal-content">确定要删除该项吗？此操作无法撤销。</view>
