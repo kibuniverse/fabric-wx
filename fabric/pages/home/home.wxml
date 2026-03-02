@@ -8,7 +8,7 @@
     </view>
     <!-- 右上角加号按钮 -->
     <view class="add-btn" bindtap="toggleImportOptions">
-      <dynamic-svg svg-class="add-icon" svgPath="/assets/plus.svg" color="#333333" mode="aspectFit" />
+      <image class="add-icon" src="/assets/add_diagram.svg" mode="aspectFit"></image>
     </view>
   </view>
   <!-- 导入选项弹出层 -->
@@ -28,7 +28,7 @@
     <view class="tab-content">
       <block wx:if="{{allItems.length === 0}}">
         <view class="empty-state">
-          <text class="empty-text">内置计数器，建议导入带有行与号的图解</text>
+          <image class="empty_diagram" src="/assets/empty_diagram.png" mode="aspectFit"></image>
         </view>
       </block>
       <block wx:else>

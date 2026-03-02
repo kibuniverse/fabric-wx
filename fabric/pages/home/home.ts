@@ -3,6 +3,7 @@
 interface FileItem {
   id: string;
   name: string;
+  originalName: string;
   path: string;
   type: 'image' | 'pdf';
   createTime: number;
@@ -108,6 +109,7 @@ Page({
           return {
             id: this.generateUniqueId(),
             name: fileName.length > 10 ? fileName.substring(0, 7) + '...' : fileName,
+            originalName: fileName,
             path: file.tempFilePath,
             type: 'image',
             createTime: Date.now()
@@ -149,6 +151,7 @@ Page({
           return {
             id: this.generateUniqueId(),
             name: file.name.length > 10 ? file.name.substring(0, 7) + '...' : file.name,
+            originalName: file.name,
             path: file.path,
             type: 'pdf',
             createTime: Date.now()
@@ -187,13 +190,13 @@ Page({
     
     // 根据类型获取当前项
     const currentItem = this.data.allItems.find(item => item.id === id);
-
+    console.log('Current Item:', currentItem);
     if (currentItem) {
       this.setData({
         showActionSheet: true,
         currentItemId: id,
         currentItemType: type,
-        currentItemName: currentItem.name
+        currentItemName: currentItem.originalName
       });
     }
   },
