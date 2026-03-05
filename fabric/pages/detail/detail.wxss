@@ -33,8 +33,7 @@
   align-items: center;
   justify-content: center;
   position: relative;
-  transition: transform 0.1s ease-out;
-  will-change: transform, scale;
+  will-change: transform;
 }
 .image-mask {
   position: absolute;
@@ -128,9 +127,9 @@
   border-radius: 12px;
   font-size: 12px;
 }
-image {
+/* 仅限制 preview-area 内的 image 默认行为 */
+.preview-area image {
   -webkit-touch-callout: none;
-  pointer-events: none;
   -webkit-user-drag: none;
   -webkit-tap-highlight-color: transparent;
 }

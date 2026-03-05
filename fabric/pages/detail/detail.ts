@@ -7,12 +7,7 @@ interface DetailPageData {
   itemName: string;
   itemPath: string;
   count: number;
-  currentPage: number;
-  totalPages: number;
-  imageScale: number; // 图片缩放比例
-  lastTapTime: number; // 上次点击时间，用于双击检测
-  lastX: number; // 上次移动的X坐标
-  lastY: number; // 上次移动的Y坐标
+  lastTapTime: number;
 }
 
 // 通用的提示配置
@@ -31,12 +26,7 @@ Page<DetailPageData, WechatMiniprogram.IAnyObject>({
     itemName: "",
     itemPath: "",
     count: 0,
-    currentPage: 1,
-    totalPages: 1,
-    imageScale: 1, // 默认缩放比例为1
-    lastTapTime: 0, // 上次点击时间
-    lastX: 0, // 上次X坐标
-    lastY: 0, // 上次Y坐标
+    lastTapTime: 0,
   },
 
   /**
@@ -111,49 +101,11 @@ Page<DetailPageData, WechatMiniprogram.IAnyObject>({
         });
       }
     }
-    
+
     // 更新最后点击时间
     this.setData({
       lastTapTime: now
     });
-  },
-  
-  /**
-   * 处理可移动视图变化事件
-   */
-  onMovableViewChange(e: any) {
-    // 记录上次移动的坐标，使用于平滑过渡
-    const { x, y } = e.detail;
-    
-    if (Math.abs(x - this.data.lastX) > 50 || Math.abs(y - this.data.lastY) > 50) {
-      this.setData({
-        lastX: x,
-        lastY: y
-      });
-    }
-  },
-  
-  /**
-   * 处理图片缩放事件
-   */
-  onImageScale(e: any) {
-    // 获取当前缩放比例
-    const scale = e.detail.scale;
-    
-    // 添加判断避免频繁更新
-    if (Math.abs(scale - this.data.imageScale) > 0.01) {
-      this.setData({
-        imageScale: scale
-      });
-    }
-  },
-  
-  /**
-   * 处理图片长按事件
-   */
-  onLongTap() {
-    // 长按事件处理，仅阻止微信默认菜单弹出
-    // 如果需要自定义长按行为，可以在这里添加
   },
 
   /**
