@@ -17,10 +17,10 @@
       <image class="option-icon" src="/assets/image.svg" mode="aspectFit"></image>
       <text>导入图片</text>
     </view>
-    <view class="import-option" bindtap="choosePDF">
-      <image class="option-icon" src="/assets/pdf_logo.svg" mode="aspectFit"></image>
-      <text>导入PDF</text>
-    </view>
+    <!--     <view class="import-option" bindtap="choosePDF"> -->
+    <!--       <image class="option-icon" src="/assets/pdf_logo.svg" mode="aspectFit"></image> -->
+    <!--       <text>导入PDF</text> -->
+    <!--     </view> -->
   </view>
   <!-- 内容区域 -->
   <view class="content-area">
@@ -60,5 +60,12 @@
   <!-- 删除确认对话框 -->
   <mp-dialog title="确认删除" show="{{showDeleteModal}}" bindbuttontap="handleDeleteDialogButtonClick" buttons="{{deleteButtons}}">
     <view class="delete-modal-content">确定要删除该项吗？此操作无法撤销。</view>
+  </mp-dialog>
+  <!-- 命名对话框（导入图片时使用） -->
+  <mp-dialog title="命名图解" show="{{showNameModal}}" bindbuttontap="handleNameDialogButtonClick" buttons="{{nameButtons}}">
+    <view>
+      <view class="name-hint">已选择 {{pendingImages.length}} 张图片</view>
+      <input class="rename-input" type="text" value="{{diagramName}}" bindinput="onNameInput" placeholder="请输入图解名称" />
+    </view>
   </mp-dialog>
 </view>

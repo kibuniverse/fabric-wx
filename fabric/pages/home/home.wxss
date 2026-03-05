@@ -208,6 +208,12 @@
   margin: 20rpx 0;
   box-sizing: border-box;
 }
+/* 命名提示文字 */
+.name-hint {
+  font-size: 24rpx;
+  color: #999;
+  margin-bottom: 16rpx;
+}
 /* 删除弹窗内容 */
 .delete-modal-content {
   padding: 20rpx 0;

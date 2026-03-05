@@ -4,7 +4,8 @@ interface FileItem {
   id: string;
   name: string;
   originalName: string;
-  path: string;
+  path: string;          // 保留兼容旧数据，取 paths[0]
+  paths: string[];       // 多图片路径数组
   type: 'image' | 'pdf';
   createTime: number;
 }
@@ -50,6 +51,15 @@ Page({
     deleteButtons: [
       {text: '取消', value: 0},
       {text: '删除', value: 1, type: 'warn'}
+    ],
+
+    // 命名对话框（导入多图时使用）
+    showNameModal: false,
+    pendingImages: [] as string[], // 待命名的图片路径
+    diagramName: '', // 输入的名称
+    nameButtons: [
+      {text: '取消', value: 0},
+      {text: '确认', value: 1, type: 'primary'}
     ]
   },
 
@@ -95,7 +105,7 @@ Page({
     this.setData({
       showImportOptions: false
     });
-    
+
     // 调用系统相册选择图片
     wx.chooseMedia({
       count: 9, // 最多可以选择的文件个数
@@ -103,32 +113,92 @@ Page({
       sourceType: ['album', 'camera'],
       sizeType: ['original', 'compressed'],
       success: (res) => {
-        // 处理选择的图片
-        const newImages: FileItem[] = res.tempFiles.map(file => {
-          const fileName = file.tempFilePath.split('/').pop() || '未命名图片';
-          return {
-            id: this.generateUniqueId(),
-            name: fileName.length > 10 ? fileName.substring(0, 7) + '...' : fileName,
-            originalName: fileName,
-            path: file.tempFilePath,
-            type: 'image',
-            createTime: Date.now()
-          };
-        });
+        // 保存待命名的图片路径
+        const pendingImages = res.tempFiles.map(file => file.tempFilePath);
 
-        // 更新图片列表
-        const updatedImageList = [...this.data.imageList, ...newImages];
-        const allItems = [...updatedImageList, ...this.data.fileList].sort((a, b) => b.createTime - a.createTime);
-        
+        // 生成默认名称（取第一张图片的文件名）
+        const firstFileName = pendingImages[0].split('/').pop() || '未命名图解';
+        const defaultName = firstFileName.length > 10 ? firstFileName.substring(0, 7) + '...' : firstFileName;
+
         this.setData({
-          imageList: updatedImageList,
-          allItems
+          pendingImages,
+          diagramName: defaultName,
+          showNameModal: true
         });
-
-        // 保存到本地存储
-        wx.setStorageSync('imageList', updatedImageList);
       }
     })
+  },
+
+  /**
+   * 处理命名对话框输入
+   */
+  onNameInput(e: any) {
+    this.setData({
+      diagramName: e.detail.value
+    });
+  },
+
+  /**
+   * 处理命名对话框按钮点击
+   */
+  handleNameDialogButtonClick(e: any) {
+    const index = e.detail.index;
+
+    if (index === 0) {
+      // 点击取消按钮
+      this.setData({
+        showNameModal: false,
+        pendingImages: [],
+        diagramName: ''
+      });
+    } else if (index === 1) {
+      // 点击确认按钮
+      this.confirmCreateDiagram();
+    }
+  },
+
+  /**
+   * 确认创建图解项目
+   */
+  confirmCreateDiagram() {
+    const { pendingImages, diagramName } = this.data;
+
+    if (!diagramName.trim()) {
+      this.showToast('名称不能为空');
+      return;
+    }
+
+    if (pendingImages.length === 0) {
+      this.showToast('未选择图片');
+      return;
+    }
+
+    // 创建单个图解项目，包含多张图片
+    const newItem: FileItem = {
+      id: this.generateUniqueId(),
+      name: diagramName,
+      originalName: diagramName,
+      path: pendingImages[0], // 兼容旧数据
+      paths: pendingImages,
+      type: 'image',
+      createTime: Date.now()
+    };
+
+    // 更新图片列表
+    const updatedImageList = [...this.data.imageList, newItem];
+    const allItems = [...updatedImageList, ...this.data.fileList].sort((a, b) => b.createTime - a.createTime);
+
+    this.setData({
+      imageList: updatedImageList,
+      allItems,
+      showNameModal: false,
+      pendingImages: [],
+      diagramName: ''
+    });
+
+    // 保存到本地存储
+    wx.setStorageSync('imageList', updatedImageList);
+    this.showToast(`已创建图解，包含${pendingImages.length}张图片`);
   },
 
   /**

@@ -6,6 +6,9 @@ interface DetailPageData {
   itemType: "image" | "pdf" | "";
   itemName: string;
   itemPath: string;
+  itemPaths: string[];      // 多图片路径数组
+  currentImageIndex: number; // 当前显示图片索引
+  totalImages: number;       // 图片总数
   count: number;
   lastTapTime: number;
 }
@@ -25,6 +28,9 @@ Page<DetailPageData, WechatMiniprogram.IAnyObject>({
     itemType: "",
     itemName: "",
     itemPath: "",
+    itemPaths: [],
+    currentImageIndex: 0,
+    totalImages: 0,
     count: 0,
     lastTapTime: 0,
   },
@@ -58,17 +64,24 @@ Page<DetailPageData, WechatMiniprogram.IAnyObject>({
     const item = allItems.find((item) => item.id === id);
 
     if (item) {
+      // 兼容处理：paths 存在则用 paths，否则用 [path]
+      const itemPaths = item.paths || [item.path];
+      const totalImages = itemPaths.length;
+
       this.setData({
         itemType: item.type,
         itemName: item.name,
-        itemPath: item.path,
+        itemPath: itemPaths[0], // 当前显示的图片路径
+        itemPaths,
+        currentImageIndex: 0,
+        totalImages,
       });
-      
+
       // 设置导航栏标题为图解名称
       wx.setNavigationBarTitle({
         title: item.name
       });
-      
+
       // 加载该项目对应的计数器值
       this.loadCounterValue();
     } else {
@@ -97,7 +110,7 @@ Page<DetailPageData, WechatMiniprogram.IAnyObject>({
       if (this.data.itemType === "image") {
         wx.previewImage({
           current: this.data.itemPath,
-          urls: [this.data.itemPath],
+          urls: this.data.itemPaths,
         });
       }
     }
@@ -105,6 +118,34 @@ Page<DetailPageData, WechatMiniprogram.IAnyObject>({
     // 更新最后点击时间
     this.setData({
       lastTapTime: now
+    });
+  },
+
+  /**
+   * 切换到上一张图片
+   */
+  prevImage() {
+    const { currentImageIndex, itemPaths, totalImages } = this.data;
+    if (totalImages <= 1) return;
+
+    const newIndex = currentImageIndex > 0 ? currentImageIndex - 1 : totalImages - 1;
+    this.setData({
+      currentImageIndex: newIndex,
+      itemPath: itemPaths[newIndex]
+    });
+  },
+
+  /**
+   * 切换到下一张图片
+   */
+  nextImage() {
+    const { currentImageIndex, itemPaths, totalImages } = this.data;
+    if (totalImages <= 1) return;
+
+    const newIndex = currentImageIndex < totalImages - 1 ? currentImageIndex + 1 : 0;
+    this.setData({
+      currentImageIndex: newIndex,
+      itemPath: itemPaths[newIndex]
     });
   },
 

@@ -133,3 +133,55 @@
   -webkit-user-drag: none;
   -webkit-tap-highlight-color: transparent;
 }
+
+/* 图片导航箭头 */
+.image-nav {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  pointer-events: none;
+}
+
+.nav-arrow {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 80rpx;
+  height: 80rpx;
+  border-radius: 50%;
+  background-color: rgba(0, 0, 0, 0.3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: auto;
+}
+
+.nav-arrow-left {
+  left: 24rpx;
+}
+
+.nav-arrow-right {
+  right: 24rpx;
+}
+
+.arrow-icon {
+  color: #fff;
+  font-size: 48rpx;
+  font-weight: bold;
+  line-height: 1;
+}
+
+/* 页码指示器 */
+.page-indicator {
+  position: absolute;
+  bottom: 24rpx;
+  left: 50%;
+  transform: translateX(-50%);
+  background-color: rgba(0, 0, 0, 0.5);
+  color: #fff;
+  padding: 8rpx 24rpx;
+  border-radius: 24rpx;
+  font-size: 24rpx;
+}
