@@ -17,6 +17,12 @@
   position: relative;
 }
 
+/* swiper 样式 */
+.image-swiper {
+  width: 100%;
+  height: 100%;
+}
+
 /* 可缩放的区域样式 */
 .movable-area {
   width: 100%;
@@ -134,53 +140,13 @@
   -webkit-tap-highlight-color: transparent;
 }
 
-/* 图片导航箭头 */
-.image-nav {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  pointer-events: none;
-}
-
-.nav-arrow {
-  position: absolute;
-  top: 50%;
-  transform: translateY(-50%);
-  width: 80rpx;
-  height: 80rpx;
-  border-radius: 50%;
-  background-color: rgba(0, 0, 0, 0.3);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  pointer-events: auto;
-}
-
-.nav-arrow-left {
-  left: 24rpx;
-}
-
-.nav-arrow-right {
-  right: 24rpx;
-}
-
-.arrow-icon {
-  color: #fff;
-  font-size: 48rpx;
-  font-weight: bold;
-  line-height: 1;
-}
-
-/* 页码指示器 */
+/* 页码指示器（右上角） */
 .page-indicator {
   position: absolute;
-  bottom: 24rpx;
-  left: 50%;
-  transform: translateX(-50%);
-  background-color: rgba(0, 0, 0, 0.5);
-  color: #fff;
+  top: 44rpx;
+  right: 44rpx;
+  background-color: rgba(230, 230, 250, 0.7);
+  color: #6A0DAD;
   padding: 8rpx 24rpx;
   border-radius: 24rpx;
   font-size: 24rpx;

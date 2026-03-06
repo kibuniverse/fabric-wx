@@ -3,39 +3,50 @@
 
   <!-- 计数器区域 -->
   <view class="counter-section">
-    <simple-counter 
-      id="detail-counter" 
-      bindchange="onCounterChange" 
+    <simple-counter
+      id="detail-counter"
+      bindchange="onCounterChange"
       backgroundColor="transparent"
       enableVibration="{{true}}"
       enableVoice="{{true}}"
     ></simple-counter>
   </view>
-  
+
   <!-- 图解预览区域 -->
   <view class="preview-area">
-    <!-- 图片预览 支持手动缩放 -->
-    <movable-area
+    <!-- 图片预览 支持滑动切换和手动缩放 -->
+    <swiper
       wx:if="{{itemType === 'image'}}"
-      class="movable-area">
-      <movable-view
-        class="movable-view"
-        direction="all"
-        scale="true"
-        scale-min="1"
-        scale-max="5"
-        damping="20"
-        friction="2"
-        animation="{{false}}">
-        <view class="image-mask"></view>
-        <image
-          src="{{itemPath}}"
-          mode="aspectFit"
-          bindtap="previewImage"
-          class="preview-image"
-          catchlongtap="onLongTap"></image>
-      </movable-view>
-    </movable-area>
+      class="image-swiper"
+      current="{{currentImageIndex}}"
+      bindchange="onSwiperChange"
+      duration="{{300}}">
+      <swiper-item wx:for="{{itemPaths}}" wx:key="index">
+        <movable-area
+          class="movable-area"
+          bindtouchstart="onTouchStart"
+          bindtouchmove="onTouchMove"
+          bindtouchend="onTouchEnd">
+          <movable-view
+            class="movable-view"
+            direction="all"
+            scale="true"
+            scale-min="1"
+            scale-max="5"
+            damping="20"
+            friction="2"
+            animation="{{false}}">
+            <view class="image-mask"></view>
+            <image
+              src="{{item}}"
+              mode="aspectFit"
+              bindtap="previewImage"
+              class="preview-image"
+              catchlongtap="onLongTap"></image>
+          </movable-view>
+        </movable-area>
+      </swiper-item>
+    </swiper>
 
     <!-- PDF预览 -->
     <pdf-viewer
@@ -48,21 +59,17 @@
       <text>加载中...</text>
     </view>
 
-    <!-- 图片切换箭头按钮（仅当多图时显示） -->
-    <view wx:if="{{itemType === 'image' && totalImages > 1}}" class="image-nav">
-      <view class="nav-arrow nav-arrow-left" bindtap="prevImage">
-        <text class="arrow-icon">‹</text>
-      </view>
-      <view class="nav-arrow nav-arrow-right" bindtap="nextImage">
-        <text class="arrow-icon">›</text>
-      </view>
-    </view>
-
-    <!-- 页码指示器（仅当多图时显示） -->
+    <!-- 页码指示器（仅当多图时显示，放在右上角） -->
     <view wx:if="{{itemType === 'image' && totalImages > 1}}" class="page-indicator">
       <text>{{currentImageIndex + 1}}/{{totalImages}}</text>
     </view>
   </view>
 
+  <!-- 长按操作菜单 -->
+  <action-sheet
+    show="{{showActionSheet}}"
+    actions="{{actionSheetActions}}"
+    bind:actiontap="handleActionClick"
+    bind:close="closeActionSheet"/>
 
 </view>

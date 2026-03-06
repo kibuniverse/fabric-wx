@@ -11,7 +11,18 @@ interface DetailPageData {
   totalImages: number;       // 图片总数
   count: number;
   lastTapTime: number;
+  // 长按菜单
+  showActionSheet: boolean;
+  actionSheetActions: { text: string; value: string; type?: string }[];
+  // 触摸相关（用于区分单指长按和多指缩放）
+  touchStartTime: number;
+  touchStartX: number;
+  touchStartY: number;
+  hasMultiTouch: boolean;    // 是否有多指触摸
 }
+
+// 最大图片数量
+const MAX_IMAGES = 9;
 
 // 通用的提示配置
 const DETAIL_TOAST_CONFIG = {
@@ -33,6 +44,14 @@ Page<DetailPageData, WechatMiniprogram.IAnyObject>({
     totalImages: 0,
     count: 0,
     lastTapTime: 0,
+    // 长按菜单
+    showActionSheet: false,
+    actionSheetActions: [],
+    // 触摸相关
+    touchStartTime: 0,
+    touchStartX: 0,
+    touchStartY: 0,
+    hasMultiTouch: false,
   },
 
   /**
@@ -147,6 +166,203 @@ Page<DetailPageData, WechatMiniprogram.IAnyObject>({
       currentImageIndex: newIndex,
       itemPath: itemPaths[newIndex]
     });
+  },
+
+  /**
+   * swiper滑动切换事件
+   */
+  onSwiperChange(e: WechatMiniprogram.SwiperChange) {
+    const current = e.detail.current;
+    this.setData({
+      currentImageIndex: current,
+      itemPath: this.data.itemPaths[current],
+    });
+  },
+
+  /**
+   * 处理图片长按事件 - 显示操作菜单（仅单指长按时触发）
+   */
+  onLongTap() {
+    // 如果有多指触摸，不显示菜单
+    if (this.data.hasMultiTouch) {
+      return;
+    }
+
+    const { totalImages } = this.data;
+    const actions: { text: string; value: string; type?: string }[] = [];
+
+    // 当图片数量超过1时显示删除选项
+    if (totalImages > 1) {
+      actions.push({ text: "删除图片", value: "delete", type: "warn" });
+    }
+
+    // 当图片数量小于最大数量时显示添加选项
+    if (totalImages < MAX_IMAGES) {
+      actions.push({ text: "添加图片", value: "add" });
+    }
+
+    // 注意：weui action-sheet 自带取消按钮，不需要额外添加
+
+    if (actions.length > 0) {
+      this.setData({
+        showActionSheet: true,
+        actionSheetActions: actions,
+      });
+    }
+  },
+
+  /**
+   * 触摸开始事件
+   */
+  onTouchStart(e: WechatMiniprogram.TouchEvent) {
+    const touch = e.touches[0];
+    this.setData({
+      touchStartTime: Date.now(),
+      touchStartX: touch.clientX,
+      touchStartY: touch.clientY,
+      hasMultiTouch: e.touches.length > 1,
+    });
+  },
+
+  /**
+   * 触摸移动事件
+   */
+  onTouchMove(e: WechatMiniprogram.TouchEvent) {
+    // 检测是否变成多指触摸
+    if (e.touches.length > 1) {
+      this.setData({ hasMultiTouch: true });
+    }
+  },
+
+  /**
+   * 触摸结束事件
+   */
+  onTouchEnd() {
+    // 延迟重置，避免长按事件触发后立即重置
+    setTimeout(() => {
+      this.setData({ hasMultiTouch: false });
+    }, 100);
+  },
+
+  /**
+   * 关闭操作菜单
+   */
+  closeActionSheet() {
+    this.setData({
+      showActionSheet: false,
+    });
+  },
+
+  /**
+   * 处理操作菜单点击
+   */
+  handleActionClick(e: WechatMiniprogram.CustomEvent) {
+    const action = e.detail.value;
+
+    this.setData({
+      showActionSheet: false,
+    });
+
+    switch (action) {
+      case "delete":
+        this.deleteCurrentImage();
+        break;
+      case "add":
+        this.addImages();
+        break;
+      case "cancel":
+        // 关闭菜单，已处理
+        break;
+    }
+  },
+
+  /**
+   * 删除当前图片
+   */
+  deleteCurrentImage() {
+    const { itemPaths, currentImageIndex, itemId } = this.data;
+
+    if (itemPaths.length <= 1) {
+      this.showToast("至少保留一张图片");
+      return;
+    }
+
+    // 删除当前图片
+    const newPaths = [...itemPaths];
+    newPaths.splice(currentImageIndex, 1);
+
+    // 计算新的索引（如果删除的是最后一张，则显示前一张）
+    const newIndex = Math.min(currentImageIndex, newPaths.length - 1);
+
+    // 更新数据
+    this.setData({
+      itemPaths: newPaths,
+      totalImages: newPaths.length,
+      currentImageIndex: newIndex,
+      itemPath: newPaths[newIndex],
+    });
+
+    // 更新本地存储
+    this.updateImageListStorage(newPaths);
+
+    this.showToast("已删除");
+  },
+
+  /**
+   * 添加图片
+   */
+  addImages() {
+    const { itemPaths, currentImageIndex } = this.data;
+    const remainingCount = MAX_IMAGES - itemPaths.length;
+
+    if (remainingCount <= 0) {
+      this.showToast("已达到最大图片数量");
+      return;
+    }
+
+    wx.chooseMedia({
+      count: remainingCount,
+      mediaType: ["image"],
+      sourceType: ["album", "camera"],
+      sizeType: ["original", "compressed"],
+      success: (res) => {
+        const newPaths = res.tempFiles.map((file) => file.tempFilePath);
+
+        // 在当前图片位置后插入新图片
+        const updatedPaths = [...itemPaths];
+        updatedPaths.splice(currentImageIndex + 1, 0, ...newPaths);
+
+        // 更新数据，定位到新插入的第一张图片
+        const newIndex = currentImageIndex + 1;
+
+        this.setData({
+          itemPaths: updatedPaths,
+          totalImages: updatedPaths.length,
+          currentImageIndex: newIndex,
+          itemPath: updatedPaths[newIndex],
+        });
+
+        // 更新本地存储
+        this.updateImageListStorage(updatedPaths);
+
+        this.showToast(`已添加 ${newPaths.length} 张图片`);
+      },
+    });
+  },
+
+  /**
+   * 更新本地存储中的图片列表
+   */
+  updateImageListStorage(newPaths: string[]) {
+    const { itemId } = this.data;
+    const imageList = wx.getStorageSync("imageList") || [];
+
+    const index = imageList.findIndex((item: any) => item.id === itemId);
+    if (index !== -1) {
+      imageList[index].paths = newPaths;
+      imageList[index].path = newPaths[0]; // 兼容旧版本，第一张作为主路径
+      wx.setStorageSync("imageList", imageList);
+    }
   },
 
   /**
