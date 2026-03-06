@@ -22,7 +22,7 @@
         class="movable-view"
         direction="all"
         scale="true"
-        scale-min="0.5"
+        scale-min="1"
         scale-max="5"
         damping="20"
         friction="2"
