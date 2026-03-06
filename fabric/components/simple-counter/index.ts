@@ -77,8 +77,8 @@ Component({
     count: 0,
     options: {
       during: 1, // (number) 动画时间
-      height: 40, // (number) 滚动行高 px
-      cellWidth: 24, // (number) 单个数字宽度 px
+      height: 80, // (number) 滚动行高 rpx
+      cellWidth: 48, // (number) 单个数字宽度 rpx
       ease: "cubic-bezier(0, 1, 0, 1)", // (string) 动画过渡效果
       color: "#000000", // (string) 字体颜色
       columnStyle: "font-size: 64rpx;", // (string) 字体单元 覆盖样式

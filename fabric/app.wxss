@@ -36,3 +36,15 @@ page {
 .weui-dialog {
   transform: translateY(-80%);
 }
+
+/* 修复 action-sheet 被 tabBar 遮挡问题 */
+.weui-actionsheet {
+  bottom: calc(96rpx + env(safe-area-inset-bottom)) !important;
+}
+
+/* iPad 适配：action-sheet 底部距离 */
+@media (min-width: 750px) {
+  .weui-actionsheet {
+    bottom: calc(96rpx + env(safe-area-inset-bottom)) !important;
+  }
+}

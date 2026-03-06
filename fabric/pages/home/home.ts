@@ -268,7 +268,7 @@ Page({
         showActionSheet: true,
         currentItemId: id,
         currentItemType: type,
-        currentItemName: currentItem.originalName
+        currentItemName: currentItem.originalName || currentItem.name
       });
     }
   },
