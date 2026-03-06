@@ -13,7 +13,7 @@
   </view>
   <!-- 备忘录按钮（左下角） -->
   <view wx:if="{{showMemoBtn}}" class="memo-btn" bindtap="onMemoTap">
-    <image src="/assets/memorandum.svg" mode="aspectFit"></image>
+    <image src="{{memoContent ? '/assets/memorandum_colorful.svg' : '/assets/memorandum.svg'}}" mode="aspectFit"></image>
   </view>
   <!-- 重置按钮（右下角） -->
   <view class="reset-btn" bindtap="resetCount">

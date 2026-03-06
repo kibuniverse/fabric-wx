@@ -63,6 +63,11 @@ Component({
       type: Boolean,
       value: false,
     },
+    // 备忘录内容（用于判断是否显示高亮图标）
+    memoContent: {
+      type: String,
+      value: "",
+    },
   },
 
   /**

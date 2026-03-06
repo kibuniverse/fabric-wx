@@ -10,6 +10,7 @@
       enableVibration="{{true}}"
       enableVoice="{{true}}"
       showMemoBtn="{{true}}"
+      memoContent="{{memoContent}}"
       bind:memotap="onMemoTap"
     ></simple-counter>
   </view>
