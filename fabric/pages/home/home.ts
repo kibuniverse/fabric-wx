@@ -8,6 +8,7 @@ interface FileItem {
   paths: string[];       // 多图片路径数组
   type: 'image' | 'pdf';
   createTime: number;
+  cover?: string;        // 自定义封面图片路径
 }
 
 // 通用的提示配置
@@ -30,6 +31,7 @@ Page({
     showActionSheet: false, // 是否显示操作菜单
     actions: [
       { text: '重命名', value: 'rename' },
+      { text: '修改封面', value: 'changeCover' },
       { text: '删除', value: 'delete', type: 'warn' },
     ],
     
@@ -285,15 +287,18 @@ Page({
    */
   handleActionClick(e: any) {
     const action = e.detail.value;
-    
+
     this.setData({
       showActionSheet: false
     });
-    
+
     // 根据选项执行不同操作
     switch (action) {
       case 'rename':
         this.showRenameModal();
+        break;
+      case 'changeCover':
+        this.chooseCoverImage();
         break;
       case 'delete':
         this.showDeleteModal();
@@ -309,6 +314,80 @@ Page({
       showRenameModal: true,
       newItemName: this.data.currentItemName
     });
+  },
+
+  /**
+   * 选择并修改封面图片
+   */
+  chooseCoverImage() {
+    const { currentItemId, currentItemType } = this.data;
+
+    wx.chooseMedia({
+      count: 1,
+      mediaType: ['image'],
+      sourceType: ['album'],
+      sizeType: ['compressed'],
+      success: (res) => {
+        const tempFilePath = res.tempFiles[0].tempFilePath;
+
+        // 压缩图片
+        wx.compressImage({
+          src: tempFilePath,
+          quality: 80,
+          success: (compressRes) => {
+            const compressedPath = compressRes.tempFilePath;
+
+            // 更新封面
+            this.updateCover(currentItemId, currentItemType, compressedPath);
+          },
+          fail: () => {
+            // 压缩失败时使用原图
+            this.updateCover(currentItemId, currentItemType, tempFilePath);
+          }
+        });
+      }
+    });
+  },
+
+  /**
+   * 更新封面图片
+   */
+  updateCover(itemId: string, itemType: string, coverPath: string) {
+    if (itemType === 'image') {
+      const updatedList = this.data.imageList.map(item => {
+        if (item.id === itemId) {
+          return { ...item, cover: coverPath };
+        }
+        return item;
+      });
+
+      const allItems = [...updatedList, ...this.data.fileList].sort((a, b) => b.createTime - a.createTime);
+
+      this.setData({
+        imageList: updatedList,
+        allItems
+      });
+
+      wx.setStorageSync('imageList', updatedList);
+    } else {
+      const updatedList = this.data.fileList.map(item => {
+        if (item.id === itemId) {
+          return { ...item, cover: coverPath };
+        }
+        return item;
+      });
+
+      const allItems = [...this.data.imageList, ...updatedList].sort((a, b) => b.createTime - a.createTime);
+
+      this.setData({
+        fileList: updatedList,
+        allItems
+      });
+
+      wx.setStorageSync('fileList', updatedList);
+    }
+
+    this.showToast('封面已更新');
   },
   
   /**

@@ -34,7 +34,7 @@
       <block wx:else>
         <view class="items-grid">
           <view class="item" wx:for="{{allItems}}" wx:key="id" bindtap="navigateToDetail" data-id="{{item.id}}">
-            <image class="default-illustration" src="/assets/default_Illustration.png" mode="aspectFill"></image>
+            <image class="default-illustration" src="{{item.cover || '/assets/default_Illustration.png'}}" mode="aspectFill"></image>
             <image class="type-logo" src="/assets/{{item.type === 'image' ? 'image' : 'pdf_logo'}}.svg"></image>
             <view class="item-info">
               <text class="item-name">{{item.name}}</text>

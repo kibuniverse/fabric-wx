@@ -145,7 +145,7 @@
   border-radius: 8rpx;
 }
 .item-info {
-  height: 40rpx;
+  height: 54rpx;
   display: flex;
   justify-content: center;
   align-items: center;
@@ -157,11 +157,12 @@
   border-bottom-right-radius: 8rpx;
 }
 .item-name {
-  font-size: 20rpx;
+  font-size: 26rpx;
   color: #fff;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  padding: 0 12rpx;
 }
 
 .item-operate-container {
