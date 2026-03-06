@@ -28,8 +28,8 @@ Component({
    * 组件的属性列表
    */
   properties: {
-    // 计数器ID，用于持久化存储
-    id: {
+    // 计数器ID，用于持久化存储（避免与微信小程序内置id属性冲突）
+    counterId: {
       type: String,
       value: "",
       observer(newVal: string) {
@@ -58,6 +58,11 @@ Component({
       type: Boolean,
       value: wx.getStorageSync(SETTINGS_STORAGE_KEYS.VIBRATION) || false,
     },
+    // 是否显示备忘录按钮
+    showMemoBtn: {
+      type: Boolean,
+      value: false,
+    },
   },
 
   /**
@@ -81,7 +86,7 @@ Component({
   lifetimes: {
     attached() {
       // 组件挂载时加载保存的值
-      if (this.properties.id) {
+      if (this.properties.counterId) {
         this.loadCounterValue();
       }
 
@@ -109,7 +114,7 @@ Component({
      * 加载计数器值
      */
     loadCounterValue() {
-      const counterId = this.properties.id;
+      const counterId = this.properties.counterId;
       if (!counterId) return;
 
       try {
@@ -137,7 +142,7 @@ Component({
      * 保存计数器值
      */
     saveCounterValue() {
-      const counterId = this.properties.id;
+      const counterId = this.properties.counterId;
       if (!counterId) return;
 
       try {
@@ -240,7 +245,16 @@ Component({
       });
       this.saveCounterValue();
     },
-    
+
+    /**
+     * 点击备忘录按钮
+     */
+    onMemoTap() {
+      this.triggerEvent("memotap", {
+        id: this.properties.counterId,
+      });
+    },
+
     /**
      * 显示Toast提示
      */

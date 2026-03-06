@@ -5,10 +5,12 @@
   <view class="counter-section">
     <simple-counter
       id="detail-counter"
-      bindchange="onCounterChange"
+      counterId="{{itemId}}"
       backgroundColor="transparent"
       enableVibration="{{true}}"
       enableVoice="{{true}}"
+      showMemoBtn="{{true}}"
+      bind:memotap="onMemoTap"
     ></simple-counter>
   </view>
 

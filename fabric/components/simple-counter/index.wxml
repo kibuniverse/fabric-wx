@@ -11,6 +11,11 @@
       <image src="/assets/plus.svg" mode="aspectFit"></image>
     </view>
   </view>
+  <!-- 备忘录按钮（左下角） -->
+  <view wx:if="{{showMemoBtn}}" class="memo-btn" bindtap="onMemoTap">
+    <image src="/assets/memorandum.svg" mode="aspectFit"></image>
+  </view>
+  <!-- 重置按钮（右下角） -->
   <view class="reset-btn" bindtap="resetCount">
     <image src="/assets/reset.svg" mode="aspectFit"></image>
   </view>

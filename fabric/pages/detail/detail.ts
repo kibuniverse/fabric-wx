@@ -1,5 +1,10 @@
 // pages/detail/detail.ts
 
+// 备忘录存储键
+const MEMO_STORAGE_KEY = "itemMemos";
+// 计数器存储键（与 simple-counter 组件保持一致）
+const COUNTERS_STORAGE_KEY = "simpleCounters";
+
 // 定义详情页面需要的接口
 interface DetailPageData {
   itemId: string;
@@ -19,6 +24,8 @@ interface DetailPageData {
   touchStartX: number;
   touchStartY: number;
   hasMultiTouch: boolean;    // 是否有多指触摸
+  // 备忘录
+  memoContent: string;
 }
 
 // 最大图片数量
@@ -52,6 +59,8 @@ Page<DetailPageData, WechatMiniprogram.IAnyObject>({
     touchStartX: 0,
     touchStartY: 0,
     hasMultiTouch: false,
+    // 备忘录
+    memoContent: "",
   },
 
   /**
@@ -101,8 +110,8 @@ Page<DetailPageData, WechatMiniprogram.IAnyObject>({
         title: item.name
       });
 
-      // 加载该项目对应的计数器值
-      this.loadCounterValue();
+      // 加载备忘录内容
+      this.loadMemoContent();
     } else {
       this.showToast("未找到图解");
       setTimeout(() => {
@@ -379,72 +388,54 @@ Page<DetailPageData, WechatMiniprogram.IAnyObject>({
    * 生命周期函数--监听页面显示
    */
   onShow() {
-    // 每次显示页面时刷新数据
+    // 每次显示页面时刷新数据（loadItemDetail 内部会调用 loadMemoContent）
     if (this.data.itemId) {
       this.loadItemDetail(this.data.itemId);
     }
   },
 
   /**
-   * 加载计数器值
+   * 点击备忘录按钮
    */
-  loadCounterValue() {
+  onMemoTap() {
+    const { itemId, memoContent } = this.data;
+
+    wx.navigateTo({
+      url: `/pages/memo/memo?key=${itemId}&content=${encodeURIComponent(memoContent)}`,
+      events: {
+        // 接收 memo 页面回传的数据
+        onMemoContentChange: (data: { key: string; content: string }) => {
+          if (data.key === itemId) {
+            this.setData({ memoContent: data.content });
+            this.saveMemoContent(data.content);
+          }
+        },
+      },
+    });
+  },
+
+  /**
+   * 加载备忘录内容
+   */
+  loadMemoContent() {
     const itemId = this.data.itemId;
     if (!itemId) return;
 
-    // 从本地存储中获取计数器值
-    const countersStorage = wx.getStorageSync("itemCounters") || {};
-    const counterValue = countersStorage[itemId] || 0;
+    const memosStorage = wx.getStorageSync(MEMO_STORAGE_KEY) || {};
+    const memoContent = memosStorage[itemId] || "";
 
-    this.setData({
-      count: counterValue,
-    });
+    this.setData({ memoContent });
   },
 
   /**
-   * 保存计数器值
+   * 保存备忘录内容
    */
-  saveCounterValue() {
+  saveMemoContent(content: string) {
     const itemId = this.data.itemId;
     if (!itemId) return;
 
-    // 保存到本地存储
-    const countersStorage = wx.getStorageSync("itemCounters") || {};
-    countersStorage[itemId] = this.data.count;
-    wx.setStorageSync("itemCounters", countersStorage);
-  },
-
-  /**
-   * 增加计数器值
-   */
-  increaseCount() {
-    const newCount = this.data.count + 1;
-    this.setData({
-      count: newCount,
-    });
-    this.saveCounterValue();
-  },
-
-  /**
-   * 减少计数器值
-   */
-  decreaseCount() {
-    if (this.data.count <= 0) return;
-
-    const newCount = this.data.count - 1;
-    this.setData({
-      count: newCount,
-    });
-    this.saveCounterValue();
-  },
-
-  /**
-   * 重置计数器值
-   */
-  resetCount() {
-    this.setData({
-      count: 0,
-    });
-    this.saveCounterValue();
+    const memosStorage = wx.getStorageSync(MEMO_STORAGE_KEY) || {};
+    memosStorage[itemId] = content;
+    wx.setStorageSync(MEMO_STORAGE_KEY, memosStorage);
   },
 });

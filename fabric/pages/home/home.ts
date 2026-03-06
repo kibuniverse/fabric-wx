@@ -424,38 +424,65 @@ Page({
   confirmDelete() {
     const { currentItemId, currentItemType } = this.data;
     console.log('Current Item ID:', currentItemId, 'Current Item Type:', currentItemType, this.data.imageList, this.data.fileList);
+
+    // 清理该项目关联的计数器和备忘录数据
+    this.cleanupItemData(currentItemId);
+
     // 从对应列表中删除项目
     if (currentItemType === 'image') {
       const updatedList = this.data.imageList.filter(item => item.id !== currentItemId);
-      
+
       // 重新计算合并列表
       const allItems = [...updatedList, ...this.data.fileList].sort((a, b) => b.createTime - a.createTime);
-      
+
       this.setData({
         imageList: updatedList,
         allItems,
         showDeleteModal: false
       });
-      
+
       // 更新本地存储
       wx.setStorageSync('imageList', updatedList);
     } else {
       const updatedList = this.data.fileList.filter(item => item.id !== currentItemId);
-      
+
       // 重新计算合并列表
       const allItems = [...this.data.imageList, ...updatedList].sort((a, b) => b.createTime - a.createTime);
-      
+
       this.setData({
         fileList: updatedList,
         allItems,
         showDeleteModal: false
       });
-      
+
       // 更新本地存储
       wx.setStorageSync('fileList', updatedList);
     }
-    
+
     this.showToast('删除成功');
+  },
+
+  /**
+   * 清理项目关联的数据（计数器、备忘录等）
+   */
+  cleanupItemData(itemId: string) {
+    // 清理计数器数据
+    const countersStorage = wx.getStorageSync('simpleCounters') || {};
+    if (countersStorage[itemId] !== undefined) {
+      delete countersStorage[itemId];
+      wx.setStorageSync('simpleCounters', countersStorage);
+    }
+
+    // 清理备忘录数据
+    const memosStorage = wx.getStorageSync('itemMemos') || {};
+    if (memosStorage[itemId] !== undefined) {
+      delete memosStorage[itemId];
+      wx.setStorageSync('itemMemos', memosStorage);
+    }
+
+    // 清理备忘录修改时间
+    const lastModifiedKey = `memo_${itemId}_lastModified`;
+    wx.removeStorageSync(lastModifiedKey);
   },
 
   /**
