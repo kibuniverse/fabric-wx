@@ -27,24 +27,26 @@
       <swiper-item wx:for="{{itemPaths}}" wx:key="index">
         <movable-area
           class="movable-area"
+          key="area-{{index}}"
           bindtouchstart="onTouchStart"
-          bindtouchmove="onTouchMove"
+          catchtouchmove="onTouchMove"
           bindtouchend="onTouchEnd">
           <movable-view
             class="movable-view"
+            key="view-{{index}}"
             direction="all"
             scale="true"
             scale-min="1"
             scale-max="5"
             damping="20"
             friction="2"
-            animation="{{false}}">
-            <view class="image-mask"></view>
+            animation="{{false}}"
+            bindscale="onMovableScale">
             <image
               src="{{item}}"
               mode="aspectFit"
-              bindtap="previewImage"
               class="preview-image"
+              bindtap="previewImage"
               catchlongtap="onLongTap"></image>
           </movable-view>
         </movable-area>

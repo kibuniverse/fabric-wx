@@ -24,6 +24,8 @@ interface DetailPageData {
   touchStartX: number;
   touchStartY: number;
   hasMultiTouch: boolean;    // 是否有多指触摸
+  currentScale: number;      // 当前缩放值
+  isSwiping: boolean;        // 是否正在执行swiper滑动
   // 备忘录
   memoContent: string;
 }
@@ -59,6 +61,8 @@ Page<DetailPageData, WechatMiniprogram.IAnyObject>({
     touchStartX: 0,
     touchStartY: 0,
     hasMultiTouch: false,
+    currentScale: 1,
+    isSwiping: false,
     // 备忘录
     memoContent: "",
   },
@@ -150,22 +154,33 @@ Page<DetailPageData, WechatMiniprogram.IAnyObject>({
   },
 
   /**
-   * swiper滑动切换事件
+   * swiper滑动切换事件（通过编程方式切换时触发）
    */
   onSwiperChange(e: WechatMiniprogram.SwiperChange) {
+    // 由于使用catchtouchmove，swiper不会自动响应触摸
+    // 此方法保留用于其他编程式切换场景
     const current = e.detail.current;
     this.setData({
       currentImageIndex: current,
       itemPath: this.data.itemPaths[current],
+      currentScale: 1,
     });
+  },
+
+  /**
+   * movable-view缩放事件
+   */
+  onMovableScale(e: WechatMiniprogram.CustomEvent) {
+    const scale = e.detail.scale;
+    this.setData({ currentScale: scale });
   },
 
   /**
    * 处理图片长按事件 - 显示操作菜单（仅单指长按时触发）
    */
   onLongTap() {
-    // 如果有多指触摸，不显示菜单
-    if (this.data.hasMultiTouch) {
+    // 如果有多指触摸或当前处于缩放状态，不显示菜单
+    if (this.data.hasMultiTouch || this.data.currentScale > 1) {
       return;
     }
 
@@ -202,6 +217,7 @@ Page<DetailPageData, WechatMiniprogram.IAnyObject>({
       touchStartX: touch.clientX,
       touchStartY: touch.clientY,
       hasMultiTouch: e.touches.length > 1,
+      isSwiping: false,
     });
   },
 
@@ -209,20 +225,63 @@ Page<DetailPageData, WechatMiniprogram.IAnyObject>({
    * 触摸移动事件
    */
   onTouchMove(e: WechatMiniprogram.TouchEvent) {
-    // 检测是否变成多指触摸
     if (e.touches.length > 1) {
       this.setData({ hasMultiTouch: true });
+      return;
+    }
+
+    // 缩放状态下不处理swiper滑动
+    if (this.data.currentScale > 1) {
+      return;
+    }
+
+    // scale = 1 时，检测横向滑动意图
+    const touch = e.touches[0];
+    const deltaX = touch.clientX - this.data.touchStartX;
+    const deltaY = touch.clientY - this.data.touchStartY;
+
+    // 判断是否为横向滑动
+    if (Math.abs(deltaX) > Math.abs(deltaY) && Math.abs(deltaX) > 10) {
+      this.setData({ isSwiping: true });
     }
   },
 
   /**
    * 触摸结束事件
    */
-  onTouchEnd() {
-    // 延迟重置，避免长按事件触发后立即重置
-    setTimeout(() => {
+  onTouchEnd(e: WechatMiniprogram.TouchEvent) {
+    // 缩放状态下不处理swiper切换
+    if (this.data.currentScale > 1) {
       this.setData({ hasMultiTouch: false });
-    }, 100);
+      return;
+    }
+
+    // scale = 1 时，根据滑动距离决定是否切换图片
+    if (this.data.isSwiping) {
+      const { touchStartX, currentImageIndex, totalImages } = this.data;
+      const touch = e.changedTouches[0];
+      const deltaX = touchStartX - touch.clientX;
+      const SWIPE_THRESHOLD = 50;
+
+      if (Math.abs(deltaX) > SWIPE_THRESHOLD) {
+        let newIndex = currentImageIndex;
+        if (deltaX > 0 && currentImageIndex < totalImages - 1) {
+          newIndex = currentImageIndex + 1;
+        } else if (deltaX < 0 && currentImageIndex > 0) {
+          newIndex = currentImageIndex - 1;
+        }
+
+        if (newIndex !== currentImageIndex) {
+          this.setData({
+            currentImageIndex: newIndex,
+            itemPath: this.data.itemPaths[newIndex],
+            currentScale: 1,
+          });
+        }
+      }
+    }
+
+    this.setData({ hasMultiTouch: false, isSwiping: false });
   },
 
   /**
