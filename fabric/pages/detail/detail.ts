@@ -150,34 +150,6 @@ Page<DetailPageData, WechatMiniprogram.IAnyObject>({
   },
 
   /**
-   * 切换到上一张图片
-   */
-  prevImage() {
-    const { currentImageIndex, itemPaths, totalImages } = this.data;
-    if (totalImages <= 1) return;
-
-    const newIndex = currentImageIndex > 0 ? currentImageIndex - 1 : totalImages - 1;
-    this.setData({
-      currentImageIndex: newIndex,
-      itemPath: itemPaths[newIndex]
-    });
-  },
-
-  /**
-   * 切换到下一张图片
-   */
-  nextImage() {
-    const { currentImageIndex, itemPaths, totalImages } = this.data;
-    if (totalImages <= 1) return;
-
-    const newIndex = currentImageIndex < totalImages - 1 ? currentImageIndex + 1 : 0;
-    this.setData({
-      currentImageIndex: newIndex,
-      itemPath: itemPaths[newIndex]
-    });
-  },
-
-  /**
    * swiper滑动切换事件
    */
   onSwiperChange(e: WechatMiniprogram.SwiperChange) {
