@@ -18,7 +18,7 @@
 }
 .tab {
   position: relative;
-  padding: 12rpx 0 6px; /* 底部padding设为6px，为下划线留出间距 */
+  padding: 12rpx 0 12rpx; /* 底部padding设为6px，为下划线留出间距 */
 }
 .tab text {
   font-size: 32rpx;
@@ -111,8 +111,8 @@
 }
 /* 空状态图片 - 保留420×420，新增兜底居中 */
 .empty-diagram {
-  width: 210px;
-  height: 210px;
+  width: 420px;
+  height: 420px;
   object-fit: contain;
 }
 /* 合并图解和文件网格 */

@@ -28,7 +28,7 @@
     <view class="tab-content">
       <block wx:if="{{allItems.length === 0}}">
         <view class="empty-state">
-          <image class="empty_diagram" src="/assets/empty_diagram.png" mode="aspectFit"></image>
+          <image class="empty-diagram" src="/assets/empty_diagram.png" mode="aspectFit"></image>
         </view>
       </block>
       <block wx:else>

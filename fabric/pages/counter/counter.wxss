@@ -107,9 +107,7 @@ page {
 .add-counter-btn {
   position: absolute;
   right: 0rpx;
-  top: -7rpx;
   width: 100rpx;
-  height: 88rpx;
   display: flex;
   justify-content: center;
   align-items: center;
