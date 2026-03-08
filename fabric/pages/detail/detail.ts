@@ -85,8 +85,10 @@ Page<DetailPageData, WechatMiniprogram.IAnyObject>({
 
   /**
    * 加载图解详情
+   * @param id 图解ID
+   * @param preserveIndex 是否保留当前图片索引（用于 onShow 时避免重置位置）
    */
-  loadItemDetail(id: string) {
+  loadItemDetail(id: string, preserveIndex: boolean = false) {
     // 从本地存储中查找图解详情
     const imageList = wx.getStorageSync("imageList") || [];
     const fileList = wx.getStorageSync("fileList") || [];
@@ -100,12 +102,17 @@ Page<DetailPageData, WechatMiniprogram.IAnyObject>({
       const itemPaths = item.paths || [item.path];
       const totalImages = itemPaths.length;
 
+      // 保留当前索引时，确保索引不超出范围
+      const newIndex = preserveIndex
+        ? Math.min(this.data.currentImageIndex, totalImages - 1)
+        : 0;
+
       this.setData({
         itemType: item.type,
         itemName: item.name,
-        itemPath: itemPaths[0], // 当前显示的图片路径
+        itemPath: itemPaths[newIndex],
         itemPaths,
-        currentImageIndex: 0,
+        currentImageIndex: newIndex,
         totalImages,
       });
 
@@ -419,9 +426,9 @@ Page<DetailPageData, WechatMiniprogram.IAnyObject>({
    * 生命周期函数--监听页面显示
    */
   onShow() {
-    // 每次显示页面时刷新数据（loadItemDetail 内部会调用 loadMemoContent）
+    // 每次显示页面时刷新数据，保留当前图片位置
     if (this.data.itemId) {
-      this.loadItemDetail(this.data.itemId);
+      this.loadItemDetail(this.data.itemId, true);
     }
   },
 
