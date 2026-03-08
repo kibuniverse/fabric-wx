@@ -37,4 +37,11 @@ page {
   transform: translateY(-80%);
 }
 
-/* action-sheet 使用 WeUI 默认样式，从屏幕底部展现并覆盖 tabBar */
+/* action-sheet 从屏幕底部展现，设置高 z-index 覆盖 tabBar */
+.weui-mask {
+  z-index: 10000 !important;
+}
+
+.weui-actionsheet {
+  z-index: 10001 !important;
+}
