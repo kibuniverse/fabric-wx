@@ -26,7 +26,7 @@ Page({
 
   onShareAppMessage() {
     return {
-      title: "织毛线怕忘行数？用知织！",
+      title: "毛线时光，有我陪伴",
       path: "pages/counter/counter",
       imageUrl: "/assets/share.png",
     };
