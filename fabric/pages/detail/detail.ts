@@ -4,6 +4,8 @@
 const MEMO_STORAGE_KEY = "itemMemos";
 // 计数器存储键（与 simple-counter 组件保持一致）
 const COUNTERS_STORAGE_KEY = "simpleCounters";
+// 图片索引存储键
+const LAST_IMAGE_INDEX_KEY = "lastImageIndex";
 
 // 定义详情页面需要的接口
 interface DetailPageData {
@@ -102,10 +104,19 @@ Page<DetailPageData, WechatMiniprogram.IAnyObject>({
       const itemPaths = item.paths || [item.path];
       const totalImages = itemPaths.length;
 
-      // 保留当前索引时，确保索引不超出范围
-      const newIndex = preserveIndex
-        ? Math.min(this.data.currentImageIndex, totalImages - 1)
-        : 0;
+      // 确定图片索引
+      let newIndex = 0;
+      if (preserveIndex) {
+        // 保留当前索引时，确保索引不超出范围
+        newIndex = Math.min(this.data.currentImageIndex, totalImages - 1);
+      } else if (item.type === 'image') {
+        // 尝试恢复保存的图片索引
+        const storage = wx.getStorageSync(LAST_IMAGE_INDEX_KEY) || {};
+        const savedIndex = storage[id];
+        if (savedIndex !== undefined && savedIndex < totalImages) {
+          newIndex = savedIndex;
+        }
+      }
 
       this.setData({
         itemType: item.type,
@@ -430,6 +441,32 @@ Page<DetailPageData, WechatMiniprogram.IAnyObject>({
     if (this.data.itemId) {
       this.loadItemDetail(this.data.itemId, true);
     }
+  },
+
+  /**
+   * 生命周期函数--监听页面隐藏
+   */
+  onHide() {
+    this.saveLastImageIndex();
+  },
+
+  /**
+   * 生命周期函数--监听页面卸载
+   */
+  onUnload() {
+    this.saveLastImageIndex();
+  },
+
+  /**
+   * 保存当前图片索引到本地存储
+   */
+  saveLastImageIndex() {
+    const { itemId, currentImageIndex, itemType } = this.data;
+    if (!itemId || itemType !== 'image') return;
+
+    const storage = wx.getStorageSync(LAST_IMAGE_INDEX_KEY) || {};
+    storage[itemId] = currentImageIndex;
+    wx.setStorageSync(LAST_IMAGE_INDEX_KEY, storage);
   },
 
   /**
