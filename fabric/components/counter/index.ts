@@ -254,6 +254,7 @@ Component({
           message: "已经完成了上次设置的目标～",
           cancelButtonText: "重置当前行",
           confirmButtonText: "继续织",
+          zIndex: 10000,
         }).catch(() => {
           this.updateCount(0, "重置计数");
         });

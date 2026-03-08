@@ -76,5 +76,5 @@
       <image src="/assets/history_empty.png" mode="aspectFit" class="empty-image"></image>
     </view>
   </view>
-  <van-dialog z-index="9999" id="van-dialog" confirm-button-color="#A889C8" />
+  <van-dialog z-index="10000" id="van-dialog" confirm-button-color="#A889C8" />
 </view>

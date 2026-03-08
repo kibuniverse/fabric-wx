@@ -33,7 +33,9 @@ page {
   box-sizing: border-box;
 }
 
+/* weui-dialog 默认居中显示（不覆盖原有的 transform） */
 .weui-dialog {
+  z-index: 10001 !important;
   transform: translateY(-80%);
 }
 

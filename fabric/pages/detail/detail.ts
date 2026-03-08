@@ -31,7 +31,7 @@ interface DetailPageData {
 }
 
 // 最大图片数量
-const MAX_IMAGES = 9;
+const MAX_IMAGES = 15;
 
 // 通用的提示配置
 const DETAIL_TOAST_CONFIG = {
