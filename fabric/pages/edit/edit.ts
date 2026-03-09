@@ -39,12 +39,14 @@ interface EditPageData {
   showExitConfirm: boolean;   // 显示退出确认框
 
   // 系统信息
+  statusBarHeight: number;     // 状态栏高度
   windowWidth: number;
   windowHeight: number;
   deleteZoneTop: number;      // 删除区域顶部位置
   gridItemWidth: number;      // 网格项宽度
   gridItemHeight: number;     // 网格项高度
-  navBarHeight: number;       // 导航栏高度
+  navBarHeight: number;       // 导航栏高度（状态栏+内容区）
+  gridPaddingTop: number;     // 网格顶部padding（动态计算）
 
   // 对话框按钮配置
   deleteButtons: { text: string; value: number; type?: string }[];
@@ -76,12 +78,14 @@ Page<EditPageData, WechatMiniprogram.IAnyObject>({
     pendingDeleteIndex: -1,
     showExitConfirm: false,
 
+    statusBarHeight: 44,
     windowWidth: 375,
     windowHeight: 667,
     deleteZoneTop: 0,
     gridItemWidth: 0,
     gridItemHeight: 0,
     navBarHeight: 0,
+    gridPaddingTop: 0,
 
     deleteButtons: [
       { text: '取消', value: 0 },
@@ -100,24 +104,31 @@ Page<EditPageData, WechatMiniprogram.IAnyObject>({
     // 获取系统信息
     const systemInfo = wx.getWindowInfo();
     const windowWidth = systemInfo.windowWidth;
-    // 网格项宽度：(窗口宽度 - 左右padding 20*2 - 项间距 10*2*3) / 3
-    // 即 (windowWidth - 40 - 60) / 3 = (windowWidth - 100) / 3
-    // 实际使用 calc(33.33% - 20rpx)，按rpx计算
-    // 1rpx = windowWidth / 750
-    const rpx = windowWidth / 750;
-    const gridItemWidth = windowWidth / 3 - 20 * rpx; // 33.33% - 20rpx margin
-    const gridItemHeight = 200 * rpx; // 200rpx height
+    const statusBarHeight = systemInfo.statusBarHeight || 44;
 
-    // 计算导航栏高度（包含安全区域）
-    const navBarHeight = 88; // 自定义导航栏高度
+    // rpx 转换比例
+    const rpx = windowWidth / 750;
+
+    // 网格项宽度：(窗口宽度 - 左右padding 50*2 - 间距 20*2) / 3
+    // 即 (windowWidth - 100 - 40) / 3 = (windowWidth - 140) / 3
+    const gridItemWidth = (windowWidth - 140 * rpx) / 3;
+    const gridItemHeight = gridItemWidth; // 正方形
+
+    // 计算导航栏高度（状态栏 + 内容区44px）
+    const navBarHeight = statusBarHeight + 44;
+
+    // 计算网格顶部padding：导航栏高度 + 60rpx间距
+    const gridPaddingTop = navBarHeight + 60 * rpx;
 
     this.setData({
+      statusBarHeight,
       windowWidth,
       windowHeight: systemInfo.windowHeight,
-      deleteZoneTop: systemInfo.windowHeight - 120, // 删除区域高度约120px
+      deleteZoneTop: systemInfo.windowHeight - 200 * rpx, // 删除区域高度200rpx
       gridItemWidth,
       gridItemHeight,
       navBarHeight,
+      gridPaddingTop,
     });
 
     // 接收传递的图解ID参数
@@ -328,20 +339,29 @@ Page<EditPageData, WechatMiniprogram.IAnyObject>({
    * 计算目标索引
    */
   calculateTargetIndex(clientX: number, clientY: number): number {
-    const { windowWidth, images, navBarHeight, gridItemWidth, gridItemHeight } = this.data;
+    const { windowWidth, images, navBarHeight, gridItemWidth, gridItemHeight, gridPaddingTop, deleteZoneTop } = this.data;
+
+    // 如果已进入或接近删除区域，不进行重排计算
+    if (clientY >= deleteZoneTop - 50) {
+      return -1;
+    }
 
     // 计算网格位置
-    // 考虑网格的 padding 和 margin
+    // 网格区域 padding: 左右50rpx，顶部由 gridPaddingTop 动态计算
+    // 图片间距: 20rpx
     const rpx = windowWidth / 750;
-    const gridPadding = 20 * rpx; // 网格区域的 padding
-    const itemMargin = 10 * rpx;  // 每个项的 margin
+    const gridPaddingLeft = 50 * rpx;
+    const itemGap = 20 * rpx; // 图片间距
+    const itemSize = gridItemWidth; // 正方形
 
     // 计算列（每行3列）
-    const col = Math.floor(clientX / (windowWidth / 3));
+    const relativeX = clientX - gridPaddingLeft;
+    const col = Math.floor(relativeX / (itemSize + itemGap));
     const clampedCol = Math.max(0, Math.min(col, 2));
 
     // 计算行
-    const row = Math.floor((clientY - navBarHeight - gridPadding) / (gridItemHeight + itemMargin * 2));
+    const relativeY = clientY - gridPaddingTop;
+    const row = Math.floor(relativeY / (itemSize + itemGap));
     const clampedRow = Math.max(0, row);
 
     // 计算索引

@@ -1,16 +1,17 @@
 <!-- pages/edit/edit.wxml -->
 <view class="edit-container">
   <!-- 顶部导航栏 -->
-  <view class="nav-bar">
-    <view class="nav-back" bindtap="onCancel">
-      <text class="back-icon">←</text>
+  <view class="nav-bar" style="padding-top: {{statusBarHeight}}px;">
+    <view class="nav-content">
+      <view class="nav-back" bindtap="onCancel">
+        <t-icon name="chevron-left" size="48rpx" color="#333333" />
+      </view>
+      <text class="nav-title">修改图解</text>
     </view>
-    <text class="nav-title">修改图解</text>
-    <view class="nav-placeholder"></view>
   </view>
 
   <!-- 图片网格区域 -->
-  <view class="images-grid">
+  <view class="images-grid" style="padding-top: {{gridPaddingTop}}px;">
     <block wx:for="{{images}}" wx:key="index">
       <view
         class="image-item {{isDragging && dragIndex === index ? 'dragging-source' : ''}}"
@@ -44,12 +45,14 @@
 
   <!-- 删除区域（仅在拖动时显示） -->
   <view wx:if="{{isDragging}}" class="delete-zone {{deleteZoneActive ? 'active' : ''}}">
-    <text class="delete-icon">🗑️</text>
-    <text class="delete-text">拖至此处删除</text>
+    <view class="delete-content">
+      <dynamic-svg svg-class="delete-icon" svgPath="/assets/delete_white.svg" mode="aspectFit" />
+      <text class="delete-text">拖至此处删除</text>
+    </view>
   </view>
 
-  <!-- 底部保存按钮 -->
-  <view class="bottom-bar">
+  <!-- 底部保存按钮（拖动时隐藏） -->
+  <view wx:if="{{!isDragging}}" class="bottom-bar" style="padding-bottom: calc(24rpx + env(safe-area-inset-bottom));">
     <view class="save-btn" bindtap="onSave">保存</view>
   </view>
 
