@@ -31,6 +31,7 @@ interface EditPageData {
   dragY: number;              // 浮层Y坐标
   touchStartX: number;        // 触摸起始X
   touchStartY: number;        // 触摸起始Y
+  touchStartTime: number;      // 触摸开始时间
 
   // 确认对话框
   showDeleteConfirm: boolean; // 显示删除确认框
@@ -69,6 +70,7 @@ Page<EditPageData, WechatMiniprogram.IAnyObject>({
     dragY: 0,
     touchStartX: 0,
     touchStartY: 0,
+    touchStartTime: 0,
 
     showDeleteConfirm: false,
     pendingDeleteIndex: -1,
@@ -175,10 +177,11 @@ Page<EditPageData, WechatMiniprogram.IAnyObject>({
     const index = e.currentTarget.dataset.index;
     const touch = e.touches[0];
 
-    // 记录起始位置
+    // 记录起始位置和时间
     this.setData({
       touchStartX: touch.clientX,
       touchStartY: touch.clientY,
+      touchStartTime: Date.now(),
     });
 
     // 启动长按定时器
@@ -227,6 +230,18 @@ Page<EditPageData, WechatMiniprogram.IAnyObject>({
     // 结束拖动
     if (this.data.isDragging) {
       this.endDrag();
+      return;
+    }
+
+    // 检测单击：触摸时长 < 300ms 且移动距离 < 10px
+    const touchDuration = Date.now() - this.data.touchStartTime;
+    const touch = e.changedTouches[0];
+    const dx = Math.abs(touch.clientX - this.data.touchStartX);
+    const dy = Math.abs(touch.clientY - this.data.touchStartY);
+
+    if (touchDuration < 300 && dx < MOVE_THRESHOLD && dy < MOVE_THRESHOLD) {
+      // 单击，打开预览
+      this.onPreview(e);
     }
   },
 

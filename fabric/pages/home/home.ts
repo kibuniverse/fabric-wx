@@ -266,9 +266,9 @@ Page({
         { text: '修改封面', value: 'changeCover' },
       ];
 
-      // 仅当类型为图片时显示"编辑图解"选项
+      // 仅当类型为图片时显示"修改图解"选项
       if (type === 'image') {
-        actions.push({ text: '编辑图解', value: 'edit' });
+        actions.push({ text: '修改图解', value: 'edit' });
       }
 
       actions.push({ text: '删除', value: 'delete', type: 'warn' });
