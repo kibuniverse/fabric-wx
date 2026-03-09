@@ -10,6 +10,15 @@
     </view>
   </view>
 
+  <!-- 操作提示气泡 -->
+  <view wx:if="{{showTip}}" class="tip-bubble" style="top: {{navBarHeight + 12}}px;">
+    <view class="tip-bubble-content">
+      <text class="tip-text">长按图片可调整顺序或删除</text>
+      <view class="tip-btn" bindtap="dismissTip">我知道了</view>
+    </view>
+    <view class="tip-bubble-arrow"></view>
+  </view>
+
   <!-- 图片网格区域 -->
   <view class="images-grid" style="padding-top: {{gridPaddingTop}}px;">
     <block wx:for="{{images}}" wx:key="index">

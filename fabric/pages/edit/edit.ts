@@ -9,6 +9,9 @@ const LONG_PRESS_DURATION = 500;
 // 移动阈值（像素），超过此值取消长按检测
 const MOVE_THRESHOLD = 10;
 
+// 提示条存储键
+const TIP_DISMISSED_KEY = "editTipDismissed";
+
 // 通用的提示配置
 const TOAST_CONFIG = {
   icon: "none" as const,
@@ -47,6 +50,7 @@ interface EditPageData {
   gridItemHeight: number;     // 网格项高度
   navBarHeight: number;       // 导航栏高度（状态栏+内容区）
   gridPaddingTop: number;     // 网格顶部padding（动态计算）
+  showTip: boolean;           // 是否显示提示条
 
   // 对话框按钮配置
   deleteButtons: { text: string; value: number; type?: string }[];
@@ -86,6 +90,7 @@ Page<EditPageData, WechatMiniprogram.IAnyObject>({
     gridItemHeight: 0,
     navBarHeight: 0,
     gridPaddingTop: 0,
+    showTip: false,
 
     deleteButtons: [
       { text: '取消', value: 0 },
@@ -120,6 +125,9 @@ Page<EditPageData, WechatMiniprogram.IAnyObject>({
     // 计算网格顶部padding：导航栏高度 + 60rpx间距
     const gridPaddingTop = navBarHeight + 60 * rpx;
 
+    // 检查是否已关闭提示
+    const tipDismissed = wx.getStorageSync(TIP_DISMISSED_KEY);
+
     this.setData({
       statusBarHeight,
       windowWidth,
@@ -129,6 +137,7 @@ Page<EditPageData, WechatMiniprogram.IAnyObject>({
       gridItemHeight,
       navBarHeight,
       gridPaddingTop,
+      showTip: !tipDismissed,
     });
 
     // 接收传递的图解ID参数
@@ -546,6 +555,14 @@ Page<EditPageData, WechatMiniprogram.IAnyObject>({
       title,
       ...TOAST_CONFIG,
     });
+  },
+
+  /**
+   * 关闭提示条
+   */
+  dismissTip() {
+    this.setData({ showTip: false });
+    wx.setStorageSync(TIP_DISMISSED_KEY, true);
   },
 
   /**
