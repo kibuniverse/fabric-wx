@@ -1,0 +1,75 @@
+<!-- pages/edit/edit.wxml -->
+<view class="edit-container">
+  <!-- 顶部导航栏 -->
+  <view class="nav-bar">
+    <view class="nav-back" bindtap="onCancel">
+      <text class="back-icon">←</text>
+    </view>
+    <text class="nav-title">修改图解</text>
+    <view class="nav-placeholder"></view>
+  </view>
+
+  <!-- 图片网格区域 -->
+  <view class="images-grid">
+    <block wx:for="{{images}}" wx:key="index">
+      <view
+        class="image-item {{isDragging && dragIndex === index ? 'dragging-source' : ''}}"
+        data-index="{{index}}"
+        bindtouchstart="onTouchStart"
+        catchtouchmove="onTouchMove"
+        bindtouchend="onTouchEnd"
+        bindtouchcancel="onTouchCancel"
+      >
+        <image src="{{item}}" mode="aspectFill" class="image-content" lazy-load />
+        <view class="image-index">{{index + 1}}</view>
+      </view>
+    </block>
+
+    <!-- 占位图 -->
+    <view wx:if="{{images.length < 15}}" class="placeholder" bindtap="onAddImage">
+      <text class="placeholder-icon">+</text>
+      <text class="placeholder-text">添加图片</text>
+    </view>
+  </view>
+
+  <!-- 拖动浮层（固定定位，跟随手指） -->
+  <view
+    wx:if="{{isDragging}}"
+    class="drag-float"
+    style="left: {{dragX}}px; top: {{dragY}}px; width: {{gridItemWidth}}px; height: {{gridItemHeight}}px;"
+  >
+    <image src="{{images[dragIndex]}}" mode="aspectFill" class="float-image" />
+    <view class="float-index">{{dragIndex + 1}}</view>
+  </view>
+
+  <!-- 删除区域（仅在拖动时显示） -->
+  <view wx:if="{{isDragging}}" class="delete-zone {{deleteZoneActive ? 'active' : ''}}">
+    <text class="delete-icon">🗑️</text>
+    <text class="delete-text">拖至此处删除</text>
+  </view>
+
+  <!-- 底部保存按钮 -->
+  <view class="bottom-bar">
+    <view class="save-btn" bindtap="onSave">保存</view>
+  </view>
+
+  <!-- 删除确认对话框 -->
+  <mp-dialog
+    title="确认删除"
+    show="{{showDeleteConfirm}}"
+    bindbuttontap="confirmDeleteImage"
+    buttons="{{deleteButtons}}"
+  >
+    <view class="dialog-content">确定要删除这张图片吗？</view>
+  </mp-dialog>
+
+  <!-- 退出确认对话框 -->
+  <mp-dialog
+    title="放弃修改"
+    show="{{showExitConfirm}}"
+    bindbuttontap="confirmExit"
+    buttons="{{exitButtons}}"
+  >
+    <view class="dialog-content">有未保存的修改，确定要放弃吗？</view>
+  </mp-dialog>
+</view>

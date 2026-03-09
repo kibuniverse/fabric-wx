@@ -29,11 +29,7 @@ Page({
     
     // ActionSheet相关
     showActionSheet: false, // 是否显示操作菜单
-    actions: [
-      { text: '重命名', value: 'rename' },
-      { text: '修改封面', value: 'changeCover' },
-      { text: '删除', value: 'delete', type: 'warn' },
-    ],
+    actions: [] as { text: string; value: string; type?: string }[], // 动态生成
     
     // 当前操作项
     currentItemId: '', // 当前操作的项目ID
@@ -259,13 +255,27 @@ Page({
     // 阻止触发事件冒泡
     const id = e.currentTarget.dataset.id;
     const type = e.currentTarget.dataset.type; // 'image' 或 'file'
-    
+
     // 根据类型获取当前项
     const currentItem = this.data.allItems.find(item => item.id === id);
     console.log('Current Item:', currentItem);
     if (currentItem) {
+      // 根据类型动态生成菜单选项
+      const actions: { text: string; value: string; type?: string }[] = [
+        { text: '重命名', value: 'rename' },
+        { text: '修改封面', value: 'changeCover' },
+      ];
+
+      // 仅当类型为图片时显示"编辑图解"选项
+      if (type === 'image') {
+        actions.push({ text: '编辑图解', value: 'edit' });
+      }
+
+      actions.push({ text: '删除', value: 'delete', type: 'warn' });
+
       this.setData({
         showActionSheet: true,
+        actions,
         currentItemId: id,
         currentItemType: type,
         currentItemName: currentItem.originalName || currentItem.name
@@ -299,6 +309,9 @@ Page({
         break;
       case 'changeCover':
         this.chooseCoverImage();
+        break;
+      case 'edit':
+        this.navigateToEdit();
         break;
       case 'delete':
         this.showDeleteModal();
@@ -612,6 +625,16 @@ Page({
     const id = e.currentTarget.dataset.id;
     wx.navigateTo({
       url: `/pages/detail/detail?id=${id}`
+    });
+  },
+
+  /**
+   * 导航到编辑图解页
+   */
+  navigateToEdit() {
+    const { currentItemId } = this.data;
+    wx.navigateTo({
+      url: `/pages/edit/edit?id=${currentItemId}`
     });
   },
 })
