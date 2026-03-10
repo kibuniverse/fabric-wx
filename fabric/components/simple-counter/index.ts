@@ -172,6 +172,12 @@ Component({
      * 增加计数器值
      */
     increaseCount() {
+      // 防止计数超过最大值
+      if (this.data.count >= 999) {
+        this.showToast("已经是最大值了");
+        return;
+      }
+
       const newCount = this.data.count + 1;
       this.setData({
         count: newCount,
