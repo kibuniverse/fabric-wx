@@ -1,6 +1,1 @@
-{
-  "component": true,
-  "usingComponents": {
-    "animate-numbers": "/components/animate-numbers/index"
-  }
-}
+{"component": true, "usingComponents": {"animate-numbers": "/components/animate-numbers/index", "van-dialog": "@vant/weapp/dialog/index"}}

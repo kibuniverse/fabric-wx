@@ -86,3 +86,19 @@
   width: 64rpx;
   height: 64rpx;
 }
+
+/* 修改计数弹窗样式 */
+.modal-content {
+  margin: 40rpx;
+  border: 1rpx solid #ddd;
+  border-radius: 8rpx;
+  padding: 20rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.modal-content-input {
+  width: 100%;
+  text-align: center;
+}

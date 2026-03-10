@@ -83,6 +83,8 @@ Component({
       color: "#000000", // (string) 字体颜色
       columnStyle: "font-size: 48px;", // (string) 字体单元 覆盖样式
     },
+    showModifyCount: false,
+    modifyCountInput: "",
   },
 
   /**
@@ -258,6 +260,55 @@ Component({
       this.triggerEvent("memotap", {
         id: this.properties.counterId,
       });
+    },
+
+    /**
+     * 点击数字区域，显示修改弹窗
+     */
+    onCountTap() {
+      this.setData({
+        showModifyCount: true,
+        modifyCountInput: String(this.data.count),
+      });
+    },
+
+    /**
+     * 输入框内容变化
+     */
+    onModifyCountInput(e: WechatMiniprogram.Input) {
+      this.setData({
+        modifyCountInput: e.detail.value,
+      });
+    },
+
+    /**
+     * 关闭修改弹窗
+     */
+    closeModifyCountModal() {
+      this.setData({
+        showModifyCount: false,
+      });
+    },
+
+    /**
+     * 确认修改计数
+     */
+    confirmModifyCount() {
+      const inputValue = parseInt(this.data.modifyCountInput, 10);
+
+      // 验证输入
+      if (isNaN(inputValue) || inputValue < 0) {
+        this.showToast("请输入有效的数字");
+        return;
+      }
+
+      // 限制最大值为 999
+      const newCount = Math.min(inputValue, 999);
+      this.setData({
+        count: newCount,
+        showModifyCount: false,
+      });
+      this.saveCounterValue();
     },
 
     /**
