@@ -247,32 +247,25 @@ scroll-view::-webkit-scrollbar {
   flex-direction: row;
   overflow: hidden;
   background-color: #fff;
+  border-radius: 40rpx;
+  border: 2rpx solid #e6e6fa;
+  box-sizing: border-box;
 }
 
 .connect-counter-left {
-  width: 378rpx;
-  height: 232rpx;
+  width: 380rpx;
+  height: 100%;
   background-color: #ffffff;
-  border-top-left-radius: 40rpx;
-  border-bottom-left-radius: 40rpx;
-  border: 2rpx solid #e6e6fa;
   display: flex;
   flex-direction: column;
-  border-right: none;
-  /* 不描边左侧 */
   align-items: center;
-  /* 水平居中内容 */
   justify-content: flex-start;
   position: relative;
 }
 
 .content-counter-right {
   width: 100rpx;
-  height: 232rpx;
-  border: 2rpx solid #e6e6fa;
-  border-top-right-radius: 40rpx;
-  border-bottom-right-radius: 40rpx;
-  border-left: none;
+  height: 100%;
   background-color: #e6e6fa;
   display: flex;
   align-items: center;
