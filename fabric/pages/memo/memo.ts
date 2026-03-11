@@ -17,10 +17,19 @@ Page({
     // 从本地存储获取上次修改时间
     const lastModified = wx.getStorageSync(`memo_${key}_lastModified`);
 
+    // 安全解码 content，防止 URL 截断导致的解码异常
+    let content = '';
+    try {
+      content = decodeURIComponent(options.content || "");
+    } catch (e) {
+      console.warn('Failed to decode memo content:', e);
+      content = "";
+    }
+
     this.setData({
       key: key,
       type: type,
-      content: decodeURIComponent(options.content || ""),
+      content: content,
       lastModified: lastModified || ''
     });
   },
