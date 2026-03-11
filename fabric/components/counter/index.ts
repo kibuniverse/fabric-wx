@@ -152,14 +152,13 @@ Component({
       }
     },
     handleMemoClick() {
-      const memoKey = `memo_${this.properties.storageKey}`;
       wx.navigateTo({
-        url: `/pages/memo/memo?key=${memoKey}&content=${encodeURIComponent(
+        url: `/pages/memo/memo?key=${this.properties.storageKey}&content=${encodeURIComponent(
           this.data.counterData.memo || ""
-        )}`,
+        )}&type=counter`,
         events: {
           onMemoContentChange: (data: { key: string; content: string }) => {
-            if (data.key === memoKey && typeof data.content === "string") {
+            if (data.key === this.properties.storageKey && typeof data.content === "string") {
               this.updateMemo(data.content);
             }
           },

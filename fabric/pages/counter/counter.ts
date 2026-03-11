@@ -475,24 +475,29 @@ Page({
       cancelText: "取消",
       success: (res) => {
         if (res.confirm) {
+          const counterId = e.detail.id;
           // 用户点击了确认按钮
           // 如果只剩余了一个计时器，则提示不能删除
           const counterKeys = this.data.counterKeys;
           const deletedCounter = counterKeys.find(
-            (key) => key.key === e.detail.id
+            (key) => key.key === counterId
           );
           const deletedCounterTitle = deletedCounter?.title;
 
           // 删除 counterkeys中的key
           // 找到被删除的计数器在原数组中的索引
           const deletedIndex = this.data.counterKeys.findIndex(
-            (key) => key.key === e.detail.id
+            (key) => key.key === counterId
           );
           const newCounterKeys = this.data.counterKeys.filter(
-            (key) => key.key !== e.detail.id
+            (key) => key.key !== counterId
           );
           wx.setStorageSync(STORAGE_KEYS.COUNTER_KEYS, newCounterKeys);
           this.setData({ counterKeys: newCounterKeys });
+
+          // 清理计数器相关数据
+          wx.removeStorageSync(counterId); // 计数器数据
+          wx.removeStorageSync(`memo_${counterId}_lastModified`); // 备忘录修改时间
 
           // 如果删除的是第一个计数器，则激活第二个计数器（新的第一个）
           // 否则激活被删除计数器的前一个

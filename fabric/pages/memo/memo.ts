@@ -1,37 +1,61 @@
 import { eventBus } from "../../utils/event_bus";
 
+// 防抖定时器
+let debounceTimer: number | null = null;
+
 Page({
   data: {
     key: '',
+    type: '', // 'counter' 或 'item'
     content: '',
     lastModified: ''
   },
 
   onLoad(options) {
     const key = options.key;
+    const type = options.type || 'item'; // 默认为 item 类型（图解）
     // 从本地存储获取上次修改时间
     const lastModified = wx.getStorageSync(`memo_${key}_lastModified`);
 
     this.setData({
       key: key,
+      type: type,
       content: decodeURIComponent(options.content || ""),
       lastModified: lastModified || ''
     });
   },
 
   handleInput(e: WechatMiniprogram.Input) {
-    const currentTime = new Date().toLocaleString();
-    // 保存修改时间到本地存储
-    wx.setStorageSync(`memo_${this.data.key}_lastModified`, currentTime);
-
+    const content = e.detail.value;
     this.setData({
-      content: e.detail.value,
-      lastModified: currentTime
+      content: content,
     });
+    // 使用防抖保存修改时间
+    this.debouncedSaveLastModified();
     this.handleFillBackData();
   },
 
+  debouncedSaveLastModified() {
+    if (debounceTimer !== null) {
+      clearTimeout(debounceTimer);
+    }
+    debounceTimer = setTimeout(() => {
+      const currentTime = new Date().toLocaleString();
+      wx.setStorageSync(`memo_${this.data.key}_lastModified`, currentTime);
+      this.setData({
+        lastModified: currentTime
+      });
+      debounceTimer = null;
+    }, 500) as unknown as number;
+  },
+
   handleConfirm() {
+    // 确保最后一次修改时间已保存
+    if (debounceTimer !== null) {
+      clearTimeout(debounceTimer);
+      const currentTime = new Date().toLocaleString();
+      wx.setStorageSync(`memo_${this.data.key}_lastModified`, currentTime);
+    }
     this.handleFillBackData();
     wx.navigateBack();
   },
@@ -41,13 +65,23 @@ Page({
   },
 
   handleFillBackData() {
-    const eventChannel = this.getOpenerEventChannel()
     const data = {
       key: this.data.key,
       content: this.data.content
+    };
+    // 使用 try-catch 保护 EventChannel 调用
+    try {
+      const eventChannel = this.getOpenerEventChannel();
+      if (eventChannel && typeof eventChannel.emit === 'function') {
+        eventChannel.emit('onMemoContentChange', data);
+      }
+    } catch (e) {
+      console.warn('EventChannel not available:', e);
     }
-    eventChannel.emit('onMemoContentChange', data);
-    eventBus.emit('onMemoContentChange', void 0);
+    // 通知计数器页面备忘录已更新
+    if (this.data.type === 'counter') {
+      eventBus.emit('onMemoContentChange', void 0);
+    }
   },
 
   handleClear() {

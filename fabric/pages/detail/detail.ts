@@ -476,7 +476,7 @@ Page<DetailPageData, WechatMiniprogram.IAnyObject>({
     const { itemId, memoContent } = this.data;
 
     wx.navigateTo({
-      url: `/pages/memo/memo?key=${itemId}&content=${encodeURIComponent(memoContent)}`,
+      url: `/pages/memo/memo?key=${itemId}&content=${encodeURIComponent(memoContent)}&type=item`,
       events: {
         // 接收 memo 页面回传的数据
         onMemoContentChange: (data: { key: string; content: string }) => {
