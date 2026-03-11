@@ -213,82 +213,7 @@ Page<DetailPageData, WechatMiniprogram.IAnyObject>({
     return { width: containerWidth || 375, height: containerHeight || 500 };
   },
 
-  // ========== 正常状态下的手势检测（用于触发缩放） ==========
-
-  /**
-   * 正常状态触摸开始（检测双指缩放）
-   */
-  onNormalTouchStart(e: WechatMiniprogram.TouchEvent) {
-    const touches = e.touches;
-    if (touches.length === 2) {
-      // 双指触摸 - 开始缩放
-      const [touch1, touch2] = touches;
-      const distance = this.getDistance(touch1, touch2);
-      const center = this.getCenter(touch1, touch2);
-
-      this.setData({
-        isTouching: true,
-        initialDistance: distance,
-        initialScale: 1,
-        initialTranslateX: 0,
-        initialTranslateY: 0,
-        lastScaleCenterX: center.x,
-        lastScaleCenterY: center.y,
-      });
-      this.lastDistance = distance;
-    }
-  },
-
-  /**
-   * 正常状态触摸移动
-   */
-  onNormalTouchMove(e: WechatMiniprogram.TouchEvent) {
-    const touches = e.touches;
-
-    if (touches.length === 2 && this.data.isTouching) {
-      // 双指缩放 - 计算新缩放比例
-      const [touch1, touch2] = touches;
-      const currentDistance = this.getDistance(touch1, touch2);
-      const currentCenter = this.getCenter(touch1, touch2);
-
-      const { initialDistance, containerWidth, containerHeight } = this.data;
-      let newScale = currentDistance / initialDistance;
-
-      // 当缩放超过 1.05 倍时，切换到缩放模式
-      if (newScale > 1.05) {
-        const containerCenterX = containerWidth / 2;
-        const containerCenterY = containerHeight / 2;
-
-        const scaleDelta = newScale - 1;
-        const deltaX = -(currentCenter.x - containerCenterX) * scaleDelta;
-        const deltaY = -(currentCenter.y - containerCenterY) * scaleDelta;
-
-        this.setData({
-          scale: newScale,
-          translateX: deltaX,
-          translateY: deltaY,
-          lastScaleCenterX: currentCenter.x,
-          lastScaleCenterY: currentCenter.y,
-        });
-        this.lastDistance = currentDistance;
-      }
-    }
-  },
-
-  /**
-   * 正常状态触摸结束
-   */
-  onNormalTouchEnd(e: WechatMiniprogram.TouchEvent) {
-    if (this.data.isTouching) {
-      this.setData({ isTouching: false });
-      // 如果有缩放，执行回弹检查
-      if (this.data.scale > 1) {
-        this.springBack();
-      }
-    }
-  },
-
-  // ========== 缩放状态下的手势处理 ==========
+  // ========== 统一的手势处理（根据 scale 状态分发） ==========
 
   /**
    * 触摸开始
@@ -296,6 +221,7 @@ Page<DetailPageData, WechatMiniprogram.IAnyObject>({
   onTouchStart(e: WechatMiniprogram.TouchEvent) {
     const touches = e.touches;
     const touchCount = touches.length;
+    const { scale } = this.data;
 
     if (this.data.isAnimating) {
       this.setData({ isAnimating: false });
@@ -321,15 +247,12 @@ Page<DetailPageData, WechatMiniprogram.IAnyObject>({
       this.setData({
         isTouching: true,
         initialDistance: distance,
-        initialScale: this.data.scale,
+        initialScale: scale, // 使用当前 scale 作为初始值
         initialTranslateX: this.data.translateX,
         initialTranslateY: this.data.translateY,
         lastScaleCenterX: center.x,
         lastScaleCenterY: center.y,
-        // 双指操作时禁用 swiper
-        swiperEnabled: false,
       });
-      // 初始化增量计算的距离
       this.lastDistance = distance;
     }
   },
@@ -340,11 +263,20 @@ Page<DetailPageData, WechatMiniprogram.IAnyObject>({
   onTouchMove(e: WechatMiniprogram.TouchEvent) {
     const touches = e.touches;
     const touchCount = touches.length;
+    const { scale } = this.data;
 
     if (touchCount === 2) {
+      // 双指缩放
       this.handlePinchZoom(touches);
     } else if (touchCount === 1 && this.data.isTouching) {
-      this.handlePan(touches[0]);
+      if (scale > 1) {
+        // 缩放状态：拖动图片
+        this.handleDragImage(
+          touches[0].clientX - this.data.panStartX,
+          touches[0].clientY - this.data.panStartY
+        );
+      }
+      // scale <= 1 时，让 swiper 自然响应滑动
     }
   },
 
@@ -370,16 +302,24 @@ Page<DetailPageData, WechatMiniprogram.IAnyObject>({
         );
         // 移动距离小于 10px 才算点击
         if (moveDistance < 10 && lastTapCheckTime > 0 && now - lastTapCheckTime < DOUBLE_TAP_THRESHOLD) {
-          // 双击：恢复原始状态
-          this.setData({
-            scale: 1,
-            translateX: 0,
-            translateY: 0,
-            isAnimating: true,
-            isTouching: false,
-            lastTapCheckTime: 0, // 重置避免重复触发
-          });
+          // 双击处理
+          if (scale < 1.5) {
+            this.setData({
+              scale: 1.5,
+              translateX: 0,
+              translateY: 0,
+              isAnimating: true,
+            });
+          } else {
+            this.setData({
+              scale: 1,
+              translateX: 0,
+              translateY: 0,
+              isAnimating: true,
+            });
+          }
           setTimeout(() => this.setData({ isAnimating: false }), 300);
+          this.setData({ isTouching: false, lastTapCheckTime: 0 });
           return;
         }
         // 记录本次点击时间
