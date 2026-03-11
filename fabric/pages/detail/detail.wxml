@@ -17,56 +17,70 @@
 
   <!-- 图解预览区域 -->
   <view class="preview-area">
-    <!-- 图片预览 支持滑动切换和手动缩放 -->
-    <swiper
-      wx:if="{{itemType === 'image'}}"
-      class="image-swiper"
-      current="{{currentImageIndex}}"
-      bindchange="onSwiperChange"
-      duration="{{300}}">
-      <swiper-item wx:for="{{itemPaths}}" wx:key="index">
-        <movable-area
-          class="movable-area"
-          key="area-{{index}}"
-          bindtouchstart="onTouchStart"
-          catchtouchmove="onTouchMove"
-          bindtouchend="onTouchEnd">
-          <movable-view
-            class="movable-view"
-            key="view-{{index}}"
-            direction="all"
-            scale="true"
-            scale-min="1"
-            scale-max="5"
-            damping="20"
-            friction="2"
-            animation="{{false}}"
-            bindscale="onMovableScale">
-            <image
-              src="{{item}}"
-              mode="aspectFit"
-              class="preview-image"
-              bindtap="previewImage"
-              catchlongtap="onLongTap"></image>
-          </movable-view>
-        </movable-area>
-      </swiper-item>
-    </swiper>
+    <!-- 图片预览：swiper + 手势缩放 -->
+    <block wx:if="{{itemType === 'image'}}">
+      <!-- 缩放状态：使用自定义手势处理 -->
+      <view
+        wx:if="{{scale > 1}}"
+        class="image-container"
+        catchtouchstart="onTouchStart"
+        catchtouchmove="onTouchMove"
+        catchtouchend="onTouchEnd"
+      >
+        <image
+          src="{{itemPath}}"
+          mode="aspectFit"
+          class="preview-image {{isAnimating ? 'animating' : ''}}"
+          style="transform: translate({{translateX}}px, {{translateY}}px) scale({{scale}});"
+          bindload="onImageLoad"
+          bindtap="onScaleImageTap"
+        />
+      </view>
+      <!-- 正常状态：使用 swiper 滑动，同时监听缩放手势 -->
+      <view
+        wx:else
+        class="swiper-wrapper"
+        bindtouchstart="onNormalTouchStart"
+        bindtouchmove="onNormalTouchMove"
+        bindtouchend="onNormalTouchEnd"
+      >
+        <swiper
+          class="image-swiper"
+          current="{{currentImageIndex}}"
+          duration="{{300}}"
+          bindchange="onSwiperChange"
+        >
+          <swiper-item wx:for="{{itemPaths}}" wx:key="index">
+            <view class="image-container">
+              <image
+                src="{{item}}"
+                mode="aspectFit"
+                class="preview-image {{isAnimating ? 'animating' : ''}}"
+                bindload="onImageLoad"
+                bindtap="onImageTap"
+                bindlongtap="onLongTap"
+              />
+            </view>
+          </swiper-item>
+        </swiper>
+      </view>
+
+      <!-- 页码指示器 -->
+      <view wx:if="{{totalImages > 1}}" class="page-indicator">
+        <text>{{currentImageIndex + 1}}/{{totalImages}}</text>
+      </view>
+    </block>
 
     <!-- PDF预览 -->
     <pdf-viewer
       wx:elif="{{itemType === 'pdf'}}"
       filePath="{{itemPath}}"
-      class="preview-pdf"></pdf-viewer>
+      class="preview-pdf"
+    ></pdf-viewer>
 
-    <!-- 加载中或错误状态 -->
+    <!-- 加载中 -->
     <view wx:else class="loading-state">
       <text>加载中...</text>
-    </view>
-
-    <!-- 页码指示器（仅当多图时显示，放在右上角） -->
-    <view wx:if="{{itemType === 'image' && totalImages > 1}}" class="page-indicator">
-      <text>{{currentImageIndex + 1}}/{{totalImages}}</text>
     </view>
   </view>
 
@@ -75,6 +89,7 @@
     show="{{showActionSheet}}"
     actions="{{actionSheetActions}}"
     bind:actiontap="handleActionClick"
-    bind:close="closeActionSheet"/>
+    bind:close="closeActionSheet"
+  />
 
 </view>

@@ -21,19 +21,50 @@ interface DetailPageData {
   // 长按菜单
   showActionSheet: boolean;
   actionSheetActions: { text: string; value: string; type?: string }[];
-  // 触摸相关（用于区分单指长按和多指缩放）
-  touchStartTime: number;
-  touchStartX: number;
-  touchStartY: number;
-  hasMultiTouch: boolean;    // 是否有多指触摸
-  currentScale: number;      // 当前缩放值
-  isSwiping: boolean;        // 是否正在执行swiper滑动
   // 备忘录
   memoContent: string;
+
+  // ========== 缩放/拖动相关 ==========
+  // 图片容器尺寸
+  containerWidth: number;
+  containerHeight: number;
+  // 图片原始尺寸（每张图片可能不同）
+  imageSizes: Record<number, { width: number; height: number }>;
+  // 当前变换状态
+  scale: number;             // 当前缩放比例
+  translateX: number;        // 当前X位移
+  translateY: number;        // 当前Y位移
+  // 触摸状态
+  isTouching: boolean;       // 是否正在触摸
+  touchCount: number;        // 当前触摸点数量
+  // 双指缩放初始状态
+  initialDistance: number;   // 初始双指距离
+  initialScale: number;      // 初始缩放值
+  initialTranslateX: number; // 初始位移X
+  initialTranslateY: number; // 初始位移Y
+  lastScaleCenterX: number;  // 上次缩放中心点X
+  lastScaleCenterY: number;  // 上次缩放中心点Y
+  // 单指拖动初始状态
+  panStartX: number;
+  panStartY: number;
+  // 用于双击检测
+  lastTapCheckTime: number;
+  // 动画状态
+  isAnimating: boolean;      // 是否正在执行回弹动画
+  // swiper 控制
+  swiperEnabled: boolean;    // 是否允许 swiper 滑动
 }
 
 // 最大图片数量
 const MAX_IMAGES = 15;
+
+// 缩放范围常量
+const MIN_SCALE = 0.8;
+const MAX_SCALE = 2.0;
+// 滑动切换阈值
+const SWIPE_THRESHOLD = 50;
+// 双击时间阈值
+const DOUBLE_TAP_THRESHOLD = 300;
 
 // 通用的提示配置
 const DETAIL_TOAST_CONFIG = {
@@ -42,9 +73,6 @@ const DETAIL_TOAST_CONFIG = {
 };
 
 Page<DetailPageData, WechatMiniprogram.IAnyObject>({
-  /**
-   * 页面的初始数据
-   */
   data: {
     itemId: "",
     itemType: "",
@@ -55,62 +83,63 @@ Page<DetailPageData, WechatMiniprogram.IAnyObject>({
     totalImages: 0,
     count: 0,
     lastTapTime: 0,
-    // 长按菜单
     showActionSheet: false,
     actionSheetActions: [],
-    // 触摸相关
-    touchStartTime: 0,
-    touchStartX: 0,
-    touchStartY: 0,
-    hasMultiTouch: false,
-    currentScale: 1,
-    isSwiping: false,
-    // 备忘录
     memoContent: "",
+
+    // 缩放/拖动相关
+    containerWidth: 0,
+    containerHeight: 0,
+    imageSizes: {},
+    scale: 1,
+    translateX: 0,
+    translateY: 0,
+    isTouching: false,
+    touchCount: 0,
+    initialDistance: 0,
+    initialScale: 1,
+    initialTranslateX: 0,
+    initialTranslateY: 0,
+    lastScaleCenterX: 0,
+    lastScaleCenterY: 0,
+    panStartX: 0,
+    panStartY: 0,
+    lastTapCheckTime: 0,
+    isAnimating: false,
+    swiperEnabled: true,
   },
 
-  /**
-   * 生命周期函数--监听页面加载
-   */
   onLoad(options: Record<string, string>) {
-    // 接收传递的图解ID参数
     if (options.id) {
       this.setData({ itemId: options.id });
       this.loadItemDetail(options.id);
     } else {
       this.showToast("参数错误");
-      setTimeout(() => {
-        wx.navigateBack();
-      }, 1500);
+      setTimeout(() => wx.navigateBack(), 1500);
     }
+  },
+
+  onReady() {
+    this.getContainerSize();
   },
 
   /**
    * 加载图解详情
-   * @param id 图解ID
-   * @param preserveIndex 是否保留当前图片索引（用于 onShow 时避免重置位置）
    */
   loadItemDetail(id: string, preserveIndex: boolean = false) {
-    // 从本地存储中查找图解详情
     const imageList = wx.getStorageSync("imageList") || [];
     const fileList = wx.getStorageSync("fileList") || [];
-
-    // 合并列表并查找指定ID的项目
     const allItems = [...imageList, ...fileList];
     const item = allItems.find((item) => item.id === id);
 
     if (item) {
-      // 兼容处理：paths 存在则用 paths，否则用 [path]
       const itemPaths = item.paths || [item.path];
       const totalImages = itemPaths.length;
 
-      // 确定图片索引
       let newIndex = 0;
       if (preserveIndex) {
-        // 保留当前索引时，确保索引不超出范围
         newIndex = Math.min(this.data.currentImageIndex, totalImages - 1);
       } else if (item.type === 'image') {
-        // 尝试恢复保存的图片索引
         const storage = wx.getStorageSync(LAST_IMAGE_INDEX_KEY) || {};
         const savedIndex = storage[id];
         if (savedIndex !== undefined && savedIndex < totalImages) {
@@ -125,360 +154,646 @@ Page<DetailPageData, WechatMiniprogram.IAnyObject>({
         itemPaths,
         currentImageIndex: newIndex,
         totalImages,
+        // 切换图片时重置缩放状态
+        scale: 1,
+        translateX: 0,
+        translateY: 0,
+        swiperEnabled: true,
+        imageSizes: {},
       });
 
-      // 设置导航栏标题为图解名称
-      wx.setNavigationBarTitle({
-        title: item.name
-      });
-
-      // 加载备忘录内容
+      wx.setNavigationBarTitle({ title: item.name });
       this.loadMemoContent();
     } else {
       this.showToast("未找到图解");
-      setTimeout(() => {
-        wx.navigateBack();
-      }, 1500);
+      setTimeout(() => wx.navigateBack(), 1500);
     }
   },
 
   /**
-   * 返回上一页
+   * 图片加载完成
    */
-  goBack() {
-    wx.navigateBack();
+  onImageLoad(e: WechatMiniprogram.ImageLoad) {
+    const { width, height } = e.detail;
+    const index = this.data.currentImageIndex;
+
+    // 保存图片尺寸
+    const imageSizes = { ...this.data.imageSizes };
+    imageSizes[index] = { width, height };
+    this.setData({ imageSizes });
   },
 
   /**
-   * 预览图片（支持查看大图和缩放）
+   * 获取预览容器尺寸
    */
-  previewImage() {
-    // 实现双击图片才进入预览模式
-    const now = Date.now();
-    if (now - this.data.lastTapTime < 300) {
-      // 双击时进入全屏预览
-      if (this.data.itemType === "image") {
-        wx.previewImage({
-          current: this.data.itemPath,
-          urls: this.data.itemPaths,
+  getContainerSize() {
+    const query = wx.createSelectorQuery();
+    query.select('.preview-area').boundingClientRect((rect: any) => {
+      if (rect) {
+        this.setData({
+          containerWidth: rect.width,
+          containerHeight: rect.height,
         });
       }
+    }).exec();
+  },
+
+  /**
+   * 获取当前图片尺寸
+   */
+  getCurrentImageSize(): { width: number; height: number } {
+    const { imageSizes, currentImageIndex, containerWidth, containerHeight } = this.data;
+    const size = imageSizes[currentImageIndex];
+
+    if (size) {
+      return size;
     }
 
-    // 更新最后点击时间
+    // 如果图片尺寸未知，假设与容器等大
+    return { width: containerWidth || 375, height: containerHeight || 500 };
+  },
+
+  // ========== 正常状态下的手势检测（用于触发缩放） ==========
+
+  /**
+   * 正常状态触摸开始（检测双指缩放）
+   */
+  onNormalTouchStart(e: WechatMiniprogram.TouchEvent) {
+    const touches = e.touches;
+    if (touches.length === 2) {
+      // 双指触摸 - 开始缩放
+      const [touch1, touch2] = touches;
+      const distance = this.getDistance(touch1, touch2);
+      const center = this.getCenter(touch1, touch2);
+
+      this.setData({
+        isTouching: true,
+        initialDistance: distance,
+        initialScale: 1,
+        initialTranslateX: 0,
+        initialTranslateY: 0,
+        lastScaleCenterX: center.x,
+        lastScaleCenterY: center.y,
+      });
+      this.lastDistance = distance;
+    }
+  },
+
+  /**
+   * 正常状态触摸移动
+   */
+  onNormalTouchMove(e: WechatMiniprogram.TouchEvent) {
+    const touches = e.touches;
+
+    if (touches.length === 2 && this.data.isTouching) {
+      // 双指缩放 - 计算新缩放比例
+      const [touch1, touch2] = touches;
+      const currentDistance = this.getDistance(touch1, touch2);
+      const currentCenter = this.getCenter(touch1, touch2);
+
+      const { initialDistance, containerWidth, containerHeight } = this.data;
+      let newScale = currentDistance / initialDistance;
+
+      // 当缩放超过 1.05 倍时，切换到缩放模式
+      if (newScale > 1.05) {
+        const containerCenterX = containerWidth / 2;
+        const containerCenterY = containerHeight / 2;
+
+        const scaleDelta = newScale - 1;
+        const deltaX = -(currentCenter.x - containerCenterX) * scaleDelta;
+        const deltaY = -(currentCenter.y - containerCenterY) * scaleDelta;
+
+        this.setData({
+          scale: newScale,
+          translateX: deltaX,
+          translateY: deltaY,
+          lastScaleCenterX: currentCenter.x,
+          lastScaleCenterY: currentCenter.y,
+        });
+        this.lastDistance = currentDistance;
+      }
+    }
+  },
+
+  /**
+   * 正常状态触摸结束
+   */
+  onNormalTouchEnd(e: WechatMiniprogram.TouchEvent) {
+    if (this.data.isTouching) {
+      this.setData({ isTouching: false });
+      // 如果有缩放，执行回弹检查
+      if (this.data.scale > 1) {
+        this.springBack();
+      }
+    }
+  },
+
+  // ========== 缩放状态下的手势处理 ==========
+
+  /**
+   * 触摸开始
+   */
+  onTouchStart(e: WechatMiniprogram.TouchEvent) {
+    const touches = e.touches;
+    const touchCount = touches.length;
+
+    if (this.data.isAnimating) {
+      this.setData({ isAnimating: false });
+    }
+
+    this.setData({ touchCount });
+
+    if (touchCount === 1) {
+      const touch = touches[0];
+      this.setData({
+        isTouching: true,
+        panStartX: touch.clientX,
+        panStartY: touch.clientY,
+        initialTranslateX: this.data.translateX,
+        initialTranslateY: this.data.translateY,
+      });
+    } else if (touchCount === 2) {
+      // 双指触摸 - 缩放
+      const [touch1, touch2] = touches;
+      const distance = this.getDistance(touch1, touch2);
+      const center = this.getCenter(touch1, touch2);
+
+      this.setData({
+        isTouching: true,
+        initialDistance: distance,
+        initialScale: this.data.scale,
+        initialTranslateX: this.data.translateX,
+        initialTranslateY: this.data.translateY,
+        lastScaleCenterX: center.x,
+        lastScaleCenterY: center.y,
+        // 双指操作时禁用 swiper
+        swiperEnabled: false,
+      });
+      // 初始化增量计算的距离
+      this.lastDistance = distance;
+    }
+  },
+
+  /**
+   * 触摸移动
+   */
+  onTouchMove(e: WechatMiniprogram.TouchEvent) {
+    const touches = e.touches;
+    const touchCount = touches.length;
+
+    if (touchCount === 2) {
+      this.handlePinchZoom(touches);
+    } else if (touchCount === 1 && this.data.isTouching) {
+      this.handlePan(touches[0]);
+    }
+  },
+
+  /**
+   * 触摸结束
+   */
+  onTouchEnd(e: WechatMiniprogram.TouchEvent) {
+    const { scale, touchCount, panStartX, panStartY, lastTapCheckTime } = this.data;
+
+    // 更新触摸点数量
+    const newTouchCount = Math.max(0, touchCount - 1);
+    this.setData({ touchCount: newTouchCount });
+
+    // 所有手指离开
+    if (newTouchCount === 0) {
+      // 检测双击（单指触摸结束时，且移动距离很小）
+      const now = Date.now();
+      if (touchCount === 1 && e.changedTouches && e.changedTouches.length > 0) {
+        const touch = e.changedTouches[0];
+        const moveDistance = Math.sqrt(
+          Math.pow(touch.clientX - panStartX, 2) +
+          Math.pow(touch.clientY - panStartY, 2)
+        );
+        // 移动距离小于 10px 才算点击
+        if (moveDistance < 10 && lastTapCheckTime > 0 && now - lastTapCheckTime < DOUBLE_TAP_THRESHOLD) {
+          // 双击：恢复原始状态
+          this.setData({
+            scale: 1,
+            translateX: 0,
+            translateY: 0,
+            isAnimating: true,
+            isTouching: false,
+            lastTapCheckTime: 0, // 重置避免重复触发
+          });
+          setTimeout(() => this.setData({ isAnimating: false }), 300);
+          return;
+        }
+        // 记录本次点击时间
+        this.setData({ lastTapCheckTime: now });
+      }
+      this.setData({ isTouching: false });
+      this.springBack();
+    }
+  },
+
+  /**
+   * 双指缩放处理
+   * 核心算法：以双指中心为缩放中心
+   */
+  handlePinchZoom(touches: WechatMiniprogram.Touch[]) {
+    const [touch1, touch2] = touches;
+    const currentDistance = this.getDistance(touch1, touch2);
+    const currentCenter = this.getCenter(touch1, touch2);
+
+    // 计算新缩放比例
+    const { initialDistance, initialScale, containerWidth, containerHeight } = this.data;
+    let newScale = (initialScale * currentDistance) / initialDistance;
+
+    // 计算缩放中心点位移
+    // 公式：新位移 = 初始位移 + (缩放中心 - 容器中心) * (新缩放 - 初始缩放)
+    // 但更精确的做法是让缩放中心点在屏幕上的位置不变
+    const containerCenterX = containerWidth / 2;
+    const containerCenterY = containerHeight / 2;
+
+    // 使用增量计算方式，更跟手
+    const scaleDelta = newScale - this.data.scale;
+
+    // 计算新的位移：保持缩放中心点不变
+    // 简化公式：位移变化 = - (缩放中心 - 图片中心) * 缩放变化量
+    const deltaX = -(currentCenter.x - containerCenterX - this.data.translateX) * (scaleDelta / this.data.scale);
+    const deltaY = -(currentCenter.y - containerCenterY - this.data.translateY) * (scaleDelta / this.data.scale);
+
+    // 同时处理双指中心的移动（拖动）
+    const centerMoveX = currentCenter.x - this.data.lastScaleCenterX;
+    const centerMoveY = currentCenter.y - this.data.lastScaleCenterY;
+
     this.setData({
-      lastTapTime: now
+      scale: newScale,
+      translateX: this.data.translateX + deltaX + centerMoveX,
+      translateY: this.data.translateY + deltaY + centerMoveY,
+      lastScaleCenterX: currentCenter.x,
+      lastScaleCenterY: currentCenter.y,
+      // 缩放超过1倍时禁用 swiper
+      swiperEnabled: newScale <= 1,
+    });
+
+    // 更新用于增量计算的距离
+    this.lastDistance = currentDistance;
+  },
+
+  // 用于增量计算的临时变量
+  lastDistance: 0,
+
+  /**
+   * 单指拖动处理
+   */
+  handlePan(touch: WechatMiniprogram.Touch) {
+    const { scale, panStartX, panStartY, initialTranslateX, initialTranslateY } = this.data;
+    const deltaX = touch.clientX - panStartX;
+    const deltaY = touch.clientY - panStartY;
+
+    if (scale > 1) {
+      // 缩放状态：拖动图片查看
+      this.handleDragImage(deltaX, deltaY);
+    } else {
+      // 未缩放状态：允许轻微弹性拖动，不移动图片实际位置
+      // 但要允许 swiper 切换
+      // 这里不做处理，让 swiper 自然响应
+    }
+  },
+
+  /**
+   * 拖动已放大的图片
+   */
+  handleDragImage(deltaX: number, deltaY: number) {
+    const { scale, containerWidth, containerHeight } = this.data;
+    const imageSize = this.getCurrentImageSize();
+
+    // 计算缩放后的图片尺寸
+    const scaledWidth = imageSize.width * scale;
+    const scaledHeight = imageSize.height * scale;
+
+    // 计算最大允许位移（图片边缘不超过容器边界）
+    // 由于使用 aspectFit，图片可能小于容器，需要计算实际显示区域
+    const fitScale = Math.min(containerWidth / imageSize.width, containerHeight / imageSize.height);
+    const displayWidth = imageSize.width * fitScale;
+    const displayHeight = imageSize.height * fitScale;
+
+    // 最大位移 = (显示尺寸 * 缩放 - 容器尺寸) / 2
+    const maxTranslateX = Math.max(0, (displayWidth * scale - containerWidth) / 2);
+    const maxTranslateY = Math.max(0, (displayHeight * scale - containerHeight) / 2);
+
+    // 目标位移
+    let newTranslateX = this.data.initialTranslateX + deltaX;
+    let newTranslateY = this.data.initialTranslateY + deltaY;
+
+    // 边界弹性阻力
+    if (Math.abs(newTranslateX) > maxTranslateX) {
+      const overflow = Math.abs(newTranslateX) - maxTranslateX;
+      const resistance = 1 / (1 + overflow / 30);
+      newTranslateX = Math.sign(newTranslateX) * (maxTranslateX + overflow * resistance * 0.2);
+    }
+
+    if (Math.abs(newTranslateY) > maxTranslateY) {
+      const overflow = Math.abs(newTranslateY) - maxTranslateY;
+      const resistance = 1 / (1 + overflow / 30);
+      newTranslateY = Math.sign(newTranslateY) * (maxTranslateY + overflow * resistance * 0.2);
+    }
+
+    this.setData({
+      translateX: newTranslateX,
+      translateY: newTranslateY,
     });
   },
 
   /**
-   * swiper滑动切换事件（通过编程方式切换时触发）
+   * 弹性回弹
+   */
+  springBack() {
+    const { scale, translateX, translateY, containerWidth, containerHeight } = this.data;
+    const imageSize = this.getCurrentImageSize();
+
+    let targetScale = scale;
+    let targetTranslateX = translateX;
+    let targetTranslateY = translateY;
+    let needsAnimation = false;
+
+    // 1. 缩放范围回弹
+    if (scale < MIN_SCALE) {
+      targetScale = MIN_SCALE;
+      needsAnimation = true;
+    } else if (scale > MAX_SCALE) {
+      targetScale = MAX_SCALE;
+      needsAnimation = true;
+    }
+
+    // 2. 位移边界回弹
+    if (targetScale > 1) {
+      const fitScale = Math.min(containerWidth / imageSize.width, containerHeight / imageSize.height);
+      const displayWidth = imageSize.width * fitScale;
+      const displayHeight = imageSize.height * fitScale;
+
+      const maxTranslateX = Math.max(0, (displayWidth * targetScale - containerWidth) / 2);
+      const maxTranslateY = Math.max(0, (displayHeight * targetScale - containerHeight) / 2);
+
+      if (Math.abs(translateX) > maxTranslateX) {
+        targetTranslateX = Math.sign(translateX) * maxTranslateX;
+        needsAnimation = true;
+      }
+      if (Math.abs(translateY) > maxTranslateY) {
+        targetTranslateY = Math.sign(translateY) * maxTranslateY;
+        needsAnimation = true;
+      }
+    } else {
+      // scale <= 1 时位移归零
+      if (translateX !== 0 || translateY !== 0) {
+        targetTranslateX = 0;
+        targetTranslateY = 0;
+        needsAnimation = true;
+      }
+      // 恢复 swiper
+      this.setData({ swiperEnabled: true });
+    }
+
+    if (needsAnimation) {
+      this.setData({
+        isAnimating: true,
+        scale: targetScale,
+        translateX: targetTranslateX,
+        translateY: targetTranslateY,
+      });
+      setTimeout(() => {
+        this.setData({ isAnimating: false });
+        // 如果缩放回弹到 <= 1，恢复 swiper
+        if (targetScale <= 1) {
+          this.setData({ swiperEnabled: true });
+        }
+      }, 300);
+    }
+  },
+
+  /**
+   * 双击缩放
+   */
+  onDoubleTap() {
+    const { scale } = this.data;
+
+    if (scale < 1.5) {
+      this.setData({
+        scale: 1.5,
+        translateX: 0,
+        translateY: 0,
+        isAnimating: true,
+        swiperEnabled: false,
+      });
+    } else {
+      this.setData({
+        scale: 1,
+        translateX: 0,
+        translateY: 0,
+        isAnimating: true,
+        swiperEnabled: true,
+      });
+    }
+
+    setTimeout(() => this.setData({ isAnimating: false }), 300);
+  },
+
+  /**
+   * 计算两点距离
+   */
+  getDistance(t1: { clientX: number; clientY: number }, t2: { clientX: number; clientY: number }): number {
+    return Math.sqrt(Math.pow(t1.clientX - t2.clientX, 2) + Math.pow(t1.clientY - t2.clientY, 2));
+  },
+
+  /**
+   * 计算两点中心
+   */
+  getCenter(t1: { clientX: number; clientY: number }, t2: { clientX: number; clientY: number }): { x: number; y: number } {
+    return { x: (t1.clientX + t2.clientX) / 2, y: (t1.clientY + t2.clientY) / 2 };
+  },
+
+  // ========== Swiper 相关 ==========
+
+  /**
+   * Swiper 切换
    */
   onSwiperChange(e: WechatMiniprogram.SwiperChange) {
-    // 由于使用catchtouchmove，swiper不会自动响应触摸
-    // 此方法保留用于其他编程式切换场景
-    const current = e.detail.current;
+    const newIndex = e.detail.current;
+
     this.setData({
-      currentImageIndex: current,
-      itemPath: this.data.itemPaths[current],
-      currentScale: 1,
+      currentImageIndex: newIndex,
+      itemPath: this.data.itemPaths[newIndex],
+      // 切换图片时重置缩放状态
+      scale: 1,
+      translateX: 0,
+      translateY: 0,
+      swiperEnabled: true,
     });
   },
 
   /**
-   * movable-view缩放事件
+   * 图片点击（支持双击放大）
    */
-  onMovableScale(e: WechatMiniprogram.CustomEvent) {
-    const scale = e.detail.scale;
-    this.setData({ currentScale: scale });
+  onImageTap() {
+    const now = Date.now();
+    if (now - this.data.lastTapTime < DOUBLE_TAP_THRESHOLD) {
+      this.onDoubleTap();
+    }
+    this.setData({ lastTapTime: now });
   },
 
   /**
-   * 处理图片长按事件 - 显示操作菜单（仅单指长按时触发）
+   * 缩放状态下图片点击（双击恢复原始状态）
+   */
+  onScaleImageTap() {
+    const now = Date.now();
+    if (now - this.data.lastTapTime < DOUBLE_TAP_THRESHOLD) {
+      // 双击恢复到原始状态
+      this.setData({
+        scale: 1,
+        translateX: 0,
+        translateY: 0,
+        isAnimating: true,
+      });
+      setTimeout(() => this.setData({ isAnimating: false }), 300);
+    }
+    this.setData({ lastTapTime: now });
+  },
+
+  /**
+   * 长按菜单
    */
   onLongTap() {
-    // 如果有多指触摸或当前处于缩放状态，不显示菜单
-    if (this.data.hasMultiTouch || this.data.currentScale > 1) {
-      return;
-    }
+    if (this.data.scale > 1 || this.data.isTouching) return;
 
     const { totalImages } = this.data;
     const actions: { text: string; value: string; type?: string }[] = [];
 
-    // 当图片数量超过1时显示删除选项
     if (totalImages > 1) {
       actions.push({ text: "删除图片", value: "delete", type: "warn" });
     }
-
-    // 当图片数量小于最大数量时显示添加选项
     if (totalImages < MAX_IMAGES) {
       actions.push({ text: "添加图片", value: "add" });
     }
 
-    // 注意：weui action-sheet 自带取消按钮，不需要额外添加
-
     if (actions.length > 0) {
-      this.setData({
-        showActionSheet: true,
-        actionSheetActions: actions,
+      this.setData({ showActionSheet: true, actionSheetActions: actions });
+    }
+  },
+
+  /**
+   * 预览图片
+   */
+  previewImage() {
+    if (this.data.itemType === "image") {
+      wx.previewImage({
+        current: this.data.itemPath,
+        urls: this.data.itemPaths,
       });
     }
   },
 
-  /**
-   * 触摸开始事件
-   */
-  onTouchStart(e: WechatMiniprogram.TouchEvent) {
-    const touch = e.touches[0];
-    this.setData({
-      touchStartTime: Date.now(),
-      touchStartX: touch.clientX,
-      touchStartY: touch.clientY,
-      hasMultiTouch: e.touches.length > 1,
-      isSwiping: false,
-    });
-  },
-
-  /**
-   * 触摸移动事件
-   */
-  onTouchMove(e: WechatMiniprogram.TouchEvent) {
-    if (e.touches.length > 1) {
-      this.setData({ hasMultiTouch: true });
-      return;
-    }
-
-    // 缩放状态下不处理swiper滑动
-    if (this.data.currentScale > 1) {
-      return;
-    }
-
-    // scale = 1 时，检测横向滑动意图
-    const touch = e.touches[0];
-    const deltaX = touch.clientX - this.data.touchStartX;
-    const deltaY = touch.clientY - this.data.touchStartY;
-
-    // 判断是否为横向滑动
-    if (Math.abs(deltaX) > Math.abs(deltaY) && Math.abs(deltaX) > 10) {
-      this.setData({ isSwiping: true });
-    }
-  },
-
-  /**
-   * 触摸结束事件
-   */
-  onTouchEnd(e: WechatMiniprogram.TouchEvent) {
-    // 缩放状态下不处理swiper切换
-    if (this.data.currentScale > 1) {
-      this.setData({ hasMultiTouch: false });
-      return;
-    }
-
-    // scale = 1 时，根据滑动距离决定是否切换图片
-    if (this.data.isSwiping) {
-      const { touchStartX, currentImageIndex, totalImages } = this.data;
-      const touch = e.changedTouches[0];
-      const deltaX = touchStartX - touch.clientX;
-      const SWIPE_THRESHOLD = 50;
-
-      if (Math.abs(deltaX) > SWIPE_THRESHOLD) {
-        let newIndex = currentImageIndex;
-        if (deltaX > 0 && currentImageIndex < totalImages - 1) {
-          newIndex = currentImageIndex + 1;
-        } else if (deltaX < 0 && currentImageIndex > 0) {
-          newIndex = currentImageIndex - 1;
-        }
-
-        if (newIndex !== currentImageIndex) {
-          this.setData({
-            currentImageIndex: newIndex,
-            itemPath: this.data.itemPaths[newIndex],
-            currentScale: 1,
-          });
-        }
-      }
-    }
-
-    this.setData({ hasMultiTouch: false, isSwiping: false });
-  },
-
-  /**
-   * 关闭操作菜单
-   */
   closeActionSheet() {
-    this.setData({
-      showActionSheet: false,
-    });
+    this.setData({ showActionSheet: false });
   },
 
-  /**
-   * 处理操作菜单点击
-   */
   handleActionClick(e: WechatMiniprogram.CustomEvent) {
     const action = e.detail.value;
+    this.setData({ showActionSheet: false });
 
-    this.setData({
-      showActionSheet: false,
-    });
-
-    switch (action) {
-      case "delete":
-        this.deleteCurrentImage();
-        break;
-      case "add":
-        this.addImages();
-        break;
-      case "cancel":
-        // 关闭菜单，已处理
-        break;
-    }
+    if (action === "delete") this.deleteCurrentImage();
+    else if (action === "add") this.addImages();
   },
 
-  /**
-   * 删除当前图片
-   */
   deleteCurrentImage() {
     const { itemPaths, currentImageIndex, itemId } = this.data;
-
     if (itemPaths.length <= 1) {
       this.showToast("至少保留一张图片");
       return;
     }
 
-    // 删除当前图片
     const newPaths = [...itemPaths];
     newPaths.splice(currentImageIndex, 1);
-
-    // 计算新的索引（如果删除的是最后一张，则显示前一张）
     const newIndex = Math.min(currentImageIndex, newPaths.length - 1);
 
-    // 更新数据
     this.setData({
       itemPaths: newPaths,
       totalImages: newPaths.length,
       currentImageIndex: newIndex,
       itemPath: newPaths[newIndex],
+      scale: 1, translateX: 0, translateY: 0,
     });
 
-    // 更新本地存储
     this.updateImageListStorage(newPaths);
-
     this.showToast("已删除");
   },
 
-  /**
-   * 添加图片
-   */
   addImages() {
     const { itemPaths, currentImageIndex } = this.data;
-    const remainingCount = MAX_IMAGES - itemPaths.length;
-
-    if (remainingCount <= 0) {
+    const remaining = MAX_IMAGES - itemPaths.length;
+    if (remaining <= 0) {
       this.showToast("已达到最大图片数量");
       return;
     }
 
     wx.chooseMedia({
-      count: remainingCount,
+      count: remaining,
       mediaType: ["image"],
       sourceType: ["album", "camera"],
       sizeType: ["original", "compressed"],
       success: (res) => {
-        const newPaths = res.tempFiles.map((file) => file.tempFilePath);
-
-        // 在当前图片位置后插入新图片
-        const updatedPaths = [...itemPaths];
-        updatedPaths.splice(currentImageIndex + 1, 0, ...newPaths);
-
-        // 更新数据，定位到新插入的第一张图片
+        const newPaths = res.tempFiles.map(f => f.tempFilePath);
+        const updated = [...itemPaths];
+        updated.splice(currentImageIndex + 1, 0, ...newPaths);
         const newIndex = currentImageIndex + 1;
 
         this.setData({
-          itemPaths: updatedPaths,
-          totalImages: updatedPaths.length,
+          itemPaths: updated,
+          totalImages: updated.length,
           currentImageIndex: newIndex,
-          itemPath: updatedPaths[newIndex],
+          itemPath: updated[newIndex],
+          scale: 1, translateX: 0, translateY: 0,
         });
 
-        // 更新本地存储
-        this.updateImageListStorage(updatedPaths);
-
+        this.updateImageListStorage(updated);
         this.showToast(`已添加 ${newPaths.length} 张图片`);
       },
     });
   },
 
-  /**
-   * 更新本地存储中的图片列表
-   */
   updateImageListStorage(newPaths: string[]) {
     const { itemId } = this.data;
     const imageList = wx.getStorageSync("imageList") || [];
-
-    const index = imageList.findIndex((item: any) => item.id === itemId);
-    if (index !== -1) {
-      imageList[index].paths = newPaths;
-      imageList[index].path = newPaths[0]; // 兼容旧版本，第一张作为主路径
+    const idx = imageList.findIndex((item: any) => item.id === itemId);
+    if (idx !== -1) {
+      imageList[idx].paths = newPaths;
+      imageList[idx].path = newPaths[0];
       wx.setStorageSync("imageList", imageList);
     }
   },
 
-  /**
-   * 显示提示信息
-   */
   showToast(title: string) {
-    wx.showToast({
-      title,
-      ...DETAIL_TOAST_CONFIG,
-    });
+    wx.showToast({ title, ...DETAIL_TOAST_CONFIG });
   },
 
-  /**
-   * 生命周期函数--监听页面显示
-   */
   onShow() {
-    // 每次显示页面时刷新数据，保留当前图片位置
     if (this.data.itemId) {
       this.loadItemDetail(this.data.itemId, true);
     }
+    this.getContainerSize();
   },
 
-  /**
-   * 生命周期函数--监听页面隐藏
-   */
-  onHide() {
-    this.saveLastImageIndex();
-  },
+  onHide() { this.saveLastImageIndex(); },
+  onUnload() { this.saveLastImageIndex(); },
 
-  /**
-   * 生命周期函数--监听页面卸载
-   */
-  onUnload() {
-    this.saveLastImageIndex();
-  },
-
-  /**
-   * 保存当前图片索引到本地存储
-   */
   saveLastImageIndex() {
     const { itemId, currentImageIndex, itemType } = this.data;
     if (!itemId || itemType !== 'image') return;
-
     const storage = wx.getStorageSync(LAST_IMAGE_INDEX_KEY) || {};
     storage[itemId] = currentImageIndex;
     wx.setStorageSync(LAST_IMAGE_INDEX_KEY, storage);
   },
 
-  /**
-   * 点击备忘录按钮
-   */
   onMemoTap() {
     const { itemId, memoContent } = this.data;
-
     wx.navigateTo({
       url: `/pages/memo/memo?key=${itemId}&content=${encodeURIComponent(memoContent)}&type=item`,
       events: {
-        // 接收 memo 页面回传的数据
         onMemoContentChange: (data: { key: string; content: string }) => {
           if (data.key === itemId) {
             this.setData({ memoContent: data.content });
@@ -489,28 +804,18 @@ Page<DetailPageData, WechatMiniprogram.IAnyObject>({
     });
   },
 
-  /**
-   * 加载备忘录内容
-   */
   loadMemoContent() {
     const itemId = this.data.itemId;
     if (!itemId) return;
-
-    const memosStorage = wx.getStorageSync(MEMO_STORAGE_KEY) || {};
-    const memoContent = memosStorage[itemId] || "";
-
-    this.setData({ memoContent });
+    const memos = wx.getStorageSync(MEMO_STORAGE_KEY) || {};
+    this.setData({ memoContent: memos[itemId] || "" });
   },
 
-  /**
-   * 保存备忘录内容
-   */
   saveMemoContent(content: string) {
     const itemId = this.data.itemId;
     if (!itemId) return;
-
-    const memosStorage = wx.getStorageSync(MEMO_STORAGE_KEY) || {};
-    memosStorage[itemId] = content;
-    wx.setStorageSync(MEMO_STORAGE_KEY, memosStorage);
+    const memos = wx.getStorageSync(MEMO_STORAGE_KEY) || {};
+    memos[itemId] = content;
+    wx.setStorageSync(MEMO_STORAGE_KEY, memos);
   },
 });
