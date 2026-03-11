@@ -1,7 +1,7 @@
 {
   "pages": [
-    "pages/counter/counter",
     "pages/home/home",
+    "pages/counter/counter",
     "pages/library/library",
     "pages/settings/settings",
     "pages/detail/detail",
