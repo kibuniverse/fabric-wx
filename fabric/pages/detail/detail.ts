@@ -18,9 +18,6 @@ interface DetailPageData {
   totalImages: number;       // 图片总数
   count: number;
   lastTapTime: number;
-  // 长按菜单
-  showActionSheet: boolean;
-  actionSheetActions: { text: string; value: string; type?: string }[];
   // 备忘录
   memoContent: string;
 
@@ -55,9 +52,6 @@ interface DetailPageData {
   swiperEnabled: boolean;    // 是否允许 swiper 滑动
 }
 
-// 最大图片数量
-const MAX_IMAGES = 15;
-
 // 缩放范围常量
 const MIN_SCALE = 0.8;
 const MAX_SCALE = 2.0;
@@ -83,8 +77,6 @@ Page<DetailPageData, WechatMiniprogram.IAnyObject>({
     totalImages: 0,
     count: 0,
     lastTapTime: 0,
-    showActionSheet: false,
-    actionSheetActions: [],
     memoContent: "",
 
     // 缩放/拖动相关
@@ -596,27 +588,6 @@ Page<DetailPageData, WechatMiniprogram.IAnyObject>({
   },
 
   /**
-   * 长按菜单
-   */
-  onLongTap() {
-    if (this.data.scale > 1 || this.data.isTouching) return;
-
-    const { totalImages } = this.data;
-    const actions: { text: string; value: string; type?: string }[] = [];
-
-    if (totalImages > 1) {
-      actions.push({ text: "删除图片", value: "delete", type: "warn" });
-    }
-    if (totalImages < MAX_IMAGES) {
-      actions.push({ text: "添加图片", value: "add" });
-    }
-
-    if (actions.length > 0) {
-      this.setData({ showActionSheet: true, actionSheetActions: actions });
-    }
-  },
-
-  /**
    * 预览图片
    */
   previewImage() {
@@ -625,85 +596,6 @@ Page<DetailPageData, WechatMiniprogram.IAnyObject>({
         current: this.data.itemPath,
         urls: this.data.itemPaths,
       });
-    }
-  },
-
-  closeActionSheet() {
-    this.setData({ showActionSheet: false });
-  },
-
-  handleActionClick(e: WechatMiniprogram.CustomEvent) {
-    const action = e.detail.value;
-    this.setData({ showActionSheet: false });
-
-    if (action === "delete") this.deleteCurrentImage();
-    else if (action === "add") this.addImages();
-  },
-
-  deleteCurrentImage() {
-    const { itemPaths, currentImageIndex, itemId } = this.data;
-    if (itemPaths.length <= 1) {
-      this.showToast("至少保留一张图片");
-      return;
-    }
-
-    const newPaths = [...itemPaths];
-    newPaths.splice(currentImageIndex, 1);
-    const newIndex = Math.min(currentImageIndex, newPaths.length - 1);
-
-    this.setData({
-      itemPaths: newPaths,
-      totalImages: newPaths.length,
-      currentImageIndex: newIndex,
-      itemPath: newPaths[newIndex],
-      scale: 1, translateX: 0, translateY: 0,
-    });
-
-    this.updateImageListStorage(newPaths);
-    this.showToast("已删除");
-  },
-
-  addImages() {
-    const { itemPaths, currentImageIndex } = this.data;
-    const remaining = MAX_IMAGES - itemPaths.length;
-    if (remaining <= 0) {
-      this.showToast("已达到最大图片数量");
-      return;
-    }
-
-    wx.chooseMedia({
-      count: remaining,
-      mediaType: ["image"],
-      sourceType: ["album", "camera"],
-      sizeType: ["original", "compressed"],
-      success: (res) => {
-        const newPaths = res.tempFiles.map(f => f.tempFilePath);
-        const updated = [...itemPaths];
-        updated.splice(currentImageIndex + 1, 0, ...newPaths);
-        const newIndex = currentImageIndex + 1;
-
-        this.setData({
-          itemPaths: updated,
-          totalImages: updated.length,
-          currentImageIndex: newIndex,
-          itemPath: updated[newIndex],
-          scale: 1, translateX: 0, translateY: 0,
-        });
-
-        this.updateImageListStorage(updated);
-        this.showToast(`已添加 ${newPaths.length} 张图片`);
-      },
-    });
-  },
-
-  updateImageListStorage(newPaths: string[]) {
-    const { itemId } = this.data;
-    const imageList = wx.getStorageSync("imageList") || [];
-    const idx = imageList.findIndex((item: any) => item.id === itemId);
-    if (idx !== -1) {
-      imageList[idx].paths = newPaths;
-      imageList[idx].path = newPaths[0];
-      wx.setStorageSync("imageList", imageList);
     }
   },
 

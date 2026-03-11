@@ -43,7 +43,6 @@
                 class="preview-image {{isAnimating ? 'animating' : ''}}"
                 bindload="onImageLoad"
                 bindtap="onImageTap"
-                bindlongtap="onLongTap"
               />
             </view>
           </swiper-item>
@@ -79,12 +78,5 @@
     </view>
   </view>
 
-  <!-- 长按操作菜单 -->
-  <action-sheet
-    show="{{showActionSheet}}"
-    actions="{{actionSheetActions}}"
-    bind:actiontap="handleActionClick"
-    bind:close="closeActionSheet"
-  />
-
+  
 </view>

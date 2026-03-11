@@ -1,1 +1,1 @@
-{"navigationBarTitleText": "图解详情", "usingComponents": {"action-sheet": "weui-miniprogram/actionsheet/actionsheet", "simple-counter": "/components/simple-counter/index"}}
+{"navigationBarTitleText": "图解详情", "usingComponents": {"simple-counter": "/components/simple-counter/index"}}
