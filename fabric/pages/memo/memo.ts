@@ -25,6 +25,17 @@ Page({
     });
   },
 
+  onUnload() {
+    // 页面卸载时确保最后一次修改时间已保存
+    if (debounceTimer !== null) {
+      clearTimeout(debounceTimer);
+      const currentTime = new Date().toLocaleString();
+      wx.setStorageSync(`memo_${this.data.key}_lastModified`, currentTime);
+    }
+    // 确保最后一次数据同步
+    this.handleFillBackData();
+  },
+
   handleInput(e: WechatMiniprogram.Input) {
     const content = e.detail.value;
     this.setData({
@@ -47,21 +58,6 @@ Page({
       });
       debounceTimer = null;
     }, 500) as unknown as number;
-  },
-
-  handleConfirm() {
-    // 确保最后一次修改时间已保存
-    if (debounceTimer !== null) {
-      clearTimeout(debounceTimer);
-      const currentTime = new Date().toLocaleString();
-      wx.setStorageSync(`memo_${this.data.key}_lastModified`, currentTime);
-    }
-    this.handleFillBackData();
-    wx.navigateBack();
-  },
-
-  handleCancel() {
-    wx.navigateBack();
   },
 
   handleFillBackData() {
