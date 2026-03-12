@@ -603,8 +603,9 @@ Page({
    */
   onShareAppMessage() {
     return {
-      title: '图片与文件管理',
-      path: '/pages/home/home'
+      title: '毛线时光，有我陪伴',
+      path: '/pages/home/home',
+      imageUrl: '/assets/share.png'
     }
   },
   

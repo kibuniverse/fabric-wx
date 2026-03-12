@@ -27,7 +27,7 @@ Page({
   onShareAppMessage() {
     return {
       title: "毛线时光，有我陪伴",
-      path: "pages/counter/counter",
+      path: "/pages/counter/counter",
       imageUrl: "/assets/share.png",
     };
   },

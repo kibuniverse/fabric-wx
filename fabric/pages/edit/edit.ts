@@ -575,4 +575,12 @@ Page<EditPageData, WechatMiniprogram.IAnyObject>({
       longPressTimer = null;
     }
   },
+
+  onShareAppMessage() {
+    return {
+      title: '毛线时光，有我陪伴',
+      path: '/pages/home/home',
+      imageUrl: '/assets/share.png'
+    }
+  },
 });
