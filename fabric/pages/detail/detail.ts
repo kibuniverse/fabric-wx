@@ -373,19 +373,16 @@ Page<DetailPageData, WechatMiniprogram.IAnyObject>({
   /**
    * 单指拖动处理
    */
-  handlePan(touch: WechatMiniprogram.Touch) {
-    const { scale, panStartX, panStartY, initialTranslateX, initialTranslateY } = this.data;
+  handlePan(touch: { clientX: number; clientY: number }) {
+    const { scale, panStartX, panStartY } = this.data;
     const deltaX = touch.clientX - panStartX;
     const deltaY = touch.clientY - panStartY;
 
     if (scale > 1) {
       // 缩放状态：拖动图片查看
       this.handleDragImage(deltaX, deltaY);
-    } else {
-      // 未缩放状态：允许轻微弹性拖动，不移动图片实际位置
-      // 但要允许 swiper 切换
-      // 这里不做处理，让 swiper 自然响应
     }
+    // scale <= 1 时，让 swiper 自然响应滑动
   },
 
   /**
@@ -394,10 +391,6 @@ Page<DetailPageData, WechatMiniprogram.IAnyObject>({
   handleDragImage(deltaX: number, deltaY: number) {
     const { scale, containerWidth, containerHeight } = this.data;
     const imageSize = this.getCurrentImageSize();
-
-    // 计算缩放后的图片尺寸
-    const scaledWidth = imageSize.width * scale;
-    const scaledHeight = imageSize.height * scale;
 
     // 计算最大允许位移（图片边缘不超过容器边界）
     // 由于使用 aspectFit，图片可能小于容器，需要计算实际显示区域
