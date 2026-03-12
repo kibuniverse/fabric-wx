@@ -83,11 +83,6 @@ Page({
       ballH: 50,
       opacity: 0,
     },
-    /** 悬浮计数器位置 */
-    floatLevitateCount: {
-      x: 0,
-      y: 0,
-    },
   },
 
   // 在Page对象内新增方法
@@ -172,13 +167,6 @@ Page({
       }, 300);
     }
   },
-  onTabClick(e: { detail: { index: number } }) {
-    const index = e.detail.index;
-    this.setData({
-      activeTab: index,
-    });
-  },
-
   onConnectChange(e: any) {
     if (e.detail.source === "touch") {
       // 实时记录
@@ -200,10 +188,6 @@ Page({
     });
     wx.setStorageSync("floatPos", { x: finalX, y: this.moveY ?? float.y });
   },
-  onLevitateCountTouchend() {
-    const { floatLevitateCount } = this.data;
-  },
-
   onChange(e: { detail: { index: number } }) {
     const index = e.detail.index;
     this.setData({

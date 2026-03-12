@@ -541,13 +541,6 @@ Page<EditPageData, WechatMiniprogram.IAnyObject>({
   },
 
   /**
-   * 取消退出（已废弃，合并到 confirmExit）
-   */
-  cancelExit() {
-    this.setData({ showExitConfirm: false });
-  },
-
-  /**
    * 显示提示信息
    */
   showToast(title: string) {

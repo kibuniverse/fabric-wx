@@ -47,15 +47,6 @@ const voiceConfig = {
   enableOperate: ["increase", "decrease"],
 };
 
-// 在 methods 外部直接暴露 stopTimer，保证父组件可直接调用
-function stopTimerProxy(this: any) {
-  if (this && this.stopTimer) {
-    this.stopTimer();
-  } else if (this && this.methods && this.methods.stopTimer) {
-    this.methods.stopTimer.call(this);
-  }
-}
-
 Component({
   properties: {
     onClickDelete: {

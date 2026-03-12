@@ -21,15 +21,6 @@ class MiniEventBus {
         this.listeners[event].push(fn);
     }
 
-    /** 一次性订阅 */
-    once<K extends EventKey>(event: K, fn: EventCallback<K>) {
-        const wrapper: EventCallback<K> = (p) => {
-            fn(p);
-            this.off(event, wrapper);
-        };
-        this.on(event, wrapper);
-    }
-
     /** 取消订阅（不传 fn 则清空该事件全部回调） */
     off<K extends EventKey>(event: K, fn?: EventCallback<K>) {
         if (!fn) {
