@@ -9,6 +9,8 @@ interface FileItem {
   type: 'image' | 'pdf';
   createTime: number;
   cover?: string;        // 自定义封面图片路径
+  pdfSourcePath?: string; // PDF源文件路径（如果是从PDF转换来的）
+  pdfPageCount?: number; // PDF总页数
 }
 
 // 通用的提示配置
@@ -207,29 +209,38 @@ Page({
     this.setData({
       showImportOptions: false
     });
-    
+
     // 调用系统文件选择器选择PDF
     wx.chooseMessageFile({
-      count: 9,
+      count: 1, // 每次只选择一个PDF
       type: 'file',
       extension: ['pdf'],
       success: (res) => {
-        // 处理选择的PDF文件
-        const newFiles: FileItem[] = res.tempFiles.map(file => {
-          return {
-            id: this.generateUniqueId(),
-            name: file.name.length > 10 ? file.name.substring(0, 7) + '...' : file.name,
-            originalName: file.name,
-            path: file.path,
-            type: 'pdf',
-            createTime: Date.now()
-          };
-        });
+        const file = res.tempFiles[0];
+
+        // 检查文件大小（限制10MB）
+        if (file.size > 10 * 1024 * 1024) {
+          this.showToast('PDF文件不能超过10MB');
+          return;
+        }
+
+        const fileName = file.name.length > 10 ? file.name.substring(0, 7) + '...' : file.name;
+
+        // 创建PDF项目，保存到fileList，转换将在detail页面首次打开时进行
+        const newItem: FileItem = {
+          id: this.generateUniqueId(),
+          name: fileName,
+          originalName: file.name,
+          path: file.path,
+          paths: [], // 初始为空，转换后填充
+          type: 'pdf',
+          createTime: Date.now()
+        };
 
         // 更新文件列表
-        const updatedFileList = [...this.data.fileList, ...newFiles];
+        const updatedFileList = [...this.data.fileList, newItem];
         const allItems = [...this.data.imageList, ...updatedFileList].sort((a, b) => b.createTime - a.createTime);
-        
+
         this.setData({
           fileList: updatedFileList,
           allItems
@@ -237,6 +248,7 @@ Page({
 
         // 保存到本地存储
         wx.setStorageSync('fileList', updatedFileList);
+        this.showToast('PDF已添加，首次打开时将转换为图片');
       }
     });
   },

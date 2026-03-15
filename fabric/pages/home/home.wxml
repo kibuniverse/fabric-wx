@@ -17,10 +17,10 @@
       <image class="option-icon" src="/assets/image.svg" mode="aspectFit"></image>
       <text>导入图片</text>
     </view>
-    <!--     <view class="import-option" bindtap="choosePDF"> -->
-    <!--       <image class="option-icon" src="/assets/pdf_logo.svg" mode="aspectFit"></image> -->
-    <!--       <text>导入PDF</text> -->
-    <!--     </view> -->
+    <view class="import-option" bindtap="choosePDF">
+      <image class="option-icon" src="/assets/pdf_logo.svg" mode="aspectFit"></image>
+      <text>导入PDF</text>
+    </view>
   </view>
   <!-- 内容区域 -->
   <view class="content-area">

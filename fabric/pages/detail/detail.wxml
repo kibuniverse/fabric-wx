@@ -18,7 +18,7 @@
   <!-- 图解预览区域 -->
   <view class="preview-area">
     <!-- 图片预览：swiper + 手势缩放 -->
-    <block wx:if="{{itemType === 'image'}}">
+    <block wx:if="{{itemType === 'image' || (itemType === 'pdf' && itemPaths.length > 0)}}">
       <!-- 统一的手势处理容器 -->
       <view
         class="swiper-wrapper"
@@ -65,12 +65,10 @@
       </view>
     </block>
 
-    <!-- PDF预览 -->
-    <pdf-viewer
-      wx:elif="{{itemType === 'pdf'}}"
-      filePath="{{itemPath}}"
-      class="preview-pdf"
-    ></pdf-viewer>
+    <!-- PDF转换中 -->
+    <view wx:elif="{{itemType === 'pdf' && isConverting}}" class="loading-state">
+      <text>正在转换PDF...</text>
+    </view>
 
     <!-- 加载中 -->
     <view wx:else class="loading-state">

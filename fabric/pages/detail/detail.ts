@@ -1,4 +1,5 @@
 // pages/detail/detail.ts
+import { convertPdfToImages, showLoading, hideLoading } from '../../utils/pdf_converter';
 
 // 备忘录存储键
 const MEMO_STORAGE_KEY = "itemMemos";
@@ -50,6 +51,8 @@ interface DetailPageData {
   isAnimating: boolean;      // 是否正在执行回弹动画
   // swiper 控制
   swiperEnabled: boolean;    // 是否允许 swiper 滑动
+  // PDF转换状态
+  isConverting: boolean;     // 是否正在转换PDF
 }
 
 // 缩放范围常量
@@ -99,6 +102,7 @@ Page<DetailPageData, WechatMiniprogram.IAnyObject>({
     lastTapCheckTime: 0,
     isAnimating: false,
     swiperEnabled: true,
+    isConverting: false,
   },
 
   onLoad(options: Record<string, string>) {
@@ -118,13 +122,26 @@ Page<DetailPageData, WechatMiniprogram.IAnyObject>({
   /**
    * 加载图解详情
    */
-  loadItemDetail(id: string, preserveIndex: boolean = false) {
+  async loadItemDetail(id: string, preserveIndex: boolean = false) {
+    // 如果正在转换 PDF，避免重复调用
+    if (this.data.isConverting) {
+      return;
+    }
+
     const imageList = wx.getStorageSync("imageList") || [];
     const fileList = wx.getStorageSync("fileList") || [];
     const allItems = [...imageList, ...fileList];
     const item = allItems.find((item) => item.id === id);
 
     if (item) {
+      console.log('item', item)
+      // 检查是否为PDF且尚未转换
+      if (item.type === 'pdf' && (!item.paths || item.paths.length === 0)) {
+        // 需要进行PDF转换
+        await this.convertPdfItem(item);
+        return;
+      }
+
       const itemPaths = item.paths || [item.path];
       const totalImages = itemPaths.length;
 
@@ -158,6 +175,74 @@ Page<DetailPageData, WechatMiniprogram.IAnyObject>({
       this.loadMemoContent();
     } else {
       this.showToast("未找到图解");
+      setTimeout(() => wx.navigateBack(), 1500);
+    }
+  },
+
+  /**
+   * 转换PDF项目为图片
+   */
+  async convertPdfItem(item: any) {
+    const { id, path, name } = item;
+
+    this.setData({ isConverting: true });
+    showLoading('正在转换PDF...');
+
+    try {
+      // 转换PDF为图片
+      const result = await convertPdfToImages(path, id, (progress) => {
+        wx.showLoading({
+          title: `转换中 ${progress.current}/${progress.total}`,
+          mask: true
+        });
+      });
+
+      hideLoading();
+
+      // 更新fileList中的项目
+      const fileList = wx.getStorageSync('fileList') || [];
+      const updatedFileList = fileList.map((file: any) => {
+        if (file.id === id) {
+          return {
+            ...file,
+            paths: result.paths,
+            path: result.paths[0], // 兼容旧数据
+            pdfPageCount: result.pageCount
+          };
+        }
+        return file;
+      });
+
+      wx.setStorageSync('fileList', updatedFileList);
+
+      // 显示转换后的图片
+      const itemPaths = result.paths;
+      const totalImages = itemPaths.length;
+
+      this.setData({
+        itemType: 'pdf',
+        itemName: name,
+        itemPath: itemPaths[0],
+        itemPaths,
+        currentImageIndex: 0,
+        totalImages,
+        scale: 1,
+        translateX: 0,
+        translateY: 0,
+        swiperEnabled: true,
+        imageSizes: {},
+        isConverting: false,
+      });
+
+      wx.setNavigationBarTitle({ title: name });
+      this.loadMemoContent();
+
+      this.showToast(`已转换${result.pageCount}页`);
+    } catch (err) {
+      hideLoading();
+      console.error('PDF转换失败:', err);
+      this.setData({ isConverting: false });
+      this.showToast('PDF转换失败，请稍后重试');
       setTimeout(() => wx.navigateBack(), 1500);
     }
   },
