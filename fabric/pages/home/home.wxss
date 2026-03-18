@@ -232,3 +232,17 @@
   text-align: center;
   padding: 0 10rpx;
 }
+
+/* 重复文件高亮样式 */
+.item.highlight {
+  animation: highlight-pulse 0.5s ease-in-out 3;
+}
+
+@keyframes highlight-pulse {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(168, 137, 200, 0);
+  }
+  50% {
+    box-shadow: 0 0 0 6rpx rgba(168, 137, 200, 0.8);
+  }
+}

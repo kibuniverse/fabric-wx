@@ -11,6 +11,7 @@ interface FileItem {
   cover?: string;        // 自定义封面图片路径
   pdfSourcePath?: string; // PDF源文件路径（如果是从PDF转换来的）
   pdfPageCount?: number; // PDF总页数
+  size?: number;         // 文件大小（字节），用于去重
 }
 
 // 通用的提示配置
@@ -60,7 +61,10 @@ Page({
     nameButtons: [
       {text: '取消', value: 0},
       {text: '确认', value: 1, type: 'primary'}
-    ]
+    ],
+
+    // 高亮显示
+    highlightItemId: '', // 需要高亮显示的项目ID（用于重复文件提示）
   },
 
   /**
@@ -224,6 +228,23 @@ Page({
           return;
         }
 
+        // 检查是否已存在相同文件（文件名 + 文件大小去重）
+        const duplicate = this.checkPdfDuplicate(file.name, file.size);
+        if (duplicate) {
+          // 高亮显示已存在的项目
+          this.setData({
+            highlightItemId: duplicate.id
+          });
+
+          // 2秒后取消高亮
+          setTimeout(() => {
+            this.setData({ highlightItemId: '' });
+          }, 2000);
+
+          this.showToast('该PDF已存在，请勿重复上传');
+          return;
+        }
+
         const fileName = file.name.length > 10 ? file.name.substring(0, 7) + '...' : file.name;
 
         // 创建PDF项目，保存到fileList，转换将在detail页面首次打开时进行
@@ -234,6 +255,7 @@ Page({
           path: file.path,
           paths: [], // 初始为空，转换后填充
           type: 'pdf',
+          size: file.size, // 保存文件大小用于去重
           createTime: Date.now()
         };
 
@@ -258,6 +280,21 @@ Page({
    */
   generateUniqueId(): string {
     return 'id_' + Date.now() + '_' + Math.floor(Math.random() * 1000);
+  },
+
+  /**
+   * 检查PDF是否已存在（根据文件名和文件大小去重）
+   * @param name 文件名
+   * @param size 文件大小（字节）
+   * @returns 已存在则返回该文件项，否则返回 null
+   */
+  checkPdfDuplicate(name: string, size: number): FileItem | null {
+    const fileList = this.data.fileList;
+    return fileList.find(item =>
+      item.type === 'pdf' &&
+      item.originalName === name &&
+      item.size === size
+    ) || null;
   },
   
   /**
