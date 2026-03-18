@@ -103,9 +103,9 @@ function checkImageExists(url: string): Promise<boolean> {
 }
 
 /**
- * 下载图片到本地
+ * 下载图片到本地并持久化保存
  * @param url 图片URL
- * @returns 本地临时文件路径
+ * @returns 本地持久化文件路径
  */
 export function downloadImage(url: string): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -113,7 +113,17 @@ export function downloadImage(url: string): Promise<string> {
       url,
       success: (res) => {
         if (res.statusCode === 200) {
-          resolve(res.tempFilePath);
+          // 持久化保存，避免临时文件过期
+          wx.saveFile({
+            tempFilePath: res.tempFilePath,
+            success: (saveRes) => {
+              resolve(saveRes.savedFilePath);
+            },
+            fail: (err) => {
+              console.error('保存图片失败:', err);
+              reject(new Error('保存图片失败'));
+            }
+          });
         } else {
           reject(new Error(`下载失败: ${res.statusCode}`));
         }

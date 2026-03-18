@@ -102,9 +102,29 @@ Page({
   },
 
   /**
+   * 持久化保存临时文件
+   * @param tempFilePath 临时文件路径
+   * @returns 持久化文件路径
+   */
+  saveFilePermanently(tempFilePath: string): Promise<string> {
+    return new Promise((resolve, reject) => {
+      wx.saveFile({
+        tempFilePath,
+        success: (res) => {
+          resolve(res.savedFilePath);
+        },
+        fail: (err) => {
+          console.error('保存文件失败:', err);
+          reject(err);
+        }
+      });
+    });
+  },
+
+  /**
    * 选择并导入图片
    */
-  chooseImage() {
+  async chooseImage() {
     // 关闭导入选项弹出层
     this.setData({
       showImportOptions: false
@@ -116,16 +136,35 @@ Page({
       mediaType: ['image'],
       sourceType: ['album', 'camera'],
       sizeType: ['original', 'compressed'],
-      success: (res) => {
-        // 保存待命名的图片路径
-        const pendingImages = res.tempFiles.map(file => file.tempFilePath);
+      success: async (res) => {
+        // 获取临时文件路径
+        const tempFiles = res.tempFiles.map(file => file.tempFilePath);
+
+        // 持久化保存所有图片
+        wx.showLoading({ title: '保存中...', mask: true });
+        const savedPaths: string[] = [];
+
+        for (const tempPath of tempFiles) {
+          try {
+            const savedPath = await this.saveFilePermanently(tempPath);
+            savedPaths.push(savedPath);
+          } catch (err) {
+            console.error('保存图片失败:', tempPath, err);
+          }
+        }
+        wx.hideLoading();
+
+        if (savedPaths.length === 0) {
+          this.showToast('保存图片失败');
+          return;
+        }
 
         // 生成默认名称（取第一张图片的文件名）
-        const firstFileName = pendingImages[0].split('/').pop() || '未命名图解';
+        const firstFileName = savedPaths[0].split('/').pop() || '未命名图解';
         const defaultName = firstFileName.length > 10 ? firstFileName.substring(0, 7) + '...' : firstFileName;
 
         this.setData({
-          pendingImages,
+          pendingImages: savedPaths,
           diagramName: defaultName,
           showNameModal: true
         });
@@ -396,15 +435,26 @@ Page({
         wx.compressImage({
           src: tempFilePath,
           quality: 80,
-          success: (compressRes) => {
-            const compressedPath = compressRes.tempFilePath;
-
-            // 更新封面
-            this.updateCover(currentItemId, currentItemType, compressedPath);
+          success: async (compressRes) => {
+            // 持久化保存压缩后的图片
+            try {
+              const savedPath = await this.saveFilePermanently(compressRes.tempFilePath);
+              this.updateCover(currentItemId, currentItemType, savedPath);
+            } catch (err) {
+              console.error('保存封面失败:', err);
+              // 保存失败时尝试使用原图路径
+              this.updateCover(currentItemId, currentItemType, compressRes.tempFilePath);
+            }
           },
-          fail: () => {
-            // 压缩失败时使用原图
-            this.updateCover(currentItemId, currentItemType, tempFilePath);
+          fail: async () => {
+            // 压缩失败时直接保存原图
+            try {
+              const savedPath = await this.saveFilePermanently(tempFilePath);
+              this.updateCover(currentItemId, currentItemType, savedPath);
+            } catch (err) {
+              console.error('保存封面失败:', err);
+              this.updateCover(currentItemId, currentItemType, tempFilePath);
+            }
           }
         });
       }
@@ -563,42 +613,34 @@ Page({
    * 确认删除
    */
   confirmDelete() {
-    const { currentItemId, currentItemType } = this.data;
-    console.log('Current Item ID:', currentItemId, 'Current Item Type:', currentItemType, this.data.imageList, this.data.fileList);
+    const { currentItemId } = this.data;
+
+    if (!currentItemId) {
+      this.showToast('删除失败：未找到项目');
+      this.setData({ showDeleteModal: false });
+      return;
+    }
 
     // 清理该项目关联的计数器和备忘录数据
     this.cleanupItemData(currentItemId);
 
-    // 从对应列表中删除项目
-    if (currentItemType === 'image') {
-      const updatedList = this.data.imageList.filter(item => item.id !== currentItemId);
+    // 从两个列表中都尝试删除，确保数据一致
+    const updatedImageList = this.data.imageList.filter(item => item.id !== currentItemId);
+    const updatedFileList = this.data.fileList.filter(item => item.id !== currentItemId);
 
-      // 重新计算合并列表
-      const allItems = [...updatedList, ...this.data.fileList].sort((a, b) => b.createTime - a.createTime);
+    // 重新计算合并列表
+    const allItems = [...updatedImageList, ...updatedFileList].sort((a, b) => b.createTime - a.createTime);
 
-      this.setData({
-        imageList: updatedList,
-        allItems,
-        showDeleteModal: false
-      });
+    this.setData({
+      imageList: updatedImageList,
+      fileList: updatedFileList,
+      allItems,
+      showDeleteModal: false
+    });
 
-      // 更新本地存储
-      wx.setStorageSync('imageList', updatedList);
-    } else {
-      const updatedList = this.data.fileList.filter(item => item.id !== currentItemId);
-
-      // 重新计算合并列表
-      const allItems = [...this.data.imageList, ...updatedList].sort((a, b) => b.createTime - a.createTime);
-
-      this.setData({
-        fileList: updatedList,
-        allItems,
-        showDeleteModal: false
-      });
-
-      // 更新本地存储
-      wx.setStorageSync('fileList', updatedList);
-    }
+    // 更新本地存储
+    wx.setStorageSync('imageList', updatedImageList);
+    wx.setStorageSync('fileList', updatedFileList);
 
     this.showToast('删除成功');
   },
