@@ -1,0 +1,35 @@
+<view class="container">
+  <view class="content-wrapper">
+    <!-- 提示文案 -->
+    <view class="tip-text">登录后，保存你的记录</view>
+
+    <!-- 用户信息区域 -->
+    <view class="user-info">
+      <view class="avatar-wrapper">
+        <image wx:if="{{avatarUrl}}" class="avatar" src="{{avatarUrl}}" mode="aspectFill" />
+        <view wx:else class="avatar-placeholder">
+          <text class="avatar-text">头像</text>
+        </view>
+      </view>
+      <view class="nickname">{{nickName}}</view>
+    </view>
+
+    <!-- 登录按钮 -->
+    <view class="login-btn" bindtap="onLogin">
+      <text>微信登录</text>
+    </view>
+
+    <!-- 协议区域 -->
+    <view class="agreement">
+      <view class="checkbox-wrapper" bindtap="onCheckboxChange">
+        <view class="checkbox {{isChecked ? 'checked' : ''}}">
+          <view wx:if="{{isChecked}}" class="check-icon">✓</view>
+        </view>
+      </view>
+      <text class="agreement-text">已阅读并同意 </text>
+      <text class="link" bindtap="onUserAgreement">用户协议</text>
+      <text class="agreement-text"> 和 </text>
+      <text class="link" bindtap="onPrivacyPolicy">隐私政策</text>
+    </view>
+  </view>
+</view>

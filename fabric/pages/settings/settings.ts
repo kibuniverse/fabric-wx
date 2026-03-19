@@ -22,12 +22,7 @@ Page({
   },
 
   onShow() {
-    if (typeof this.getTabBar === 'function' &&
-      this.getTabBar()) {
-      this.getTabBar().setData({
-        selected: 3  // settings 是第四个标签
-      })
-    }
+    // settings 不是 tabBar 页面，不需要设置 selected
   },
 
   onShareAppMessage() {

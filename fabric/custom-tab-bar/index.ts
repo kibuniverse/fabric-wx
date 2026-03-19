@@ -16,6 +16,12 @@ Component({
         selectedIconPath: "/assets/counter_select.svg",
         text: "计数器",
       },
+      {
+        pagePath: "pages/me/me",
+        iconPath: "/assets/me.svg",
+        selectedIconPath: "/assets/me_select.svg",
+        text: "我的",
+      },
     ],
   },
   attached() { },
