@@ -123,6 +123,7 @@
   column-gap: 48rpx;
   flex-wrap: wrap;
   padding: 44rpx;
+  padding-bottom: calc(96rpx + env(safe-area-inset-bottom) + 44rpx);
 }
 .item {
   width: 100%;
