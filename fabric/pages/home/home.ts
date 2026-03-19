@@ -224,7 +224,8 @@ Page({
       path: pendingImages[0], // 兼容旧数据
       paths: pendingImages,
       type: 'image',
-      createTime: Date.now()
+      createTime: Date.now(),
+      cover: pendingImages[0] // 第一张图片作为默认封面
     };
 
     // 更新图片列表
