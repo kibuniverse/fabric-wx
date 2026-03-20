@@ -2,17 +2,39 @@
   padding-top: 48rpx;
   padding-left: 44rpx;
   padding-right: 44rpx;
-  min-height: 100vh;
   background: linear-gradient(180deg, #E6E6FA 0%, #FFFFFF 100%);
   box-sizing: border-box;
+  min-height: 100vh;
+  display: block;
+  align-items: initial;
+  justify-content: initial;
 }
 
 .settings-card {
   width: 100%;
   background: #FFFFFF;
   border-radius: 20rpx;
-  height: 222rpx;
   box-sizing: border-box;
+}
+
+.first-card {
+  height: 222rpx;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.single-card {
+  height: 124rpx;
+  margin-top: 48rpx;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.policy-card {
+  height: 222rpx;
+  margin-top: 48rpx;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
@@ -34,12 +56,41 @@
   padding-bottom: 40rpx;
 }
 
+.single-row {
+  padding-left: 40rpx;
+  padding-right: 40rpx;
+}
+
 .setting-text {
   font-size: 28rpx;
   line-height: 44rpx;
 }
 
 .setting-icon {
-  width: 44rpx;
-  height: 44rpx;
+  width: 44rpx !important;
+  height: 44rpx !important;
+  display: block;
+}
+
+.bottom-area {
+  position: fixed;
+  bottom: calc(44rpx + env(safe-area-inset-bottom));
+  left: 0;
+  right: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.logout-btn {
+  font-size: 28rpx;
+  font-weight: 500;
+  color: #B22222;
+  margin-bottom: 156rpx;
+}
+
+.version-info {
+  font-size: 20rpx;
+  font-weight: 500;
+  color: rgba(51, 51, 51, 0.6);
 }

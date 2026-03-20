@@ -393,8 +393,8 @@
   z-index: 0;
 }
 
-/* 兜底图 210×210 DP = 420rpx */
+/* 兜底图 160×160 DP = 320rpx */
 .placeholder-image {
-  width: 420rpx;
-  height: 420rpx;
+  width: 320rpx;
+  height: 320rpx;
 }

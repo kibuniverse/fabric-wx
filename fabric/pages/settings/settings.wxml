@@ -1,12 +1,35 @@
 <view class="container">
-  <view class="settings-card">
+  <view class="settings-card first-card">
     <view class="setting-row setting-row-top">
       <text class="setting-text">个人资料修改</text>
-      <dynamic-svg svg-class="setting-icon" svgPath="/assets/go.svg" color="rgba(51, 51, 51, 0.4)" mode="aspectFit" />
+      <dynamic-svg svg-class="setting-icon" svgPath="/assets/go.svg" color="rgba(51, 51, 51, 0.6)" mode="aspectFit" />
     </view>
     <view class="setting-row setting-row-bottom">
       <text class="setting-text">注销账号</text>
-      <dynamic-svg svg-class="setting-icon" svgPath="/assets/go.svg" color="rgba(51, 51, 51, 0.4)" mode="aspectFit" />
+      <dynamic-svg svg-class="setting-icon" svgPath="/assets/go.svg" color="rgba(51, 51, 51, 0.6)" mode="aspectFit" />
     </view>
+  </view>
+
+  <view class="settings-card single-card">
+    <view class="setting-row single-row">
+      <text class="setting-text">帮助与反馈</text>
+      <dynamic-svg svg-class="setting-icon" svgPath="/assets/go.svg" color="rgba(51, 51, 51, 0.6)" mode="aspectFit" />
+    </view>
+  </view>
+
+  <view class="settings-card policy-card">
+    <view class="setting-row setting-row-top">
+      <text class="setting-text">用户协议</text>
+      <dynamic-svg svg-class="setting-icon" svgPath="/assets/go.svg" color="rgba(51, 51, 51, 0.6)" mode="aspectFit" />
+    </view>
+    <view class="setting-row setting-row-bottom">
+      <text class="setting-text">隐私政策</text>
+      <dynamic-svg svg-class="setting-icon" svgPath="/assets/go.svg" color="rgba(51, 51, 51, 0.6)" mode="aspectFit" />
+    </view>
+  </view>
+
+  <view class="bottom-area">
+    <view class="logout-btn">退出登录</view>
+    <view class="version-info">知织 version {{version}}</view>
   </view>
 </view>
