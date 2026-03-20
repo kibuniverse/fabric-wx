@@ -1,5 +1,7 @@
 .container {
   padding: 20rpx;
+  min-height: 100vh;
+  background: linear-gradient(180deg, #E6E6FA 0%, #FFFFFF 100%);
 }
 
 .header {

@@ -1,29 +1,9 @@
 Page({
-  data: {
-    // 页面数据
-    settings: [
-      {
-        title: '账号设置',
-        icon: 'user'
-      },
-      {
-        title: '通知设置',
-        icon: 'notification'
-      },
-      {
-        title: '关于我们',
-        icon: 'info'
-      }
-    ]
-  },
+  data: {},
 
-  onLoad() {
-    // 页面加载时执行
-  },
+  onLoad() {},
 
-  onShow() {
-    // settings 不是 tabBar 页面，不需要设置 selected
-  },
+  onShow() {},
 
   onShareAppMessage() {
     return {
