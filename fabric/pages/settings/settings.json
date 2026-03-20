@@ -1,4 +1,6 @@
 {
   "navigationBarTitleText": "设置",
-  "usingComponents": {}
+  "usingComponents": {
+    "dynamic-svg": "/components/dynamic-svg/index"
+  }
 }

@@ -1,2 +1,12 @@
 <view class="container">
+  <view class="settings-card">
+    <view class="setting-row setting-row-top">
+      <text class="setting-text">个人资料修改</text>
+      <dynamic-svg svg-class="setting-icon" svgPath="/assets/go.svg" color="rgba(51, 51, 51, 0.4)" mode="aspectFit" />
+    </view>
+    <view class="setting-row setting-row-bottom">
+      <text class="setting-text">注销账号</text>
+      <dynamic-svg svg-class="setting-icon" svgPath="/assets/go.svg" color="rgba(51, 51, 51, 0.4)" mode="aspectFit" />
+    </view>
+  </view>
 </view>
