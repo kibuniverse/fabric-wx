@@ -1,9 +1,22 @@
 Page({
   data: {
-    version: '1.0.0'
+    version: ''
   },
 
-  onLoad() {},
+  onLoad() {
+    // 获取小程序版本号
+    try {
+      const accountInfo = wx.getAccountInfoSync();
+      this.setData({
+        version: accountInfo.miniProgram.version || '1.0.0'
+      });
+    } catch (e) {
+      // 开发环境可能获取不到，使用默认值
+      this.setData({
+        version: '1.0.0'
+      });
+    }
+  },
 
   onShow() {},
 
