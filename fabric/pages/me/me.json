@@ -1,4 +1,6 @@
 {
-  "usingComponents": {},
-  "navigationBarTitleText": "知织"
+  "usingComponents": {
+    "dynamic-svg": "/components/dynamic-svg/index"
+  },
+  "navigationStyle": "custom"
 }

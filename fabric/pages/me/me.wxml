@@ -1,4 +1,5 @@
-<view class="container">
+<!-- 未登录状态 -->
+<view wx:if="{{!isLoggedIn}}" class="container">
   <view class="content-wrapper">
     <!-- 提示文案 -->
     <view class="tip-text">登录后，保存你的记录</view>
@@ -7,9 +8,7 @@
     <view class="user-info">
       <view class="avatar-wrapper">
         <image wx:if="{{avatarUrl}}" class="avatar" src="{{avatarUrl}}" mode="aspectFill" />
-        <view wx:else class="avatar-placeholder">
-          <text class="avatar-text">头像</text>
-        </view>
+        <image wx:else class="avatar" src="/assets/default_Illustration.png" mode="aspectFill" />
       </view>
       <view class="nickname">{{nickName}}</view>
     </view>
@@ -31,5 +30,81 @@
       <text class="agreement-text"> 和 </text>
       <text class="link" bindtap="onPrivacyPolicy">隐私政策</text>
     </view>
+  </view>
+
+  <!-- 登录对话框 -->
+  <view class="dialog-mask" wx:if="{{showLoginDialog}}" bindtap="cancelLogin">
+    <view class="dialog-container" catchtap="preventBubble">
+      <view class="dialog-title">完善信息</view>
+
+      <!-- 头像选择 -->
+      <view class="dialog-content">
+        <view class="avatar-section">
+          <button class="avatar-btn" open-type="chooseAvatar" bindchooseavatar="onChooseAvatar">
+            <image wx:if="{{tempAvatarUrl}}" class="avatar-preview" src="{{tempAvatarUrl}}" mode="aspectFill" />
+            <view wx:else class="avatar-placeholder-dialog">
+              <text class="placeholder-text">选择头像</text>
+            </view>
+          </button>
+        </view>
+
+        <!-- 昵称输入 -->
+        <view class="nickname-section">
+          <input
+            class="nickname-input"
+            type="nickname"
+            placeholder="请输入昵称"
+            value="{{tempNickName}}"
+            bindinput="onNicknameInput"
+          />
+        </view>
+      </view>
+
+      <!-- 按钮区域 -->
+      <view class="dialog-buttons">
+        <view class="dialog-btn cancel" bindtap="cancelLogin">取消</view>
+        <view class="dialog-btn confirm" bindtap="confirmLogin">确认</view>
+      </view>
+    </view>
+  </view>
+</view>
+
+<!-- 已登录状态 -->
+<view wx:else class="logged-in-container">
+  <!-- 紫色背景 -->
+  <image class="purple-bg-image" src="/assets/me_bg.png" mode="aspectFill" />
+
+  <!-- 渐变遮罩层 -->
+  <view class="gradient-overlay"></view>
+
+  <!-- 内容区域 -->
+  <view class="content-area" style="padding-top: {{contentTop}}px;">
+    <!-- 顶部数据展示 -->
+    <view class="header-row">
+      <view class="total-time">
+        <text class="time-label">针织总时长</text>
+        <text class="time-value">{{totalTimeHours}}</text>
+        <text class="time-label">小时</text>
+      </view>
+      <view class="settings-btn" bindtap="goToSettings">
+        <dynamic-svg svg-class="settings-icon" svgPath="/assets/me_settings.svg" color="#FFF" />
+      </view>
+    </view>
+
+    <!-- 用户信息栏 -->
+    <view class="user-info-row">
+      <view class="avatar-wrapper-large">
+        <image class="avatar-large" src="{{avatarUrl || '/assets/default_Illustration.png'}}" mode="aspectFill" />
+      </view>
+      <view class="user-text">
+        <text class="nickname-large">{{nickName}}</text>
+        <text class="zhizhi-id">知织号：{{zhizhiId}}</text>
+      </view>
+    </view>
+  </view>
+
+  <!-- 兜底图 - 在渐变和 tab 之间垂直居中 -->
+  <view class="placeholder-wrapper">
+    <image class="placeholder-image" src="/assets/me_placeholder.png" mode="aspectFit" />
   </view>
 </view>

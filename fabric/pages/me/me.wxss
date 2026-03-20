@@ -133,3 +133,268 @@
   color: #576B95;
   font-size: 24rpx;
 }
+
+/* 登录对话框样式 */
+.dialog-mask {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.dialog-container {
+  width: 600rpx;
+  background-color: #fff;
+  border-radius: 24rpx;
+  overflow: hidden;
+}
+
+.dialog-title {
+  text-align: center;
+  font-size: 34rpx;
+  font-weight: 500;
+  color: #000;
+  padding: 40rpx 0 20rpx;
+}
+
+.dialog-content {
+  padding: 20rpx 40rpx 40rpx;
+}
+
+.avatar-section {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 30rpx;
+}
+
+.avatar-btn {
+  width: 160rpx;
+  height: 160rpx;
+  padding: 0;
+  margin: 0;
+  background: transparent;
+  border: none;
+  border-radius: 50%;
+  overflow: hidden;
+}
+
+.avatar-btn::after {
+  border: none;
+}
+
+.avatar-preview {
+  width: 160rpx;
+  height: 160rpx;
+  border-radius: 50%;
+}
+
+.avatar-placeholder-dialog {
+  width: 160rpx;
+  height: 160rpx;
+  border-radius: 50%;
+  background-color: #f0f0f0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2rpx dashed #ccc;
+}
+
+.placeholder-text {
+  font-size: 24rpx;
+  color: #999;
+}
+
+.nickname-section {
+  width: 100%;
+}
+
+.nickname-input {
+  width: 100%;
+  height: 88rpx;
+  background-color: #f5f5f5;
+  border-radius: 12rpx;
+  padding: 0 24rpx;
+  font-size: 28rpx;
+  box-sizing: border-box;
+}
+
+.dialog-buttons {
+  display: flex;
+  border-top: 1rpx solid #eee;
+}
+
+.dialog-btn {
+  flex: 1;
+  height: 100rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 32rpx;
+}
+
+.dialog-btn.cancel {
+  color: #666;
+  border-right: 1rpx solid #eee;
+}
+
+.dialog-btn.confirm {
+  color: #A889C8;
+  font-weight: 500;
+}
+
+/* 已登录容器 */
+.logged-in-container {
+  min-height: 100vh;
+  background-color: #ffffff;
+  position: relative;
+}
+
+/* 紫色背景 - 从屏幕最上方开始 */
+.purple-bg-image {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 556rpx; /* 278dp = 556rpx，匹配 SVG viewBox 高度 */
+  z-index: 0;
+}
+
+/* 渐变遮罩层 */
+.gradient-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 556rpx;
+  z-index: 1;
+  background: linear-gradient(
+    to bottom,
+    rgba(168, 137, 200, 0.1) 50%,
+    rgba(168, 137, 200, 0.3) 75%,
+    rgba(168, 137, 200, 0.6) 100%
+  );
+}
+
+/* 内容区域 */
+.content-area {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 2;
+}
+
+/* 顶部行 */
+.header-row {
+  display: flex;
+  flex-direction: row;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0 44rpx 0; /* 22dp = 44rpx */
+}
+
+.total-time {
+  display: flex;
+  flex-direction: row;
+  align-items: baseline;
+}
+
+.time-label {
+  font-size: 28rpx; /* 14pt = 28rpx */
+  font-weight: bold;
+  color: #333333;
+}
+
+.time-value {
+  font-size: 48rpx; /* 24pt = 48rpx */
+  font-weight: bold;
+  color: #333;
+  margin: 0 8rpx;
+}
+
+/* 设置按钮：24*24dp 圆形背景，颜色 #A889C8 60% */
+.settings-btn {
+  width: 48rpx;  /* 24dp = 48rpx */
+  height: 48rpx;
+  border-radius: 50%;
+  background: rgba(168, 137, 200, 0.6); /* A889C8 60% */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.settings-icon {
+  width: 36rpx;  /* 18dp = 36rpx */
+  height: 36rpx;
+}
+
+/* 用户信息行 */
+.user-info-row {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  margin-top: 72rpx; /* 36dp = 72rpx */
+  padding-left: 44rpx; /* 22dp = 44rpx */
+}
+
+/* 头像容器 - 带内描边 */
+.avatar-wrapper-large {
+  width: 160rpx; /* 80dp = 160rpx */
+  height: 160rpx;
+  border-radius: 50%;
+  padding: 4rpx; /* 2dp描边 = 4rpx */
+  background: rgba(255, 255, 255, 0.3); /* 70%透明度的白色描边 */
+  box-sizing: border-box;
+}
+
+.avatar-large {
+  width: 152rpx;
+  height: 152rpx;
+  border-radius: 50%;
+  background-color: #f0f0f0;
+}
+
+/* 用户文字信息 */
+.user-text {
+  display: flex;
+  flex-direction: column;
+  margin-left: 24rpx;
+}
+
+.nickname-large {
+  font-size: 40rpx; /* 20pt = 40rpx */
+  font-weight: bold;
+  color: #333333;
+}
+
+.zhizhi-id {
+  font-size: 20rpx; /* 10pt = 20rpx */
+  font-weight: 600; /* Semi-bold */
+  color: #666666; /* 与 #333333 60%不透明度视觉效果相近 */
+  margin-top: 0rpx;
+}
+
+/* 兜底图容器 - 在渐变(556rpx)和tab(96rpx)之间垂直居中 */
+.placeholder-wrapper {
+  position: fixed;
+  top: 556rpx;
+  bottom: calc(96rpx + env(safe-area-inset-bottom));
+  left: 0;
+  right: 0;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 0;
+}
+
+/* 兜底图 210×210 DP = 420rpx */
+.placeholder-image {
+  width: 420rpx;
+  height: 420rpx;
+}
