@@ -74,6 +74,8 @@ Component({
     hide() {
       // 在这里可以执行一些逻辑，例如保存数据或暂停操作
       this.stopTimer();
+      // 同步时长到云端
+      this.syncTimeToCloud();
     },
   },
   data: {
@@ -397,6 +399,9 @@ Component({
       // 2. 计算累计用时
       const counterData = this.data.counterData;
       const elapsed = this.getCurrentElapsedTime();
+      const previousElapsed = counterData.timerState.elapsedTime || 0;
+      const newSessionTime = elapsed - previousElapsed; // 本次计时时长
+
       counterData.timerState.elapsedTime = elapsed;
       counterData.timerState.startTimestamp = 0;
       // 3. 更新状态
@@ -406,6 +411,10 @@ Component({
       });
       // 4. 存储当前状态
       this.saveCounterData();
+      // 5. 累加到全局总时长（仅当有新增时长时）
+      if (newSessionTime > 0) {
+        this.addGlobalKnittingTime(newSessionTime);
+      }
     },
 
     clearTimer() {
@@ -509,6 +518,28 @@ Component({
         key: this.properties.storageKey,
         currentCount: this.data.counterData.currentCount
       });
+    },
+
+    /**
+     * 累加时长到全局总时长
+     */
+    addGlobalKnittingTime(elapsedMs: number) {
+      if (elapsedMs <= 0) return;
+
+      const app = getApp<IAppOption>();
+      if (app) {
+        app.addKnittingTime(elapsedMs);
+      }
+    },
+
+    /**
+     * 同步时长到云端
+     */
+    async syncTimeToCloud() {
+      const app = getApp<IAppOption>();
+      if (app) {
+        await app.syncToCloud(0);
+      }
     },
   },
 });

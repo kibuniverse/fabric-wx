@@ -13,6 +13,7 @@ Page({
     isLoggedIn: false, // 登录状态
     totalTimeHours: 24, // 知织总时长（小时），默认24
     zhizhiId: '', // 知织号（9位唯一ID）
+    isLoggingIn: false, // 是否正在登录中
   },
 
   onLoad() {
@@ -40,15 +41,10 @@ Page({
   /**
    * 加载用户信息
    */
-  loadUserInfo() {
+  async loadUserInfo() {
     // 尝试从本地存储获取用户信息
     const userInfo = wx.getStorageSync('userInfo');
     if (userInfo && userInfo.isLoggedIn) {
-      // 如果没有知织号，生成一个
-      if (!userInfo.zhizhiId) {
-        userInfo.zhizhiId = this.generateZhizhiId();
-        wx.setStorageSync('userInfo', userInfo);
-      }
       this.setData({
         avatarUrl: userInfo.avatarUrl || '',
         nickName: userInfo.nickName || '微信用户',
@@ -56,16 +52,39 @@ Page({
         zhizhiId: userInfo.zhizhiId || ''
       });
       this.loadTotalTime();
+
+      // 已登录用户，尝试从云端同步最新数据
+      await this.syncCloudData();
     } else {
       this.setData({ isLoggedIn: false });
     }
   },
 
   /**
-   * 生成知织号（9位随机数字）
+   * 从云端同步数据
    */
-  generateZhizhiId(): string {
-    return Math.floor(100000000 + Math.random() * 900000000).toString();
+  async syncCloudData() {
+    const app = getApp<IAppOption>();
+    if (app) {
+      const result = await app.syncFromCloud();
+      if (result) {
+        const { totalKnittingTime, zhizhiId, nickName, avatarUrl } = result;
+        const hours = Math.floor((totalKnittingTime || 0) / 3600000);
+
+        // 更新页面数据
+        this.setData({
+          totalTimeHours: hours,
+          zhizhiId: zhizhiId || this.data.zhizhiId,
+        });
+
+        // 更新本地存储的用户信息
+        const userInfo = wx.getStorageSync('userInfo') || {};
+        if (zhizhiId) userInfo.zhizhiId = zhizhiId;
+        if (nickName) userInfo.nickName = nickName;
+        if (avatarUrl) userInfo.avatarUrl = avatarUrl;
+        wx.setStorageSync('userInfo', userInfo);
+      }
+    }
   },
 
   /**
@@ -116,10 +135,13 @@ Page({
   },
 
   /**
-   * 确认登录
+   * 确认登录 - 调用云函数
    */
-  confirmLogin() {
-    const { tempAvatarUrl, tempNickName } = this.data;
+  async confirmLogin() {
+    const { tempAvatarUrl, tempNickName, isLoggingIn } = this.data;
+
+    // 防止重复点击
+    if (isLoggingIn) return;
 
     // 验证头像和昵称
     if (!tempAvatarUrl) {
@@ -131,35 +153,62 @@ Page({
       return;
     }
 
-    // 调用 wx.login 获取 code（静默登录）
-    wx.login({
-      success: (loginRes) => {
-        // 登录成功，保存用户信息
-        const zhizhiId = this.generateZhizhiId();
+    this.setData({ isLoggingIn: true });
+
+    try {
+      // 调用云函数登录
+      const res = await wx.cloud.callFunction({
+        name: 'login',
+        data: {
+          nickName: tempNickName.trim(),
+          avatarUrl: tempAvatarUrl,
+        },
+      }) as any;
+
+      this.setData({ isLoggingIn: false });
+
+      if (res.result && res.result.success) {
+        const userData = res.result.data;
+
+        // 保存用户信息到本地
         const userInfo = {
           avatarUrl: tempAvatarUrl,
           nickName: tempNickName.trim(),
           isLoggedIn: true,
-          code: loginRes.code,
-          zhizhiId: zhizhiId
+          zhizhiId: userData.zhizhiId,
         };
         wx.setStorageSync('userInfo', userInfo);
 
+        // 更新页面数据
         this.setData({
           avatarUrl: tempAvatarUrl,
           nickName: tempNickName.trim(),
           showLoginDialog: false,
           isLoggedIn: true,
-          zhizhiId: zhizhiId
+          zhizhiId: userData.zhizhiId,
         });
 
-        this.loadTotalTime();
-        wx.showToast({ title: '登录成功', icon: 'success' });
-      },
-      fail: () => {
-        wx.showToast({ title: '登录失败，请重试', icon: 'none' });
+        // 加载总时长
+        const totalTime = userData.totalKnittingTime || 0;
+        const hours = Math.floor(totalTime / 3600000);
+        this.setData({ totalTimeHours: hours });
+        wx.setStorageSync('total_zhizhi_time', totalTime);
+
+        wx.showToast({
+          title: res.result.isNewUser ? '注册成功' : '欢迎回来',
+          icon: 'success'
+        });
+      } else {
+        wx.showToast({
+          title: res.result?.error || '登录失败，请重试',
+          icon: 'none'
+        });
       }
-    });
+    } catch (error) {
+      this.setData({ isLoggingIn: false });
+      console.error('登录失败:', error);
+      wx.showToast({ title: '登录失败，请重试', icon: 'none' });
+    }
   },
 
   /**
@@ -188,7 +237,7 @@ Page({
       title: '修改昵称',
       editable: true,
       placeholderText: this.data.nickName,
-      success: (res) => {
+      success: async (res) => {
         if (res.confirm && res.content) {
           const newNickName = res.content.trim();
           if (newNickName) {
@@ -197,6 +246,12 @@ Page({
             const userInfo = wx.getStorageSync('userInfo') || {};
             userInfo.nickName = newNickName;
             wx.setStorageSync('userInfo', userInfo);
+
+            // 同步到云端
+            const app = getApp<IAppOption>();
+            if (app) {
+              await app.syncToCloud(0);
+            }
           }
         }
       }
