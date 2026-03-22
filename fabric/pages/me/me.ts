@@ -36,6 +36,8 @@ Page({
     if (typeof this.getTabBar === 'function' && this.getTabBar()) {
       this.getTabBar().setData({ selected: 2 }); // me 是第三个 tab
     }
+    // 重新检查登录状态
+    this.loadUserInfo();
   },
 
   /**
