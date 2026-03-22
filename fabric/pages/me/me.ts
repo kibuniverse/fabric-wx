@@ -17,6 +17,9 @@ Page({
     avatarLoading: false, // 头像是否正在加载中
   },
 
+  // 请求锁，防止并发重复请求
+  _isRefreshingAvatar: false,
+
   onLoad() {
     // 获取状态栏高度
     const systemInfo = wx.getSystemInfoSync();
@@ -42,11 +45,13 @@ Page({
   },
 
   /**
-   * 获取头像临时 URL 并缓存
+   * 获取头像临时 URL 并缓存（带重试机制）
    * cloud:// 协议需要转换为 https:// 临时 URL 才能直接加载
+   * @param fileID 云文件ID
+   * @param retryCount 当前重试次数
    */
-  async getAvatarTempUrl(fileID: string) {
-    this.setData({ avatarLoading: true });
+  async getAvatarTempUrl(fileID: string, retryCount: number = 0) {
+    const MAX_RETRY = 3;
     try {
       const res = await wx.cloud.getTempFileURL({ fileList: [fileID] });
       if (res.fileList?.[0]?.tempFileURL) {
@@ -60,7 +65,53 @@ Page({
       }
     } catch (e) {
       console.error('获取头像临时 URL 失败:', e);
-      this.setData({ avatarLoading: false });
+      // 重试逻辑
+      if (retryCount < MAX_RETRY) {
+        console.log(`重试获取头像临时 URL (${retryCount + 1}/${MAX_RETRY})...`);
+        setTimeout(() => {
+          this.getAvatarTempUrl(fileID, retryCount + 1);
+        }, 1000 * (retryCount + 1)); // 递增延迟
+      } else {
+        this.setData({ avatarLoading: false });
+      }
+    }
+  },
+
+  /**
+   * 静默刷新头像缓存（后台刷新，不显示占位图）
+   * @param fileID 云文件ID
+   * @param retryCount 当前重试次数
+   */
+  async refreshAvatarCache(fileID: string, retryCount: number = 0) {
+    // 防止并发重复请求
+    if (this._isRefreshingAvatar) return;
+    this._isRefreshingAvatar = true;
+
+    const MAX_RETRY = 3;
+    try {
+      const res = await wx.cloud.getTempFileURL({ fileList: [fileID] });
+      if (res.fileList?.[0]?.tempFileURL) {
+        const tempUrl = res.fileList[0].tempFileURL;
+        // 缓存临时 URL
+        wx.setStorageSync(`avatar_url_${fileID}`, tempUrl);
+        wx.setStorageSync(`avatar_expire_${fileID}`, Date.now() + 1.5 * 60 * 60 * 1000);
+        // 更新页面显示
+        this.setData({ avatarUrl: tempUrl });
+      }
+    } catch (e) {
+      console.error('静默刷新头像缓存失败:', e);
+      // 重试逻辑
+      if (retryCount < MAX_RETRY) {
+        console.log(`重试刷新头像缓存 (${retryCount + 1}/${MAX_RETRY})...`);
+        setTimeout(() => {
+          this._isRefreshingAvatar = false; // 重置锁以便重试
+          this.refreshAvatarCache(fileID, retryCount + 1);
+          return;
+        }, 1000 * (retryCount + 1));
+      }
+      // 重试失败，保留显示旧头像，不下沉到占位图
+    } finally {
+      this._isRefreshingAvatar = false;
     }
   },
 
@@ -82,9 +133,12 @@ Page({
           // 使用缓存的临时 URL
           avatarUrl = cachedUrl;
         } else {
-          // 异步获取临时 URL，先显示占位图
-          this.setData({ avatarLoading: true });
-          this.getAvatarTempUrl(avatarUrl);
+          // 缓存过期或不存在，先使用旧缓存（如果有），后台静默刷新
+          if (cachedUrl) {
+            avatarUrl = cachedUrl;
+          }
+          // 后台静默刷新缓存，不显示占位图
+          this.refreshAvatarCache(userInfo.avatarUrl);
         }
       }
 
@@ -155,8 +209,12 @@ Page({
             if (cachedUrl && expireTime && Date.now() < expireTime) {
               this.setData({ avatarUrl: cachedUrl });
             } else {
-              // 异步获取临时 URL
-              this.getAvatarTempUrl(avatarUrl);
+              // 缓存过期或不存在，先使用旧缓存（如果有），后台静默刷新
+              if (cachedUrl) {
+                this.setData({ avatarUrl: cachedUrl });
+              }
+              // 后台静默刷新缓存
+              this.refreshAvatarCache(avatarUrl);
             }
           } else {
             this.setData({ avatarUrl });
@@ -232,8 +290,12 @@ Page({
           if (cachedUrl && expireTime && Date.now() < expireTime) {
             avatarUrl = cachedUrl;
           } else {
-            // 异步获取临时 URL
-            this.getAvatarTempUrl(avatarUrl);
+            // 缓存过期或不存在，先使用旧缓存（如果有），后台静默刷新
+            if (cachedUrl) {
+              avatarUrl = cachedUrl;
+            }
+            // 后台静默刷新缓存
+            this.refreshAvatarCache(userData.avatarUrl);
           }
         }
 
