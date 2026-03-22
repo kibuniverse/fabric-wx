@@ -94,7 +94,8 @@
     <!-- 用户信息栏 -->
     <view class="user-info-row">
       <view class="avatar-wrapper-large">
-        <image class="avatar-large" src="{{avatarUrl || '/assets/default_Illustration.png'}}" mode="aspectFill" />
+        <image wx:if="{{avatarLoading}}" class="avatar-large avatar-placeholder" src="/assets/default_Illustration.png" mode="aspectFill" />
+        <image wx:else class="avatar-large" src="{{avatarUrl || '/assets/default_Illustration.png'}}" mode="aspectFill" />
       </view>
       <view class="user-text">
         <text class="nickname-large">{{nickName}}</text>

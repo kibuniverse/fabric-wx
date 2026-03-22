@@ -14,6 +14,7 @@ Page({
     totalTimeHours: 24, // 知织总时长（小时），默认24
     zhizhiId: '', // 知织号（9位唯一ID）
     isLoggingIn: false, // 是否正在登录中
+    avatarLoading: false, // 头像是否正在加载中
   },
 
   onLoad() {
@@ -41,14 +42,54 @@ Page({
   },
 
   /**
+   * 获取头像临时 URL 并缓存
+   * cloud:// 协议需要转换为 https:// 临时 URL 才能直接加载
+   */
+  async getAvatarTempUrl(fileID: string) {
+    this.setData({ avatarLoading: true });
+    try {
+      const res = await wx.cloud.getTempFileURL({ fileList: [fileID] });
+      if (res.fileList?.[0]?.tempFileURL) {
+        const tempUrl = res.fileList[0].tempFileURL;
+        // 缓存临时 URL（有效期 2 小时，设为 1.5 小时留余量）
+        wx.setStorageSync(`avatar_url_${fileID}`, tempUrl);
+        wx.setStorageSync(`avatar_expire_${fileID}`, Date.now() + 1.5 * 60 * 60 * 1000);
+        this.setData({ avatarUrl: tempUrl, avatarLoading: false });
+      } else {
+        this.setData({ avatarLoading: false });
+      }
+    } catch (e) {
+      console.error('获取头像临时 URL 失败:', e);
+      this.setData({ avatarLoading: false });
+    }
+  },
+
+  /**
    * 加载用户信息
    */
   async loadUserInfo() {
     // 尝试从本地存储获取用户信息
     const userInfo = wx.getStorageSync('userInfo');
     if (userInfo && userInfo.isLoggedIn) {
+      let avatarUrl = userInfo.avatarUrl || '';
+
+      // 处理 cloud:// 协议头像
+      if (avatarUrl.startsWith('cloud://')) {
+        const cachedUrl = wx.getStorageSync(`avatar_url_${avatarUrl}`);
+        const expireTime = wx.getStorageSync(`avatar_expire_${avatarUrl}`);
+
+        if (cachedUrl && expireTime && Date.now() < expireTime) {
+          // 使用缓存的临时 URL
+          avatarUrl = cachedUrl;
+        } else {
+          // 异步获取临时 URL，先显示占位图
+          this.setData({ avatarLoading: true });
+          this.getAvatarTempUrl(avatarUrl);
+        }
+      }
+
       this.setData({
-        avatarUrl: userInfo.avatarUrl || '',
+        avatarUrl,
         nickName: userInfo.nickName || '微信用户',
         isLoggedIn: true,
         zhizhiId: userInfo.zhizhiId || ''
@@ -103,7 +144,24 @@ Page({
         const userInfo = wx.getStorageSync('userInfo') || {};
         if (zhizhiId) userInfo.zhizhiId = zhizhiId;
         if (nickName) userInfo.nickName = nickName;
-        if (avatarUrl) userInfo.avatarUrl = avatarUrl;
+        if (avatarUrl) {
+          userInfo.avatarUrl = avatarUrl;
+
+          // 处理 cloud:// 协议头像
+          if (avatarUrl.startsWith('cloud://')) {
+            const cachedUrl = wx.getStorageSync(`avatar_url_${avatarUrl}`);
+            const expireTime = wx.getStorageSync(`avatar_expire_${avatarUrl}`);
+
+            if (cachedUrl && expireTime && Date.now() < expireTime) {
+              this.setData({ avatarUrl: cachedUrl });
+            } else {
+              // 异步获取临时 URL
+              this.getAvatarTempUrl(avatarUrl);
+            }
+          } else {
+            this.setData({ avatarUrl });
+          }
+        }
         wx.setStorageSync('userInfo', userInfo);
       }
     }
@@ -164,6 +222,21 @@ Page({
       if (res.result && res.result.success && res.result.data) {
         // 云端有用户数据，直接登录
         const userData = res.result.data;
+        let avatarUrl = userData.avatarUrl || '';
+
+        // 处理 cloud:// 协议头像
+        if (avatarUrl.startsWith('cloud://')) {
+          const cachedUrl = wx.getStorageSync(`avatar_url_${avatarUrl}`);
+          const expireTime = wx.getStorageSync(`avatar_expire_${avatarUrl}`);
+
+          if (cachedUrl && expireTime && Date.now() < expireTime) {
+            avatarUrl = cachedUrl;
+          } else {
+            // 异步获取临时 URL
+            this.getAvatarTempUrl(avatarUrl);
+          }
+        }
+
         const userInfo = {
           avatarUrl: userData.avatarUrl || '',
           nickName: userData.nickName || '微信用户',
@@ -173,7 +246,7 @@ Page({
         wx.setStorageSync('userInfo', userInfo);
 
         this.setData({
-          avatarUrl: userInfo.avatarUrl,
+          avatarUrl,
           nickName: userInfo.nickName,
           isLoggedIn: true,
           zhizhiId: userInfo.zhizhiId,
@@ -250,6 +323,7 @@ Page({
     try {
       // 1. 将临时头像上传到云存储（如果是临时文件路径）
       let finalAvatarUrl = tempAvatarUrl;
+      let tempUrlForDisplay = tempAvatarUrl; // 用于页面显示的临时 URL
 
       // 判断是否为临时文件（需要上传到云存储）
       if (tempAvatarUrl.startsWith('wxfile://') || tempAvatarUrl.startsWith('http://tmp') || tempAvatarUrl.startsWith('https://tmp')) {
@@ -261,6 +335,17 @@ Page({
 
         if (uploadResult.fileID) {
           finalAvatarUrl = uploadResult.fileID;
+          // 立即获取并缓存临时 URL
+          try {
+            const tempRes = await wx.cloud.getTempFileURL({ fileList: [finalAvatarUrl] });
+            if (tempRes.fileList?.[0]?.tempFileURL) {
+              tempUrlForDisplay = tempRes.fileList[0].tempFileURL;
+              wx.setStorageSync(`avatar_url_${finalAvatarUrl}`, tempUrlForDisplay);
+              wx.setStorageSync(`avatar_expire_${finalAvatarUrl}`, Date.now() + 1.5 * 60 * 60 * 1000);
+            }
+          } catch (e) {
+            console.error('获取头像临时 URL 失败:', e);
+          }
         }
       }
 
@@ -290,7 +375,7 @@ Page({
 
         // 更新页面数据
         this.setData({
-          avatarUrl: finalAvatarUrl,
+          avatarUrl: tempUrlForDisplay,
           nickName: tempNickName.trim(),
           showLoginDialog: false,
           isLoggedIn: true,

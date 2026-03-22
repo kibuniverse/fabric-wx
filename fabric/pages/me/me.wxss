@@ -360,6 +360,23 @@
   background-color: #f0f0f0;
 }
 
+/* 头像加载中占位图样式 */
+.avatar-large.avatar-placeholder {
+  animation: pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
 /* 用户文字信息 */
 .user-text {
   display: flex;
