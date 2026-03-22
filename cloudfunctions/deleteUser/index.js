@@ -14,10 +14,17 @@ exports.main = async (event, context) => {
   const openid = wxContext.OPENID
 
   try {
-    // 查询用户是否存在
-    const userResult = await usersCollection.where({
-      _openid: openid
+    // 查询用户是否存在（兼容旧数据：先查 openid，再查 _openid）
+    let userResult = await usersCollection.where({
+      openid: openid
     }).get()
+
+    // 如果没找到，尝试用 _openid 查询（兼容旧数据）
+    if (userResult.data.length === 0) {
+      userResult = await usersCollection.where({
+        _openid: openid
+      }).get()
+    }
 
     if (userResult.data.length === 0) {
       return {

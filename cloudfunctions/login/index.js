@@ -54,10 +54,29 @@ exports.main = async (event, context) => {
   const { nickName, avatarUrl } = event
 
   try {
-    // 查询用户是否已存在
-    const userResult = await usersCollection.where({
-      _openid: openid
+    console.log('登录云函数被调用, openid:', openid)
+
+    // 先尝试用 openid 查询
+    let userResult = await usersCollection.where({
+      openid: openid
     }).get()
+    console.log('用 openid 查询结果:', userResult.data.length, '条记录')
+
+    // 如果没找到，尝试用 _openid 查询（兼容旧数据）
+    if (userResult.data.length === 0) {
+      userResult = await usersCollection.where({
+        _openid: openid
+      }).get()
+      console.log('用 _openid 查询结果:', userResult.data.length, '条记录')
+
+      // 如果用 _openid 找到了，迁移旧数据：添加 openid 字段
+      if (userResult.data.length > 0) {
+        console.log('迁移旧数据，添加 openid 字段')
+        await usersCollection.doc(userResult.data[0]._id).update({
+          data: { openid: openid }
+        })
+      }
+    }
 
     // 用户已存在，返回已有数据
     if (userResult.data.length > 0) {
@@ -94,9 +113,11 @@ exports.main = async (event, context) => {
     }
 
     // 新用户，创建记录
+    console.log('创建新用户, openid:', openid)
     const zhizhiId = await generateUniqueZhizhiId()
 
     const newUserData = {
+      openid,  // 显式保存 openid
       zhizhiId,
       nickName: nickName || '微信用户',
       avatarUrl: avatarUrl || '',

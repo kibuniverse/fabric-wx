@@ -58,7 +58,27 @@ Page({
       // 已登录用户，尝试从云端同步最新数据
       await this.syncCloudData();
     } else {
+      // 未登录状态
       this.setData({ isLoggedIn: false });
+
+      // 如果 userInfo 不存在（注销后），重置为默认值
+      // 如果 userInfo 存在但 isLoggedIn 为 false（退出登录），保留显示
+      if (!userInfo) {
+        this.setData({
+          avatarUrl: '',
+          nickName: '微信用户',
+          zhizhiId: '',
+          totalTimeHours: 0,
+        });
+      } else {
+        // 退出登录状态，显示之前保存的信息
+        this.setData({
+          avatarUrl: userInfo.avatarUrl || '',
+          nickName: userInfo.nickName || '微信用户',
+          zhizhiId: '',
+          totalTimeHours: 0,
+        });
+      }
     }
   },
 
@@ -106,19 +126,88 @@ Page({
   },
 
   /**
-   * 微信登录 - 打开登录对话框
+   * 微信登录 - 验证云端数据后登录
    */
-  onLogin() {
+  async onLogin() {
     if (!this.data.isChecked) {
       wx.showToast({ title: '请先同意用户协议', icon: 'none' });
       return;
     }
-    // 打开登录对话框
-    this.setData({
-      showLoginDialog: true,
-      tempAvatarUrl: '',
-      tempNickName: ''
-    });
+
+    // 检查网络状态
+    try {
+      const networkInfo = await wx.getNetworkType();
+      if (networkInfo.networkType === 'none') {
+        wx.showToast({ title: '网络不可用，请检查网络连接', icon: 'none' });
+        return;
+      }
+    } catch (e) {
+      // 获取网络状态失败，继续尝试登录
+    }
+
+    wx.showLoading({ title: '检查登录状态...', mask: true });
+
+    try {
+      // 带超时的云函数调用（10秒超时）
+      const timeout = new Promise((_, reject) => {
+        setTimeout(() => reject(new Error('timeout')), 10000);
+      });
+
+      const cloudCall = wx.cloud.callFunction({
+        name: 'getUserData',
+      });
+
+      const res = await Promise.race([cloudCall, timeout]) as any;
+
+      wx.hideLoading();
+
+      if (res.result && res.result.success && res.result.data) {
+        // 云端有用户数据，直接登录
+        const userData = res.result.data;
+        const userInfo = {
+          avatarUrl: userData.avatarUrl || '',
+          nickName: userData.nickName || '微信用户',
+          isLoggedIn: true,
+          zhizhiId: userData.zhizhiId,
+        };
+        wx.setStorageSync('userInfo', userInfo);
+
+        this.setData({
+          avatarUrl: userInfo.avatarUrl,
+          nickName: userInfo.nickName,
+          isLoggedIn: true,
+          zhizhiId: userInfo.zhizhiId,
+        });
+
+        // 加载总时长
+        const totalTime = userData.totalKnittingTime || 0;
+        const hours = Math.floor(totalTime / 3600000);
+        this.setData({ totalTimeHours: hours });
+        wx.setStorageSync('total_zhizhi_time', totalTime);
+
+        wx.showToast({ title: '欢迎回来', icon: 'success' });
+      } else {
+        // 云端没有数据，清除本地缓存并显示登录对话框
+        wx.removeStorageSync('userInfo');
+        wx.removeStorageSync('total_zhizhi_time');
+
+        this.setData({
+          showLoginDialog: true,
+          tempAvatarUrl: '',
+          tempNickName: '',
+          avatarUrl: '',
+          nickName: '微信用户',
+          isLoggedIn: false,
+          zhizhiId: '',
+        });
+      }
+    } catch (error) {
+      wx.hideLoading();
+      console.error('检查用户状态失败:', error);
+
+      // 网络错误或超时，只 toast 提示，不显示登录弹窗
+      wx.showToast({ title: '网络异常，请检查网络连接', icon: 'none' });
+    }
   },
 
   /**
@@ -156,17 +245,35 @@ Page({
     }
 
     this.setData({ isLoggingIn: true });
+    wx.showLoading({ title: '登录中...', mask: true });
 
     try {
-      // 调用云函数登录
+      // 1. 将临时头像上传到云存储（如果是临时文件路径）
+      let finalAvatarUrl = tempAvatarUrl;
+
+      // 判断是否为临时文件（需要上传到云存储）
+      if (tempAvatarUrl.startsWith('wxfile://') || tempAvatarUrl.startsWith('http://tmp') || tempAvatarUrl.startsWith('https://tmp')) {
+        const cloudPath = `avatars/${Date.now()}-${Math.random().toString(36).substr(2, 9)}.png`;
+        const uploadResult = await wx.cloud.uploadFile({
+          cloudPath: cloudPath,
+          filePath: tempAvatarUrl,
+        });
+
+        if (uploadResult.fileID) {
+          finalAvatarUrl = uploadResult.fileID;
+        }
+      }
+
+      // 2. 调用云函数登录
       const res = await wx.cloud.callFunction({
         name: 'login',
         data: {
           nickName: tempNickName.trim(),
-          avatarUrl: tempAvatarUrl,
+          avatarUrl: finalAvatarUrl,
         },
       }) as any;
 
+      wx.hideLoading();
       this.setData({ isLoggingIn: false });
 
       if (res.result && res.result.success) {
@@ -174,7 +281,7 @@ Page({
 
         // 保存用户信息到本地
         const userInfo = {
-          avatarUrl: tempAvatarUrl,
+          avatarUrl: finalAvatarUrl,
           nickName: tempNickName.trim(),
           isLoggedIn: true,
           zhizhiId: userData.zhizhiId,
@@ -183,7 +290,7 @@ Page({
 
         // 更新页面数据
         this.setData({
-          avatarUrl: tempAvatarUrl,
+          avatarUrl: finalAvatarUrl,
           nickName: tempNickName.trim(),
           showLoginDialog: false,
           isLoggedIn: true,
@@ -207,6 +314,7 @@ Page({
         });
       }
     } catch (error) {
+      wx.hideLoading();
       this.setData({ isLoggingIn: false });
       console.error('登录失败:', error);
       wx.showToast({ title: '登录失败，请重试', icon: 'none' });

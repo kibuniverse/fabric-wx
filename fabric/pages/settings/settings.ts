@@ -49,7 +49,7 @@ Page({
             wx.hideLoading();
 
             if (result.result && result.result.success) {
-              // 清除本地存储的用户信息
+              // 清除账号相关的本地缓存
               wx.removeStorageSync('userInfo');
               wx.removeStorageSync('total_zhizhi_time');
 
