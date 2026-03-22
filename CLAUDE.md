@@ -111,3 +111,30 @@ this.triggerEvent('showTargetInput', { key, currentTarget });
 ## Testing
 
 No formal test framework configured. Manual testing via WeChat DevTools simulator.
+
+
+
+## Figma MCP Integration Rules
+These rules define how to translate Figma iInputs into code for this project and must bbe followed for every Figma-driven change
+Prioritize Figma fidelity to match designs exactly
+Avoid hardcoded values, use design tokens from Figma where available
+Follow WCAG requirements for accessibility
+Add component documentation
+### Required flow (do not skip)
+1. Run get_design_context first to fetch the structured representation for the exact node(s)
+2.If the response is too large or truncated,run get_metadata to get the high-level node map and then re-fetch onLy the
+required node(s) with get_design_context.
+3.Runget_screenshotfor a visual reference of thenode variant being implemented.
+4. Only after you have both get_design_context and get_screeenshot, download any assets needed and start implementation.
+5. Translate the output (usually React + Tailwind) into thisproject's conventions, styles and framework. Reuse the project's
+color tokens, components, and typography wherever possible.
+6. Validate against Figma for 1:1 look and behaviorbefore marking complete.
+### Implementation rules
+Treat the Figma MCP output (React + Tailwind) as arepresentation of design and behavior, not as finalcode style.
+Replace Tailwind utility classes with the project's preferred utilities/design-system tokens when applicable.
+Reuse existing components (e.g., buttons, inputs, typography, icon wrappers) instead of duplicating furictionality.
+Use the project's color system, typography scale, and spacing tokens consistently.
+Respect existing routing, state management, and data-fetchpatternsalready adopted in the repo.
+Strive for 1:1 visual parity with the Figma design. When coonflicts arise, prefer design-system tokens and adjust spacing or
+sizes minimally to match visuals.
+Validate the final UI against the Figma screenshotfor both look and behavior.

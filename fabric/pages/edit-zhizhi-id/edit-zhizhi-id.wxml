@@ -1,0 +1,12 @@
+<view class="container">
+  <view class="info-card">
+    <view class="info-row">
+      <text class="info-label">知织ID</text>
+      <view class="info-value" bindtap="onCopyId">
+        <text>{{zhizhiId}}</text>
+        <text class="copy-btn">复制</text>
+      </view>
+    </view>
+  </view>
+  <view class="tip">知织ID是您的唯一标识，可用于好友搜索</view>
+</view>

@@ -1,0 +1,28 @@
+.container {
+  padding: 32rpx;
+}
+
+.input-card {
+  background: #FFFFFF;
+  border-radius: 20rpx;
+  padding: 32rpx;
+}
+
+.nickname-input {
+  font-size: 32rpx;
+  color: #333333;
+}
+
+.save-btn {
+  margin-top: 48rpx;
+  background: #A889C8;
+  color: #FFFFFF;
+  border-radius: 44rpx;
+  font-size: 32rpx;
+  height: 88rpx;
+  line-height: 88rpx;
+}
+
+.save-btn::after {
+  border: none;
+}

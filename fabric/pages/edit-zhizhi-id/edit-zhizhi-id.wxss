@@ -1,0 +1,40 @@
+.container {
+  padding: 32rpx;
+}
+
+.info-card {
+  background: #FFFFFF;
+  border-radius: 20rpx;
+}
+
+.info-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 32rpx;
+}
+
+.info-label {
+  font-size: 32rpx;
+  color: #333333;
+}
+
+.info-value {
+  display: flex;
+  align-items: center;
+  font-size: 32rpx;
+  color: rgba(51, 51, 51, 0.6);
+}
+
+.copy-btn {
+  margin-left: 16rpx;
+  font-size: 28rpx;
+  color: #A889C8;
+}
+
+.tip {
+  margin-top: 24rpx;
+  font-size: 26rpx;
+  color: rgba(51, 51, 51, 0.4);
+  text-align: center;
+}

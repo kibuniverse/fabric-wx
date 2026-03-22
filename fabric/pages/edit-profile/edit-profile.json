@@ -1,4 +1,6 @@
 {
   "navigationBarTitleText": "修改资料",
-  "usingComponents": {}
+  "usingComponents": {
+    "dynamic-svg": "/components/dynamic-svg/index"
+  }
 }

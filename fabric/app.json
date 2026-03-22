@@ -9,6 +9,8 @@
     "pages/memo/memo",
     "pages/edit/edit",
     "pages/edit-profile/edit-profile",
+    "pages/edit-nickname/edit-nickname",
+    "pages/edit-zhizhi-id/edit-zhizhi-id",
     "pages/webview/webview"
   ],
   "window": {

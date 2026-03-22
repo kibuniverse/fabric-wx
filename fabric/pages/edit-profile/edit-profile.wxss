@@ -1,12 +1,86 @@
 .container {
+  padding-top: 44rpx; /* 22dp */
+  padding-left: 44rpx;
+  padding-right: 44rpx;
   display: flex;
-  justify-content: center;
+  flex-direction: column;
   align-items: center;
-  min-height: 100vh;
-  background-color: #f5f5f5;
 }
 
-.placeholder-text {
+/* 头像 80*80dp = 160rpx */
+.avatar-section {
+  width: 160rpx;
+  height: 160rpx;
+  border-radius: 50%;
+  overflow: hidden;
+}
+
+.avatar {
+  width: 160rpx;
+  height: 160rpx;
+  border-radius: 50%;
+  border: 4rpx solid rgba(255, 255, 255, 0.7);
+  box-sizing: border-box;
+}
+
+.avatar-placeholder {
+  opacity: 0.6;
+}
+
+/* 更换头像按钮 */
+.change-avatar-btn {
+  margin-top: 36rpx;
+  margin-bottom: 0;
+  background: transparent;
+  border: none;
+  padding: 0;
+  font-size: 32rpx;
+  font-weight: 500;
+  color: #333333;
+}
+
+.change-avatar-btn::after {
+  border: none;
+}
+
+/* 用户信息卡片 */
+.info-card {
+  width: 100%;
+  height: 222rpx;
+  margin-top: 48rpx;
+  background: #FFFFFF;
+  border-radius: 20rpx;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.info-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0 40rpx;
+  height: 50%;
+}
+
+.info-row:first-child {
+  border-bottom: 1rpx solid #f0f0f0;
+}
+
+.info-label {
   font-size: 28rpx;
-  color: #999;
+  color: #333333;
+}
+
+.info-value {
+  display: flex;
+  align-items: center;
+  font-size: 28rpx;
+  color: rgba(51, 51, 51, 0.6);
+}
+
+.arrow-icon {
+  width: 44rpx;
+  height: 44rpx;
+  margin-left: 8rpx;
 }

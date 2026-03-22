@@ -1,3 +1,30 @@
 <view class="container">
-  <view class="placeholder-text">功能开发中，敬请期待</view>
+  <!-- 头像 -->
+  <view class="avatar-section">
+    <image wx:if="{{avatarLoading}}" class="avatar avatar-placeholder" src="/assets/default_Illustration.png" mode="aspectFill" />
+    <image wx:else class="avatar" src="{{avatarUrl || '/assets/default_Illustration.png'}}" mode="aspectFill" />
+  </view>
+
+  <!-- 更换头像按钮 -->
+  <button class="change-avatar-btn" open-type="chooseAvatar" bindchooseavatar="onChooseAvatar">
+    更换头像
+  </button>
+
+  <!-- 用户信息卡片 -->
+  <view class="info-card">
+    <view class="info-row" bindtap="onEditNickname">
+      <text class="info-label">用户名</text>
+      <view class="info-value">
+        <text>{{nickName}}</text>
+        <dynamic-svg svg-class="arrow-icon" svgPath="/assets/go.svg" color="rgba(51, 51, 51, 0.6)" />
+      </view>
+    </view>
+    <view class="info-row" bindtap="onViewZhizhiId">
+      <text class="info-label">知织ID</text>
+      <view class="info-value">
+        <text>{{zhizhiId}}</text>
+        <dynamic-svg svg-class="arrow-icon" svgPath="/assets/go.svg" color="rgba(51, 51, 51, 0.6)" />
+      </view>
+    </view>
+  </view>
 </view>

@@ -1,0 +1,13 @@
+<view class="container">
+  <view class="input-card">
+    <input
+      class="nickname-input"
+      type="text"
+      placeholder="请输入用户名"
+      value="{{nickName}}"
+      bindinput="onInputChange"
+      maxlength="20"
+    />
+  </view>
+  <button class="save-btn" bindtap="onSave">保存</button>
+</view>
