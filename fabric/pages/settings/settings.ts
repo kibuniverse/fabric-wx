@@ -1,3 +1,9 @@
+// pages/settings/settings.ts
+
+// 本地头像存储 key
+const LOCAL_AVATAR_PATH_KEY = 'local_avatar_path';
+const LOCAL_AVATAR_FILE_ID_KEY = 'local_avatar_file_id';
+
 Page({
   data: {
     version: ''
@@ -19,6 +25,22 @@ Page({
   },
 
   onShow() {},
+
+  /**
+   * 清除本地头像存储
+   */
+  clearLocalAvatar() {
+    const localPath = wx.getStorageSync(LOCAL_AVATAR_PATH_KEY);
+    if (localPath) {
+      try {
+        wx.getFileSystemManager().unlinkSync(localPath);
+      } catch (e) {
+        console.warn('删除本地头像文件失败:', e);
+      }
+    }
+    wx.removeStorageSync(LOCAL_AVATAR_PATH_KEY);
+    wx.removeStorageSync(LOCAL_AVATAR_FILE_ID_KEY);
+  },
 
   /**
    * 个人资料修改
@@ -52,6 +74,8 @@ Page({
               // 清除账号相关的本地缓存
               wx.removeStorageSync('userInfo');
               wx.removeStorageSync('total_zhizhi_time');
+              // 清除本地头像文件
+              this.clearLocalAvatar();
 
               wx.showToast({ title: '账号已注销', icon: 'success' });
 

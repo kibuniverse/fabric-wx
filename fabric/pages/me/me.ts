@@ -1,4 +1,9 @@
 // pages/me/me.ts
+
+// 本地头像存储 key
+const LOCAL_AVATAR_PATH_KEY = 'local_avatar_path';
+const LOCAL_AVATAR_FILE_ID_KEY = 'local_avatar_file_id';
+
 Page({
   data: {
     statusBarHeight: 0, // 状态栏高度
@@ -19,6 +24,8 @@ Page({
 
   // 请求锁，防止并发重复请求
   _isRefreshingAvatar: false,
+  // 下载锁，防止并发下载
+  _isDownloadingAvatar: false,
 
   onLoad() {
     // 获取状态栏高度
@@ -116,6 +123,83 @@ Page({
   },
 
   /**
+   * 下载并保存头像到本地持久化存储
+   * @param fileID 云文件ID 或临时 URL
+   * @returns 本地文件路径，失败返回空字符串
+   */
+  async downloadAndSaveAvatar(fileID: string): Promise<string> {
+    if (this._isDownloadingAvatar) return '';
+    this._isDownloadingAvatar = true;
+
+    try {
+      let downloadUrl = fileID;
+
+      // 如果是 cloud:// 协议，先获取临时 URL
+      if (fileID.startsWith('cloud://')) {
+        const res = await wx.cloud.getTempFileURL({ fileList: [fileID] });
+        if (res.fileList?.[0]?.tempFileURL) {
+          downloadUrl = res.fileList[0].tempFileURL;
+        } else {
+          throw new Error('获取临时 URL 失败');
+        }
+      }
+
+      // 下载文件
+      const downloadRes = await wx.downloadFile({ url: downloadUrl });
+      if (downloadRes.statusCode !== 200) {
+        throw new Error('下载失败');
+      }
+
+      // 保存到本地持久化存储
+      const savedPath = await new Promise<string>((resolve, reject) => {
+        wx.getFileSystemManager().saveFile({
+          tempFilePath: downloadRes.tempFilePath,
+          success: (res) => resolve(res.savedFilePath),
+          fail: (err) => reject(err),
+        });
+      });
+
+      // 存储本地路径和对应的云文件 ID
+      wx.setStorageSync(LOCAL_AVATAR_PATH_KEY, savedPath);
+      if (fileID.startsWith('cloud://')) {
+        wx.setStorageSync(LOCAL_AVATAR_FILE_ID_KEY, fileID);
+      }
+
+      console.log('头像已保存到本地:', savedPath);
+      return savedPath;
+    } catch (e) {
+      console.error('下载并保存头像失败:', e);
+      return '';
+    } finally {
+      this._isDownloadingAvatar = false;
+    }
+  },
+
+  /**
+   * 获取本地头像路径
+   * @returns 本地头像路径，不存在返回空字符串
+   */
+  getLocalAvatarPath(): string {
+    return wx.getStorageSync(LOCAL_AVATAR_PATH_KEY) || '';
+  },
+
+  /**
+   * 清除本地头像存储
+   */
+  clearLocalAvatar() {
+    const localPath = wx.getStorageSync(LOCAL_AVATAR_PATH_KEY);
+    if (localPath) {
+      try {
+        wx.getFileSystemManager().unlinkSync(localPath);
+      } catch (e) {
+        console.warn('删除本地头像文件失败:', e);
+      }
+    }
+    wx.removeStorageSync(LOCAL_AVATAR_PATH_KEY);
+    wx.removeStorageSync(LOCAL_AVATAR_FILE_ID_KEY);
+  },
+
+  /**
    * 加载用户信息
    */
   async loadUserInfo() {
@@ -124,8 +208,15 @@ Page({
     if (userInfo && userInfo.isLoggedIn) {
       let avatarUrl = userInfo.avatarUrl || '';
 
-      // 处理 cloud:// 协议头像
-      if (avatarUrl.startsWith('cloud://')) {
+      // 优先使用本地持久化头像
+      const localAvatarPath = this.getLocalAvatarPath();
+      const localAvatarFileId = wx.getStorageSync(LOCAL_AVATAR_FILE_ID_KEY);
+
+      if (localAvatarPath && localAvatarFileId === avatarUrl) {
+        // 本地头像存在且与当前用户匹配，直接使用
+        avatarUrl = localAvatarPath;
+      } else if (avatarUrl.startsWith('cloud://')) {
+        // 本地头像不存在或不匹配，尝试从缓存或云端获取
         const cachedUrl = wx.getStorageSync(`avatar_url_${avatarUrl}`);
         const expireTime = wx.getStorageSync(`avatar_expire_${avatarUrl}`);
 
@@ -137,8 +228,8 @@ Page({
           if (cachedUrl) {
             avatarUrl = cachedUrl;
           }
-          // 后台静默刷新缓存，不显示占位图
-          this.refreshAvatarCache(userInfo.avatarUrl);
+          // 后台静默刷新缓存并下载到本地
+          this.refreshAndSaveAvatar(userInfo.avatarUrl);
         }
       }
 
@@ -178,6 +269,37 @@ Page({
   },
 
   /**
+   * 后台静默刷新缓存并下载保存头像到本地
+   */
+  async refreshAndSaveAvatar(fileID: string) {
+    if (this._isRefreshingAvatar || this._isDownloadingAvatar) return;
+    this._isRefreshingAvatar = true;
+
+    try {
+      const res = await wx.cloud.getTempFileURL({ fileList: [fileID] });
+      if (res.fileList?.[0]?.tempFileURL) {
+        const tempUrl = res.fileList[0].tempFileURL;
+        // 缓存临时 URL
+        wx.setStorageSync(`avatar_url_${fileID}`, tempUrl);
+        wx.setStorageSync(`avatar_expire_${fileID}`, Date.now() + 1.5 * 60 * 60 * 1000);
+        // 更新页面显示
+        this.setData({ avatarUrl: tempUrl });
+
+        // 后台下载保存到本地
+        this.downloadAndSaveAvatar(fileID).then((localPath) => {
+          if (localPath) {
+            this.setData({ avatarUrl: localPath });
+          }
+        });
+      }
+    } catch (e) {
+      console.error('刷新头像缓存失败:', e);
+    } finally {
+      this._isRefreshingAvatar = false;
+    }
+  },
+
+  /**
    * 从云端同步数据
    */
   async syncCloudData() {
@@ -201,8 +323,14 @@ Page({
         if (avatarUrl) {
           userInfo.avatarUrl = avatarUrl;
 
-          // 处理 cloud:// 协议头像
-          if (avatarUrl.startsWith('cloud://')) {
+          // 优先使用本地持久化头像
+          const localAvatarPath = this.getLocalAvatarPath();
+          const localAvatarFileId = wx.getStorageSync(LOCAL_AVATAR_FILE_ID_KEY);
+
+          if (localAvatarPath && localAvatarFileId === avatarUrl) {
+            // 本地头像存在且与云端匹配，直接使用
+            this.setData({ avatarUrl: localAvatarPath });
+          } else if (avatarUrl.startsWith('cloud://')) {
             const cachedUrl = wx.getStorageSync(`avatar_url_${avatarUrl}`);
             const expireTime = wx.getStorageSync(`avatar_expire_${avatarUrl}`);
 
@@ -213,8 +341,8 @@ Page({
               if (cachedUrl) {
                 this.setData({ avatarUrl: cachedUrl });
               }
-              // 后台静默刷新缓存
-              this.refreshAvatarCache(avatarUrl);
+              // 后台静默刷新缓存并下载到本地
+              this.refreshAndSaveAvatar(avatarUrl);
             }
           } else {
             this.setData({ avatarUrl });
@@ -280,12 +408,20 @@ Page({
       if (res.result && res.result.success && res.result.data) {
         // 云端有用户数据，直接登录
         const userData = res.result.data;
-        let avatarUrl = userData.avatarUrl || '';
+        const cloudAvatarUrl = userData.avatarUrl || '';
+        let avatarUrl = cloudAvatarUrl;
 
-        // 处理 cloud:// 协议头像
-        if (avatarUrl.startsWith('cloud://')) {
-          const cachedUrl = wx.getStorageSync(`avatar_url_${avatarUrl}`);
-          const expireTime = wx.getStorageSync(`avatar_expire_${avatarUrl}`);
+        // 优先使用本地持久化头像
+        const localAvatarPath = this.getLocalAvatarPath();
+        const localAvatarFileId = wx.getStorageSync(LOCAL_AVATAR_FILE_ID_KEY);
+
+        if (localAvatarPath && localAvatarFileId === cloudAvatarUrl) {
+          // 本地头像存在且与云端匹配，直接使用
+          avatarUrl = localAvatarPath;
+        } else if (cloudAvatarUrl.startsWith('cloud://')) {
+          // 本地头像不存在或不匹配，尝试从缓存获取
+          const cachedUrl = wx.getStorageSync(`avatar_url_${cloudAvatarUrl}`);
+          const expireTime = wx.getStorageSync(`avatar_expire_${cloudAvatarUrl}`);
 
           if (cachedUrl && expireTime && Date.now() < expireTime) {
             avatarUrl = cachedUrl;
@@ -294,13 +430,13 @@ Page({
             if (cachedUrl) {
               avatarUrl = cachedUrl;
             }
-            // 后台静默刷新缓存
-            this.refreshAvatarCache(userData.avatarUrl);
+            // 后台静默刷新缓存并下载到本地
+            this.refreshAndSaveAvatar(cloudAvatarUrl);
           }
         }
 
         const userInfo = {
-          avatarUrl: userData.avatarUrl || '',
+          avatarUrl: cloudAvatarUrl,
           nickName: userData.nickName || '微信用户',
           isLoggedIn: true,
           zhizhiId: userData.zhizhiId,
@@ -443,6 +579,15 @@ Page({
           isLoggedIn: true,
           zhizhiId: userData.zhizhiId,
         });
+
+        // 后台下载并保存头像到本地
+        if (finalAvatarUrl.startsWith('cloud://')) {
+          this.downloadAndSaveAvatar(finalAvatarUrl).then((localPath) => {
+            if (localPath) {
+              this.setData({ avatarUrl: localPath });
+            }
+          });
+        }
 
         // 加载总时长
         const totalTime = userData.totalKnittingTime || 0;
