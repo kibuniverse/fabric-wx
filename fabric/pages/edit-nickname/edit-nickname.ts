@@ -1,13 +1,33 @@
 Page({
   data: {
     nickName: '',
+    statusBarHeight: 44,
+    navBarHeight: 88,
+    inputTop: 0,
+    inputFocus: false,
   },
 
   onLoad() {
     const userInfo = wx.getStorageSync('userInfo') || {};
+    const systemInfo = wx.getWindowInfo();
+    const statusBarHeight = systemInfo.statusBarHeight || 44;
+
+    // container 的 padding-top = 导航栏高度，让内容从导航栏下方开始
+    // 然后用 CSS margin-top: 24px 让输入框与标题保持 24px 间距
+    const navBarHeight = statusBarHeight + 44;
+    const inputTop = navBarHeight;
+
     this.setData({
       nickName: userInfo.nickName || '',
+      statusBarHeight,
+      navBarHeight: statusBarHeight + 44,
+      inputTop,
+      inputFocus: true,
     });
+  },
+
+  onBack() {
+    wx.navigateBack();
   },
 
   onInputChange(e: WechatMiniprogram.Input) {

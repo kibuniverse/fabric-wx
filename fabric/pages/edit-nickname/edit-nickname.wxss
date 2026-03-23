@@ -1,28 +1,91 @@
 .container {
-  padding: 32rpx;
+  min-height: 100vh;
+  background: linear-gradient(to bottom, rgba(230, 230, 250, 0.1), white);
 }
 
-.input-card {
-  background: #FFFFFF;
+/* 自定义导航栏 */
+.nav-bar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  background: transparent;
+  z-index: 100;
+}
+
+.nav-content {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 44px;
+  position: relative;
+}
+
+.nav-back {
+  position: absolute;
+  left: 22px;
+  width: 64rpx;
+  height: 64rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.nav-title {
+  font-size: 32rpx;
+  font-weight: 500;
+  color: black;
+}
+
+/* 输入框区域 */
+.input-wrapper {
+  position: relative;
+  width: 100vw;
+  box-sizing: border-box;
+  margin-top: 24px;
+}
+
+.input-row {
+  position: relative;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.input-field {
+  /* 左边距22dp=44rpx，右边距77dp=154rpx */
+  margin-left: 44rpx;
+  margin-right: 154rpx;
+  display: flex;
+  align-items: center;
+  background: white;
   border-radius: 20rpx;
-  padding: 32rpx;
+  height: 80rpx;
+  padding: 0 24rpx;
+  box-sizing: border-box;
 }
 
 .nickname-input {
-  font-size: 32rpx;
-  color: #333333;
+  flex: 1;
+  font-size: 28rpx;
+  color: black;
 }
 
+.char-count {
+  font-size: 24rpx;
+  color: rgba(51, 51, 51, 0.6);
+  margin-left: 16rpx;
+}
+
+/* 保存按钮距离屏幕右侧 22dp = 44rpx */
 .save-btn {
-  margin-top: 48rpx;
-  background: #A889C8;
-  color: #FFFFFF;
-  border-radius: 44rpx;
-  font-size: 32rpx;
-  height: 88rpx;
-  line-height: 88rpx;
-}
-
-.save-btn::after {
-  border: none;
+  position: absolute;
+  right: 44rpx;
+  top: 0;
+  height: 80rpx;
+  display: flex;
+  align-items: center;
+  font-size: 28rpx;
+  font-weight: bold;
+  color: #333;
+  white-space: nowrap;
 }

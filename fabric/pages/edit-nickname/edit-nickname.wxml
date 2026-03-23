@@ -1,13 +1,30 @@
-<view class="container">
-  <view class="input-card">
-    <input
-      class="nickname-input"
-      type="text"
-      placeholder="请输入用户名"
-      value="{{nickName}}"
-      bindinput="onInputChange"
-      maxlength="20"
-    />
+<view class="container" style="padding-top: {{inputTop}}px;">
+  <!-- 自定义导航栏 -->
+  <view class="nav-bar" style="padding-top: {{statusBarHeight}}px;">
+    <view class="nav-content">
+      <view class="nav-back" bindtap="onBack">
+        <t-icon name="chevron-left" size="48rpx" color="#333333" />
+      </view>
+      <text class="nav-title">修改名字</text>
+    </view>
   </view>
-  <button class="save-btn" bindtap="onSave">保存</button>
+
+  <!-- 输入框区域 -->
+  <view class="input-wrapper">
+    <view class="input-row">
+      <view class="input-field">
+        <input
+          class="nickname-input"
+          type="text"
+          placeholder="请输入用户名"
+          value="{{nickName}}"
+          bindinput="onInputChange"
+          maxlength="20"
+          focus="{{inputFocus}}"
+        />
+        <text class="char-count">{{nickName.length}}/20</text>
+      </view>
+      <view class="save-btn" bindtap="onSave">保存</view>
+    </view>
+  </view>
 </view>

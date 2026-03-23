@@ -1,4 +1,1 @@
-{
-  "navigationBarTitleText": "修改用户名",
-  "usingComponents": {}
-}
+{"navigationStyle": "custom", "usingComponents": {"t-icon": "tdesign-miniprogram/icon/icon"}}
