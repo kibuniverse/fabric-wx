@@ -41,7 +41,7 @@
       <view class="operation-btn timer {{isTimerRunning ? 'timer-start' : 'timer-stop'}}" bindtap="toggleTimer">
         <image class="timer-icon" src="{{isTimerRunning ? '/assets/clock_colorful.svg' : '/assets/clock.svg'}}" />
       </view>
-      <view class="operation-btn reset" bindtap="showResetConfirm">
+      <view class="operation-btn reset" bindtap="showResetConfirm" bindlongpress="onResetLongPress">
         <image class="reset-icon" src="/assets/reset.svg" />
       </view>
     </view>

@@ -494,6 +494,54 @@ Component({
     showResetConfirm() {
       this.handleCountChange("reset");
     },
+
+    // 长按重置按钮显示菜单
+    onResetLongPress() {
+      wx.showActionSheet({
+        itemList: ['重置计时', '重置行数', '重置全部'],
+        success: (res) => {
+          switch (res.tapIndex) {
+            case 0:
+              this.resetTimer();
+              break;
+            case 1:
+              this.handleCountChange("reset");
+              break;
+            case 2:
+              this.resetAll();
+              break;
+          }
+        }
+      });
+    },
+
+    // 重置计时
+    resetTimer() {
+      this.clearTimer();
+      this.setData({
+        "counterData.timerState.elapsedTime": 0,
+        "counterData.timerState.startTimestamp": 0,
+        timerDisplay: "00:00:00",
+        isTimerRunning: false,
+      });
+      this.saveCounterData();
+      this.showToast("计时已重置");
+    },
+
+    // 重置全部（行数+计时）
+    resetAll() {
+      // 先重置计时
+      this.clearTimer();
+      this.setData({
+        "counterData.timerState.elapsedTime": 0,
+        "counterData.timerState.startTimestamp": 0,
+        timerDisplay: "00:00:00",
+        isTimerRunning: false,
+      });
+      // 再重置行数
+      this.updateCount(0, "重置全部");
+      this.showToast("已重置全部");
+    },
     getCurrentCount(): number {
       return this.data.counterData.currentCount;
     },
