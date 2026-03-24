@@ -47,49 +47,84 @@ Page({
   },
 
   /**
-   * 下载并保存头像到本地持久化存储
+   * 将临时文件保存到本地持久化存储
+   * @param tempFilePath 临时文件路径
+   * @param fileID 云文件ID
+   * @returns 本地文件路径，失败返回空字符串
    */
-  async downloadAndSaveAvatar(fileID: string): Promise<string> {
-    if (this._isDownloadingAvatar) return '';
-    this._isDownloadingAvatar = true;
-
+  saveLocalAvatarFromTemp(tempFilePath: string, fileID: string): string {
     try {
-      // 获取临时下载 URL
-      const res = await wx.cloud.getTempFileURL({ fileList: [fileID] });
-      const downloadUrl = res.fileList?.[0]?.tempFileURL;
-      if (!downloadUrl) {
-        throw new Error('获取临时URL失败');
-      }
-
-      // 下载文件
-      const downloadRes = await wx.downloadFile({ url: downloadUrl });
-      if (downloadRes.statusCode !== 200) {
-        throw new Error('下载失败');
-      }
+      // 先清除旧的本地头像
+      this.clearLocalAvatar();
 
       // 保存到本地持久化存储
-      const savedPath = await new Promise<string>((resolve, reject) => {
-        wx.getFileSystemManager().saveFile({
-          tempFilePath: downloadRes.tempFilePath,
-          success: (res) => resolve(res.savedFilePath),
-          fail: (err) => reject(err),
-        });
-      });
-
-      // 存储本地路径和对应的云文件 ID
-      wx.setStorageSync(LOCAL_AVATAR_PATH_KEY, savedPath);
-      wx.setStorageSync(LOCAL_AVATAR_FILE_ID_KEY, fileID);
-
-      return savedPath;
-    } catch (e) {
-      console.error('下载并保存头像失败:', e);
+      const savedPath = wx.getFileSystemManager().saveFileSync(tempFilePath);
+      if (savedPath) {
+        wx.setStorageSync(LOCAL_AVATAR_PATH_KEY, savedPath);
+        wx.setStorageSync(LOCAL_AVATAR_FILE_ID_KEY, fileID);
+        return savedPath;
+      }
       return '';
-    } finally {
-      this._isDownloadingAvatar = false;
+    } catch (e) {
+      console.error('保存本地头像失败:', e);
+      return '';
     }
   },
 
-  loadUserInfo() {
+  /**
+   * 下载并保存头像到本地持久化存储
+   * @param fileID 云文件ID
+   * @param retryCount 重试次数
+   * @returns 本地文件路径，失败返回空字符串
+   */
+  async downloadAndSaveAvatar(fileID: string, retryCount: number = 3): Promise<string> {
+    if (this._isDownloadingAvatar) return '';
+    this._isDownloadingAvatar = true;
+
+    for (let attempt = 1; attempt <= retryCount; attempt++) {
+      try {
+        // 获取临时下载 URL
+        const res = await wx.cloud.getTempFileURL({ fileList: [fileID] });
+        const downloadUrl = res.fileList?.[0]?.tempFileURL;
+        if (!downloadUrl) {
+          throw new Error('获取临时URL失败');
+        }
+
+        // 下载文件
+        const downloadRes = await wx.downloadFile({ url: downloadUrl });
+        if (downloadRes.statusCode !== 200) {
+          throw new Error('下载失败');
+        }
+
+        // 保存到本地持久化存储
+        const savedPath = await new Promise<string>((resolve, reject) => {
+          wx.getFileSystemManager().saveFile({
+            tempFilePath: downloadRes.tempFilePath,
+            success: (res) => resolve(res.savedFilePath),
+            fail: (err) => reject(err),
+          });
+        });
+
+        // 存储本地路径和对应的云文件 ID
+        wx.setStorageSync(LOCAL_AVATAR_PATH_KEY, savedPath);
+        wx.setStorageSync(LOCAL_AVATAR_FILE_ID_KEY, fileID);
+
+        this._isDownloadingAvatar = false;
+        return savedPath;
+      } catch (e) {
+        console.error(`下载头像失败 (尝试 ${attempt}/${retryCount}):`, e);
+        if (attempt < retryCount) {
+          // 等待一段时间后重试
+          await new Promise(resolve => setTimeout(resolve, 500 * attempt));
+        }
+      }
+    }
+
+    this._isDownloadingAvatar = false;
+    return '';
+  },
+
+  async loadUserInfo() {
     const userInfo = wx.getStorageSync('userInfo');
     if (!userInfo) return;
 
@@ -103,12 +138,11 @@ Page({
     if (localAvatarPath && localAvatarFileId === cloudAvatarUrl) {
       avatarUrl = localAvatarPath;
     } else if (cloudAvatarUrl.startsWith('cloud://')) {
-      // 后台下载头像
-      this.downloadAndSaveAvatar(cloudAvatarUrl).then((localPath) => {
-        if (localPath) {
-          this.setData({ avatarUrl: localPath });
-        }
-      });
+      // 本地头像不存在或不匹配，同步下载并保存
+      const downloadedPath = await this.downloadAndSaveAvatar(cloudAvatarUrl);
+      if (downloadedPath) {
+        avatarUrl = downloadedPath;
+      }
     }
 
     this.setData({
@@ -133,19 +167,16 @@ Page({
       });
 
       if (uploadResult.fileID) {
-        // 清除旧的本地头像文件
-        this.clearLocalAvatar();
+        // 直接将临时文件保存到本地持久化存储（不需要等待下载）
+        const localPath = this.saveLocalAvatarFromTemp(newAvatarPath, uploadResult.fileID);
 
         // 更新本地存储
         const userInfo = wx.getStorageSync('userInfo') || {};
         userInfo.avatarUrl = uploadResult.fileID;
         wx.setStorageSync('userInfo', userInfo);
 
-        // 下载并保存到本地
-        const localPath = await this.downloadAndSaveAvatar(uploadResult.fileID);
-        const displayUrl = localPath || newAvatarPath;
-
-        this.setData({ avatarUrl: displayUrl });
+        // 更新页面显示
+        this.setData({ avatarUrl: localPath || newAvatarPath });
 
         // 同步到云端
         const app = getApp<IAppOption>();

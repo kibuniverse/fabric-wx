@@ -72,48 +72,81 @@ Page({
   },
 
   /**
-   * 下载并保存头像到本地持久化存储
+   * 将临时文件保存到本地持久化存储
+   * @param tempFilePath 临时文件路径
    * @param fileID 云文件ID
    * @returns 本地文件路径，失败返回空字符串
    */
-  async downloadAndSaveAvatar(fileID: string): Promise<string> {
+  saveLocalAvatarFromTemp(tempFilePath: string, fileID: string): string {
+    try {
+      // 先清除旧的本地头像
+      this.clearLocalAvatar();
+
+      // 保存到本地持久化存储
+      const savedPath = wx.getFileSystemManager().saveFileSync(tempFilePath);
+      if (savedPath) {
+        wx.setStorageSync(LOCAL_AVATAR_PATH_KEY, savedPath);
+        wx.setStorageSync(LOCAL_AVATAR_FILE_ID_KEY, fileID);
+        return savedPath;
+      }
+      return '';
+    } catch (e) {
+      console.error('保存本地头像失败:', e);
+      return '';
+    }
+  },
+
+  /**
+   * 下载并保存头像到本地持久化存储
+   * @param fileID 云文件ID
+   * @param retryCount 重试次数
+   * @returns 本地文件路径，失败返回空字符串
+   */
+  async downloadAndSaveAvatar(fileID: string, retryCount: number = 3): Promise<string> {
     if (this._isDownloadingAvatar) return '';
     this._isDownloadingAvatar = true;
 
-    try {
-      // 获取临时下载 URL
-      const res = await wx.cloud.getTempFileURL({ fileList: [fileID] });
-      const downloadUrl = res.fileList?.[0]?.tempFileURL;
-      if (!downloadUrl) {
-        throw new Error('获取临时URL失败');
-      }
+    for (let attempt = 1; attempt <= retryCount; attempt++) {
+      try {
+        // 获取临时下载 URL
+        const res = await wx.cloud.getTempFileURL({ fileList: [fileID] });
+        const downloadUrl = res.fileList?.[0]?.tempFileURL;
+        if (!downloadUrl) {
+          throw new Error('获取临时URL失败');
+        }
 
-      // 下载文件
-      const downloadRes = await wx.downloadFile({ url: downloadUrl });
-      if (downloadRes.statusCode !== 200) {
-        throw new Error('下载失败');
-      }
+        // 下载文件
+        const downloadRes = await wx.downloadFile({ url: downloadUrl });
+        if (downloadRes.statusCode !== 200) {
+          throw new Error('下载失败');
+        }
 
-      // 保存到本地持久化存储
-      const savedPath = await new Promise<string>((resolve, reject) => {
-        wx.getFileSystemManager().saveFile({
-          tempFilePath: downloadRes.tempFilePath,
-          success: (res) => resolve(res.savedFilePath),
-          fail: (err) => reject(err),
+        // 保存到本地持久化存储
+        const savedPath = await new Promise<string>((resolve, reject) => {
+          wx.getFileSystemManager().saveFile({
+            tempFilePath: downloadRes.tempFilePath,
+            success: (res) => resolve(res.savedFilePath),
+            fail: (err) => reject(err),
+          });
         });
-      });
 
-      // 存储本地路径和对应的云文件 ID
-      wx.setStorageSync(LOCAL_AVATAR_PATH_KEY, savedPath);
-      wx.setStorageSync(LOCAL_AVATAR_FILE_ID_KEY, fileID);
+        // 存储本地路径和对应的云文件 ID
+        wx.setStorageSync(LOCAL_AVATAR_PATH_KEY, savedPath);
+        wx.setStorageSync(LOCAL_AVATAR_FILE_ID_KEY, fileID);
 
-      return savedPath;
-    } catch (e) {
-      console.error('下载并保存头像失败:', e);
-      return '';
-    } finally {
-      this._isDownloadingAvatar = false;
+        this._isDownloadingAvatar = false;
+        return savedPath;
+      } catch (e) {
+        console.error(`下载头像失败 (尝试 ${attempt}/${retryCount}):`, e);
+        if (attempt < retryCount) {
+          // 等待一段时间后重试
+          await new Promise(resolve => setTimeout(resolve, 500 * attempt));
+        }
+      }
     }
+
+    this._isDownloadingAvatar = false;
+    return '';
   },
 
   /**
@@ -133,12 +166,12 @@ Page({
         // 本地头像存在且匹配，直接使用
         avatarUrl = localAvatarPath;
       } else if (cloudAvatarUrl.startsWith('cloud://')) {
-        // 本地头像不存在或不匹配，后台下载
-        this.downloadAndSaveAvatar(cloudAvatarUrl).then((localPath) => {
-          if (localPath) {
-            this.setData({ avatarUrl: localPath });
-          }
-        });
+        // 本地头像不存在或不匹配，同步下载并保存
+        const downloadedPath = await this.downloadAndSaveAvatar(cloudAvatarUrl);
+        if (downloadedPath) {
+          avatarUrl = downloadedPath;
+        }
+        // 下载失败时，avatarUrl 保持空字符串，显示默认头像
       }
 
       this.setData({
@@ -163,9 +196,18 @@ Page({
           totalTimeHours: 0,
         });
       } else {
-        // 退出登录状态，显示之前保存的信息
+        // 退出登录状态，尝试使用本地缓存的头像
+        const localAvatarPath = this.getLocalAvatarPath();
+        const localAvatarFileId = wx.getStorageSync(LOCAL_AVATAR_FILE_ID_KEY);
+        const cloudAvatarUrl = userInfo.avatarUrl || '';
+
+        let avatarUrl = '';
+        if (localAvatarPath && localAvatarFileId === cloudAvatarUrl) {
+          avatarUrl = localAvatarPath;
+        }
+
         this.setData({
-          avatarUrl: userInfo.avatarUrl || '',
+          avatarUrl,
           nickName: userInfo.nickName || '微信用户',
           zhizhiId: '',
           totalTimeHours: 0,
@@ -209,12 +251,11 @@ Page({
       if (localAvatarPath && localAvatarFileId === cloudAvatarUrl) {
         this.setData({ avatarUrl: localAvatarPath });
       } else if (cloudAvatarUrl.startsWith('cloud://')) {
-        // 本地头像不存在或不匹配，后台下载
-        this.downloadAndSaveAvatar(cloudAvatarUrl).then((localPath) => {
-          if (localPath) {
-            this.setData({ avatarUrl: localPath });
-          }
-        });
+        // 本地头像不存在或不匹配，同步下载并保存
+        const downloadedPath = await this.downloadAndSaveAvatar(cloudAvatarUrl);
+        if (downloadedPath) {
+          this.setData({ avatarUrl: downloadedPath });
+        }
       }
     }
     wx.setStorageSync('userInfo', userInfo);
@@ -295,12 +336,11 @@ Page({
         if (localAvatarPath && localAvatarFileId === cloudAvatarUrl) {
           avatarUrl = localAvatarPath;
         } else if (cloudAvatarUrl.startsWith('cloud://')) {
-          // 后台下载头像
-          this.downloadAndSaveAvatar(cloudAvatarUrl).then((localPath) => {
-            if (localPath) {
-              this.setData({ avatarUrl: localPath });
-            }
-          });
+          // 本地头像不存在或不匹配，同步下载并保存
+          const downloadedPath = await this.downloadAndSaveAvatar(cloudAvatarUrl);
+          if (downloadedPath) {
+            avatarUrl = downloadedPath;
+          }
         }
 
         this.setData({
@@ -379,6 +419,7 @@ Page({
     try {
       // 上传头像到云存储
       let finalAvatarUrl = tempAvatarUrl;
+      let localAvatarPath = '';
 
       if (tempAvatarUrl.startsWith('wxfile://') || tempAvatarUrl.startsWith('http://tmp') || tempAvatarUrl.startsWith('https://tmp')) {
         const cloudPath = `avatars/${Date.now()}-${Math.random().toString(36).substr(2, 9)}.png`;
@@ -388,6 +429,8 @@ Page({
         });
         if (uploadResult.fileID) {
           finalAvatarUrl = uploadResult.fileID;
+          // 上传成功后，直接将临时文件保存到本地持久化存储
+          localAvatarPath = this.saveLocalAvatarFromTemp(tempAvatarUrl, uploadResult.fileID);
         }
       }
 
@@ -416,23 +459,14 @@ Page({
         };
         wx.setStorageSync('userInfo', userInfo);
 
-        // 更新页面数据
+        // 更新页面数据，优先使用本地持久化路径
         this.setData({
-          avatarUrl: tempAvatarUrl,
+          avatarUrl: localAvatarPath || tempAvatarUrl,
           nickName: tempNickName.trim(),
           showLoginDialog: false,
           isLoggedIn: true,
           zhizhiId: userData.zhizhiId,
         });
-
-        // 后台下载并保存头像到本地
-        if (finalAvatarUrl.startsWith('cloud://')) {
-          this.downloadAndSaveAvatar(finalAvatarUrl).then((localPath) => {
-            if (localPath) {
-              this.setData({ avatarUrl: localPath });
-            }
-          });
-        }
 
         // 加载总时长
         const totalTime = userData.totalKnittingTime || 0;
