@@ -44,6 +44,14 @@
       <view class="operation-btn reset" bindtap="showResetConfirm" bindlongpress="onResetLongPress">
         <image class="reset-icon" src="/assets/reset.svg" />
       </view>
+      <!-- 重置按钮引导气泡 -->
+      <view class="reset-guide {{showResetGuide ? 'show' : ''}}" catchtap="hideResetGuide">
+        <view class="reset-guide-content">
+          <text>长按可重置计时</text>
+          <text class="reset-guide-confirm">我知道了</text>
+        </view>
+        <view class="reset-guide-arrow"></view>
+      </view>
     </view>
   </view>
   <!-- 历史记录 -->

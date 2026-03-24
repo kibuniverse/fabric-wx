@@ -101,6 +101,7 @@ Component({
     showModifyCounterName: false, // 控制修改计数器名称的弹窗显示
     showModifyCount: false, // 控制修改当前行数的弹窗显示
     hasMemo: false,
+    showResetGuide: false, // 重置按钮引导气泡
   },
 
   lifetimes: {
@@ -115,6 +116,8 @@ Component({
           this.loadCounterData();
         }
       });
+      // 显示重置按钮引导气泡（仅首次）
+      this.showResetGuideIfNeeded();
     },
     detached() {
       this.stopTimer();
@@ -541,6 +544,24 @@ Component({
       // 再重置行数
       this.updateCount(0, "重置全部");
       this.showToast("已重置全部");
+    },
+
+    // 重置按钮引导气泡相关
+    showResetGuideIfNeeded() {
+      const GUIDE_SHOWN_KEY = 'counter_reset_guide_shown';
+      const hasShown = wx.getStorageSync(GUIDE_SHOWN_KEY);
+      if (!hasShown) {
+        this.setData({ showResetGuide: true });
+        // 标记已显示（点击确认后才消失）
+      }
+    },
+
+    hideResetGuide() {
+      if (this.data.showResetGuide) {
+        this.setData({ showResetGuide: false });
+        const GUIDE_SHOWN_KEY = 'counter_reset_guide_shown';
+        wx.setStorageSync(GUIDE_SHOWN_KEY, true);
+      }
     },
     getCurrentCount(): number {
       return this.data.counterData.currentCount;
