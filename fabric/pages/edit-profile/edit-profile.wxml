@@ -20,7 +20,7 @@
     <view class="info-row" bindtap="onViewZhizhiId">
       <text class="info-label">知织ID</text>
       <view class="info-value">
-        <text>{{zhizhiId}}</text>
+        <text class="zhizhi-id-text">{{zhizhiId}}</text>
         <dynamic-svg wx:if="{{!zhizhiIdModified}}" svg-class="arrow-icon" svgPath="/assets/go.svg" color="rgba(51, 51, 51, 0.6)" />
       </view>
     </view>

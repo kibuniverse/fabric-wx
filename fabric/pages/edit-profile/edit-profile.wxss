@@ -83,15 +83,19 @@
 .info-value {
   display: flex;
   align-items: center;
+  justify-content: flex-end;
   font-size: 28rpx;
   color: rgba(51, 51, 51, 0.6);
 }
 
-.nickname-text {
-  max-width: 210rpx; /* 6个字符宽度 */
+/* 用户名和知织ID文字区域，固定宽度确保对齐 */
+.nickname-text,
+.zhizhi-id-text {
+  width: 280rpx; /* 约10个字 */
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  text-align: right;
 }
 
 .arrow-icon {
