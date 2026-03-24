@@ -1,4 +1,5 @@
 {
+  "disableScroll": true,
   "navigationBarTitleText": "修改资料",
   "usingComponents": {
     "dynamic-svg": "/components/dynamic-svg/index"

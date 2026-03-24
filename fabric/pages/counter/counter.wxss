@@ -1,7 +1,7 @@
 /* pages/counter/counter.wxss */
 page {
   background-color: #ffffff;
-  /* height: calc(100% - var(--tab-bar-height) - env(safe-area-inset-bottom)); */
+  height: 100vh;
   --tab-font-size: 16px;
 }
 

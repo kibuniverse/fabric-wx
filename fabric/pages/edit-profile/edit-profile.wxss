@@ -1,5 +1,10 @@
+page {
+  min-height: 100vh;
+  background: linear-gradient(180deg, #E6E6FA 0%, #FFFFFF 100%);
+}
+
 .container {
-  padding-top: 44rpx; /* 22dp */
+  padding-top: 44rpx;
   padding-left: 44rpx;
   padding-right: 44rpx;
   display: flex;
