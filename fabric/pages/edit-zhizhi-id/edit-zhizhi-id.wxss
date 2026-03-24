@@ -29,7 +29,6 @@
   padding: 0 24rpx;
   box-sizing: border-box;
   flex: 1;
-  max-width: 582rpx;
 }
 
 .id-input {
@@ -54,7 +53,7 @@
   font-weight: bold;
   color: #333;
   white-space: nowrap;
-  margin-left: 24rpx;
+  margin-left: 44rpx; /* 22dp = 44rpx */
 }
 
 /* 提示列表 */

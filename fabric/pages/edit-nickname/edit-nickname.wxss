@@ -46,15 +46,14 @@
 }
 
 .input-row {
-  position: relative;
+  display: flex;
+  align-items: center;
   width: 100%;
   box-sizing: border-box;
+  padding: 0 44rpx;
 }
 
 .input-field {
-  /* 左边距22dp=44rpx，右边距77dp=154rpx */
-  margin-left: 44rpx;
-  margin-right: 154rpx;
   display: flex;
   align-items: center;
   background: white;
@@ -62,6 +61,7 @@
   height: 80rpx;
   padding: 0 24rpx;
   box-sizing: border-box;
+  flex: 1;
 }
 
 .nickname-input {
@@ -76,16 +76,13 @@
   margin-left: 16rpx;
 }
 
-/* 保存按钮距离屏幕右侧 22dp = 44rpx */
+/* 保存按钮距离编辑框右侧 22dp = 44rpx */
 .save-btn {
-  position: absolute;
-  right: 44rpx;
-  top: 0;
-  height: 80rpx;
   display: flex;
   align-items: center;
   font-size: 28rpx;
   font-weight: bold;
   color: #333;
   white-space: nowrap;
+  margin-left: 44rpx;
 }
