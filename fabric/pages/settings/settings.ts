@@ -104,7 +104,7 @@ Page({
    */
   onUserAgreement() {
     wx.navigateTo({
-      url: '/pages/webview/webview?type=userAgreement&title=用户协议'
+      url: '/pages/agreement/agreement?type=userAgreement'
     });
   },
 
@@ -113,7 +113,7 @@ Page({
    */
   onPrivacyPolicy() {
     wx.navigateTo({
-      url: '/pages/webview/webview?type=privacyPolicy&title=隐私政策'
+      url: '/pages/agreement/agreement?type=privacyPolicy'
     });
   },
 

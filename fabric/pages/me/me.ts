@@ -667,16 +667,18 @@ Page({
    * 点击用户协议
    */
   onUserAgreement() {
-    // TODO: 跳转到用户协议页面
-    wx.showToast({ title: '用户协议页面待实现', icon: 'none' });
+    wx.navigateTo({
+      url: '/pages/agreement/agreement?type=userAgreement'
+    });
   },
 
   /**
    * 点击隐私政策
    */
   onPrivacyPolicy() {
-    // TODO: 跳转到隐私政策页面
-    wx.showToast({ title: '隐私政策页面待实现', icon: 'none' });
+    wx.navigateTo({
+      url: '/pages/agreement/agreement?type=privacyPolicy'
+    });
   },
 
   /**

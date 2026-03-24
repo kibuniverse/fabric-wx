@@ -11,6 +11,7 @@
     "pages/edit-profile/edit-profile",
     "pages/edit-nickname/edit-nickname",
     "pages/edit-zhizhi-id/edit-zhizhi-id",
+    "pages/agreement/agreement",
     "pages/webview/webview"
   ],
   "window": {
