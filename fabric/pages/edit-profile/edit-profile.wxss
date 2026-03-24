@@ -7,6 +7,22 @@
   align-items: center;
 }
 
+/* 头像按钮容器 - 清除 button 默认样式 */
+.avatar-btn-wrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 0;
+  margin: 0;
+  background: transparent;
+  border: none;
+  line-height: normal;
+}
+
+.avatar-btn-wrapper::after {
+  border: none;
+}
+
 /* 头像 80*80dp = 160rpx */
 .avatar-section {
   width: 160rpx;
@@ -27,20 +43,12 @@
   opacity: 0.6;
 }
 
-/* 更换头像按钮 */
-.change-avatar-btn {
+/* 更换头像文字 */
+.change-avatar-text {
   margin-top: 36rpx;
-  margin-bottom: 0;
-  background: transparent;
-  border: none;
-  padding: 0;
   font-size: 32rpx;
   font-weight: 500;
   color: #333333;
-}
-
-.change-avatar-btn::after {
-  border: none;
 }
 
 /* 用户信息卡片 */

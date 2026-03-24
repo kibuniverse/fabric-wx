@@ -145,7 +145,7 @@ Page({
       }
 
       // 下载文件
-      const downloadRes = await wx.downloadFile({ url: downloadUrl });
+      const downloadRes = (await wx.downloadFile({ url: downloadUrl })) as WechatMiniprogram.DownloadFileSuccessCallbackResult;
       if (downloadRes.statusCode !== 200) {
         throw new Error('下载失败');
       }

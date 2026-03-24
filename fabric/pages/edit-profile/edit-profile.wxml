@@ -1,13 +1,11 @@
 <view class="container">
-  <!-- 头像 -->
-  <view class="avatar-section">
-    <image wx:if="{{avatarLoading}}" class="avatar avatar-placeholder" src="/assets/default_avatar.jpg" mode="aspectFill" />
-    <image wx:else class="avatar" src="{{avatarUrl || '/assets/default_avatar.jpg'}}" mode="aspectFill" />
-  </view>
-
-  <!-- 更换头像按钮 -->
-  <button class="change-avatar-btn" open-type="chooseAvatar" bindchooseavatar="onChooseAvatar">
-    更换头像
+  <!-- 头像区域（点击头像或文字都可更换） -->
+  <button class="avatar-btn-wrapper" open-type="chooseAvatar" bindchooseavatar="onChooseAvatar">
+    <view class="avatar-section">
+      <image wx:if="{{avatarLoading}}" class="avatar avatar-placeholder" src="/assets/default_avatar.jpg" mode="aspectFill" />
+      <image wx:else class="avatar" src="{{avatarUrl || '/assets/default_avatar.jpg'}}" mode="aspectFill" />
+    </view>
+    <text class="change-avatar-text">更换头像</text>
   </button>
 
   <!-- 用户信息卡片 -->
