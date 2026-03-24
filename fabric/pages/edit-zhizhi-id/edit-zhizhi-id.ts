@@ -103,25 +103,40 @@ Page({
     wx.showLoading({ title: '保存中...', mask: true });
 
     try {
+      // 保存旧的知织ID用于回滚
       const userInfo = wx.getStorageSync('userInfo') || {};
+      const oldZhizhiId = userInfo.zhizhiId;
+      const oldZhizhiIdModified = userInfo.zhizhiIdModified;
+
+      // 先更新本地
       userInfo.zhizhiId = newId;
       userInfo.zhizhiIdModified = true;
       wx.setStorageSync('userInfo', userInfo);
 
+      // 同步到云端
       const app = getApp<IAppOption>();
       if (app) {
-        await app.syncToCloud(0);
+        const syncSuccess = await app.syncToCloud(0);
+        if (!syncSuccess) {
+          // 云端同步失败，回滚本地
+          userInfo.zhizhiId = oldZhizhiId;
+          userInfo.zhizhiIdModified = oldZhizhiIdModified;
+          wx.setStorageSync('userInfo', userInfo);
+          wx.hideLoading();
+          wx.showToast({ title: '网络异常，保存失败', icon: 'none' });
+          return;
+        }
       }
 
+      wx.hideLoading();
       wx.showToast({ title: '保存成功', icon: 'success' });
       setTimeout(() => {
         wx.navigateBack();
       }, 500);
     } catch (error) {
       console.error('保存知织ID失败:', error);
-      wx.showToast({ title: '保存失败', icon: 'none' });
-    } finally {
       wx.hideLoading();
+      wx.showToast({ title: '保存失败', icon: 'none' });
     }
   },
 });
