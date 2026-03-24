@@ -9,6 +9,7 @@ Page({
     avatarUrl: '',
     nickName: '',
     zhizhiId: '',
+    zhizhiIdModified: false,
     avatarLoading: false,
   },
 
@@ -128,6 +129,7 @@ Page({
         avatarUrl,
         nickName: userInfo.nickName || '微信用户',
         zhizhiId: userInfo.zhizhiId || '',
+        zhizhiIdModified: userInfo.zhizhiIdModified || false,
       });
     }
   },
@@ -232,6 +234,10 @@ Page({
   },
 
   onViewZhizhiId() {
+    if (this.data.zhizhiIdModified) {
+      wx.showToast({ title: '知织ID仅允许修改一次', icon: 'none' });
+      return;
+    }
     wx.navigateTo({
       url: '/pages/edit-zhizhi-id/edit-zhizhi-id',
     });

@@ -85,6 +85,21 @@ Page({
       return;
     }
 
+    // 弹窗确认
+    wx.showModal({
+      title: '确认修改',
+      content: `是否确认要将知织ID修改为「${newId}」？\n\n知织ID只能修改一次，请谨慎操作。`,
+      confirmText: '确认修改',
+      confirmColor: '#333333',
+      success: (res) => {
+        if (res.confirm) {
+          this.doSave(newId);
+        }
+      },
+    });
+  },
+
+  async doSave(newId: string) {
     wx.showLoading({ title: '保存中...', mask: true });
 
     try {

@@ -15,6 +15,8 @@ exports.main = async (event, context) => {
 
   const { totalKnittingTime, nickName, avatarUrl, zhizhiId, zhizhiIdModified } = event
 
+  console.log('syncData 接收参数:', { totalKnittingTime, nickName, avatarUrl, zhizhiId, zhizhiIdModified })
+
   try {
     // 查询用户（兼容旧数据：先查 openid，再查 _openid）
     let userResult = await usersCollection.where({
@@ -36,6 +38,8 @@ exports.main = async (event, context) => {
     }
 
     const user = userResult.data[0]
+    console.log('云端用户数据:', { zhizhiId: user.zhizhiId, zhizhiIdModified: user.zhizhiIdModified })
+
     const updateData = {
       updatedAt: db.serverDate()
     }
@@ -56,9 +60,11 @@ exports.main = async (event, context) => {
     }
 
     // 更新知织ID（仅在首次设置时更新）
+    console.log('知织ID更新条件检查:', { zhizhiId, userZhizhiIdModified: user.zhizhiIdModified, willUpdate: zhizhiId && !user.zhizhiIdModified })
     if (zhizhiId && !user.zhizhiIdModified) {
       updateData.zhizhiId = zhizhiId
       updateData.zhizhiIdModified = true
+      console.log('将更新知织ID:', zhizhiId)
     }
 
     // 执行更新
@@ -71,7 +77,9 @@ exports.main = async (event, context) => {
       data: {
         totalKnittingTime: updateData.totalKnittingTime || user.totalKnittingTime,
         nickName: updateData.nickName || user.nickName,
-        avatarUrl: updateData.avatarUrl || user.avatarUrl
+        avatarUrl: updateData.avatarUrl || user.avatarUrl,
+        zhizhiId: updateData.zhizhiId || user.zhizhiId,
+        zhizhiIdModified: updateData.zhizhiIdModified !== undefined ? updateData.zhizhiIdModified : user.zhizhiIdModified
       }
     }
 
