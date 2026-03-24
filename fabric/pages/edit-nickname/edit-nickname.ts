@@ -64,14 +64,6 @@ Page({
       return;
     }
 
-    // 检查是否包含禁止字符
-    // 允许：中文（含繁体）、英文字母、数字、下划线、中间点（·）
-    const allowedPattern = /^[\u4e00-\u9fa5\u3400-\u4dbf\uf900-\ufaffa-zA-Z0-9_·]+$/;
-    if (!allowedPattern.test(newNickName)) {
-      wx.showToast({ title: '用户名仅支持中文、字母、数字、下划线和·', icon: 'none' });
-      return;
-    }
-
     // 检查长度（trim后再检查，因为用户可能输入全为空格）
     if (newNickName.length > 20) {
       wx.showToast({ title: '用户名不能超过20个字符', icon: 'none' });
