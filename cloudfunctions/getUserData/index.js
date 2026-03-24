@@ -40,6 +40,7 @@ exports.main = async (event, context) => {
       success: true,
       data: {
         zhizhiId: user.zhizhiId,
+        zhizhiIdModified: user.zhizhiIdModified || false,
         nickName: user.nickName,
         avatarUrl: user.avatarUrl,
         totalKnittingTime: user.totalKnittingTime || 0,

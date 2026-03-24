@@ -9,6 +9,6 @@ interface IAppOption {
   userInfoReadyCallback?: WechatMiniprogram.GetUserInfoSuccessCallback,
   addKnittingTime(elapsedMs: number): void,
   getTotalKnittingTime(): number,
-  syncFromCloud(): Promise<{ totalKnittingTime: number; zhizhiId: string; nickName: string; avatarUrl: string } | null>,
+  syncFromCloud(): Promise<{ totalKnittingTime: number; zhizhiId: string; zhizhiIdModified: boolean; nickName: string; avatarUrl: string } | null>,
   syncToCloud(elapsedMs?: number): Promise<boolean>,
 }

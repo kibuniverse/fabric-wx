@@ -1,40 +1,84 @@
 .container {
-  padding: 32rpx;
+  min-height: 100vh;
+  background: linear-gradient(to bottom, rgba(230, 230, 250, 0.1), white);
+  padding-top: 20rpx;
 }
 
-.info-card {
-  background: #FFFFFF;
+/* 输入框区域 */
+.input-wrapper {
+  position: relative;
+  width: 100vw;
+  box-sizing: border-box;
+}
+
+.input-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  box-sizing: border-box;
+  padding: 0 44rpx;
+}
+
+.input-field {
+  display: flex;
+  align-items: center;
+  background: white;
   border-radius: 20rpx;
+  height: 80rpx;
+  padding: 0 24rpx;
+  box-sizing: border-box;
+  flex: 1;
+  max-width: 582rpx;
 }
 
-.info-row {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 32rpx;
-}
-
-.info-label {
-  font-size: 32rpx;
-  color: #333333;
-}
-
-.info-value {
-  display: flex;
-  align-items: center;
-  font-size: 32rpx;
-  color: rgba(51, 51, 51, 0.6);
-}
-
-.copy-btn {
-  margin-left: 16rpx;
+.id-input {
+  flex: 1;
   font-size: 28rpx;
-  color: #A889C8;
+  color: black;
+  padding-left: 20rpx;
 }
 
-.tip {
+.char-count {
+  font-size: 24rpx;
+  color: rgba(51, 51, 51, 0.6);
+  margin-left: 16rpx;
+  white-space: nowrap;
+}
+
+/* 保存按钮 */
+.save-btn {
+  display: flex;
+  align-items: center;
+  font-size: 28rpx;
+  font-weight: bold;
+  color: #333;
+  white-space: nowrap;
+  margin-left: 24rpx;
+}
+
+/* 提示列表 */
+.tips-section {
   margin-top: 24rpx;
-  font-size: 26rpx;
-  color: rgba(51, 51, 51, 0.4);
-  text-align: center;
+  padding-left: 84rpx;
+  padding-right: 42rpx;
+}
+
+.tip-item {
+  display: flex;
+  align-items: flex-start;
+  margin-bottom: 8rpx;
+}
+
+.tip-bullet {
+  font-size: 24rpx;
+  color: rgba(51, 51, 51, 0.6);
+  margin-right: 8rpx;
+  line-height: 44rpx;
+}
+
+.tip-text {
+  font-size: 24rpx;
+  color: rgba(51, 51, 51, 0.6);
+  line-height: 44rpx;
 }

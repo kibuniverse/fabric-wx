@@ -15,7 +15,7 @@
     <view class="info-row" bindtap="onEditNickname">
       <text class="info-label">用户名</text>
       <view class="info-value">
-        <text>{{nickName}}</text>
+        <text class="nickname-text">{{nickName}}</text>
         <dynamic-svg svg-class="arrow-icon" svgPath="/assets/go.svg" color="rgba(51, 51, 51, 0.6)" />
       </view>
     </view>

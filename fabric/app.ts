@@ -46,14 +46,14 @@ App<IAppOption>({
   /**
    * 从云端同步用户数据到本地
    */
-  async syncFromCloud(): Promise<{ totalKnittingTime: number; zhizhiId: string; nickName: string; avatarUrl: string } | null> {
+  async syncFromCloud(): Promise<{ totalKnittingTime: number; zhizhiId: string; zhizhiIdModified: boolean; nickName: string; avatarUrl: string } | null> {
     try {
       const res = await wx.cloud.callFunction({
         name: 'getUserData',
       }) as any
 
       if (res.result && res.result.success && res.result.data) {
-        const { totalKnittingTime, zhizhiId, nickName, avatarUrl } = res.result.data
+        const { totalKnittingTime, zhizhiId, zhizhiIdModified, nickName, avatarUrl } = res.result.data
 
         // 更新全局数据
         this.globalData.totalKnittingTime = totalKnittingTime || 0
@@ -61,7 +61,7 @@ App<IAppOption>({
         // 更新本地存储
         wx.setStorageSync('total_zhizhi_time', totalKnittingTime || 0)
 
-        return { totalKnittingTime, zhizhiId, nickName, avatarUrl }
+        return { totalKnittingTime, zhizhiId, zhizhiIdModified, nickName, avatarUrl }
       }
       return null
     } catch (error) {
@@ -90,6 +90,8 @@ App<IAppOption>({
           totalKnittingTime: elapsedMs > 0 ? elapsedMs : 0,
           nickName: userInfo.nickName,
           avatarUrl: userInfo.avatarUrl,
+          zhizhiId: userInfo.zhizhiId,
+          zhizhiIdModified: userInfo.zhizhiIdModified,
         },
       }) as any
 

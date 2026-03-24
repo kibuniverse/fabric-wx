@@ -4,7 +4,7 @@ Page({
     statusBarHeight: 44,
     navBarHeight: 88,
     inputTop: 0,
-    inputFocus: false,
+    cursor: -1,
   },
 
   onLoad() {
@@ -17,13 +17,28 @@ Page({
     const navBarHeight = statusBarHeight + 44;
     const inputTop = navBarHeight;
 
+    const nickName = userInfo.nickName || '';
     this.setData({
-      nickName: userInfo.nickName || '',
+      nickName,
       statusBarHeight,
       navBarHeight: statusBarHeight + 44,
       inputTop,
-      inputFocus: true,
     });
+  },
+
+  onInputFocus() {
+    const len = this.data.nickName.length;
+    if (len > 0) {
+      this.setData({
+        cursor: len,
+      });
+      // 短暂延迟后恢复正常模式
+      setTimeout(() => {
+        this.setData({
+          cursor: -1,
+        });
+      }, 50);
+    }
   },
 
   onBack() {

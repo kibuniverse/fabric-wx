@@ -382,12 +382,15 @@
   display: flex;
   flex-direction: column;
   margin-left: 24rpx;
+  max-width: 478rpx; /* 750rpx - 44rpx(左侧padding) - 160rpx(头像) - 24rpx(间距) - 44rpx(右侧距离) = 478rpx */
 }
 
 .nickname-large {
   font-size: 40rpx; /* 20pt = 40rpx */
   font-weight: bold;
   color: #333333;
+  word-wrap: break-word;
+  word-break: break-all;
 }
 
 .zhizhi-id {

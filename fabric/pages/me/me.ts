@@ -307,7 +307,7 @@ Page({
     if (app) {
       const result = await app.syncFromCloud();
       if (result) {
-        const { totalKnittingTime, zhizhiId, nickName, avatarUrl } = result;
+        const { totalKnittingTime, zhizhiId, zhizhiIdModified, nickName, avatarUrl } = result;
         const hours = Math.floor((totalKnittingTime || 0) / 3600000);
 
         // 更新页面数据
@@ -319,6 +319,7 @@ Page({
         // 更新本地存储的用户信息
         const userInfo = wx.getStorageSync('userInfo') || {};
         if (zhizhiId) userInfo.zhizhiId = zhizhiId;
+        if (zhizhiIdModified !== undefined) userInfo.zhizhiIdModified = zhizhiIdModified;
         if (nickName) userInfo.nickName = nickName;
         if (avatarUrl) {
           userInfo.avatarUrl = avatarUrl;
@@ -440,6 +441,7 @@ Page({
           nickName: userData.nickName || '微信用户',
           isLoggedIn: true,
           zhizhiId: userData.zhizhiId,
+          zhizhiIdModified: userData.zhizhiIdModified || false,
         };
         wx.setStorageSync('userInfo', userInfo);
 
@@ -568,6 +570,7 @@ Page({
           nickName: tempNickName.trim(),
           isLoggedIn: true,
           zhizhiId: userData.zhizhiId,
+          zhizhiIdModified: userData.zhizhiIdModified || false,
         };
         wx.setStorageSync('userInfo', userInfo);
 

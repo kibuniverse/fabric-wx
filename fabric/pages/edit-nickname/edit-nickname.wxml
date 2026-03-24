@@ -19,8 +19,9 @@
           placeholder="请输入用户名"
           value="{{nickName}}"
           bindinput="onInputChange"
+          bindfocus="onInputFocus"
           maxlength="20"
-          focus="{{inputFocus}}"
+          cursor="{{cursor}}"
         />
         <text class="char-count">{{nickName.length}}/20</text>
       </view>

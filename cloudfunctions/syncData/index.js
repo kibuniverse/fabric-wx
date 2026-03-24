@@ -13,7 +13,7 @@ exports.main = async (event, context) => {
   const wxContext = cloud.getWXContext()
   const openid = wxContext.OPENID
 
-  const { totalKnittingTime, nickName, avatarUrl } = event
+  const { totalKnittingTime, nickName, avatarUrl, zhizhiId, zhizhiIdModified } = event
 
   try {
     // 查询用户（兼容旧数据：先查 openid，再查 _openid）
@@ -53,6 +53,12 @@ exports.main = async (event, context) => {
     // 更新头像
     if (avatarUrl) {
       updateData.avatarUrl = avatarUrl
+    }
+
+    // 更新知织ID（仅在首次设置时更新）
+    if (zhizhiId && !user.zhizhiIdModified) {
+      updateData.zhizhiId = zhizhiId
+      updateData.zhizhiIdModified = true
     }
 
     // 执行更新

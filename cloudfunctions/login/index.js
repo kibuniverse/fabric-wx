@@ -100,7 +100,8 @@ exports.main = async (event, context) => {
           isNewUser: false,
           data: {
             ...existingUser,
-            ...updateData
+            ...updateData,
+            zhizhiIdModified: existingUser.zhizhiIdModified || false
           }
         }
       }
@@ -108,7 +109,10 @@ exports.main = async (event, context) => {
       return {
         success: true,
         isNewUser: false,
-        data: existingUser
+        data: {
+          ...existingUser,
+          zhizhiIdModified: existingUser.zhizhiIdModified || false
+        }
       }
     }
 
@@ -119,6 +123,7 @@ exports.main = async (event, context) => {
     const newUserData = {
       openid,  // 显式保存 openid
       zhizhiId,
+      zhizhiIdModified: false, // 新用户未修改过ID
       nickName: nickName || '微信用户',
       avatarUrl: avatarUrl || '',
       totalKnittingTime: 0, // 总针织时长（毫秒）

@@ -1,12 +1,41 @@
 <view class="container">
-  <view class="info-card">
-    <view class="info-row">
-      <text class="info-label">知织ID</text>
-      <view class="info-value" bindtap="onCopyId">
-        <text>{{zhizhiId}}</text>
-        <text class="copy-btn">复制</text>
+  <!-- 输入框区域 -->
+  <view class="input-wrapper">
+    <view class="input-row">
+      <view class="input-field">
+        <input
+          class="id-input"
+          type="text"
+          placeholder="请输入知织ID"
+          value="{{zhizhiId}}"
+          bindinput="onInputChange"
+          bindfocus="onInputFocus"
+          maxlength="20"
+          cursor="{{cursor}}"
+        />
+        <text class="char-count">{{zhizhiId.length}}/20</text>
+      </view>
+      <view class="save-btn" bindtap="onSave">保存</view>
+    </view>
+
+    <!-- 提示列表 -->
+    <view class="tips-section">
+      <view class="tip-item">
+        <text class="tip-bullet">•</text>
+        <text class="tip-text">知织ID具有唯一性，仅允许修改一次，请谨慎修改</text>
+      </view>
+      <view class="tip-item">
+        <text class="tip-bullet">•</text>
+        <text class="tip-text">知织ID会作为图解水印展示</text>
+      </view>
+      <view class="tip-item">
+        <text class="tip-bullet">•</text>
+        <text class="tip-text">仅支持中文、英文字母、数字、下划线</text>
+      </view>
+      <view class="tip-item">
+        <text class="tip-bullet">•</text>
+        <text class="tip-text">最少为4个字符，最多为20个字符</text>
       </view>
     </view>
   </view>
-  <view class="tip">知织ID是您的唯一标识，可用于好友搜索</view>
 </view>
