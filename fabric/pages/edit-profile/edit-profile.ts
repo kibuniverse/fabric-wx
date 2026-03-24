@@ -171,8 +171,7 @@ Page({
     const userInfo = wx.getStorageSync('userInfo') || {};
     const oldAvatarUrl = userInfo.avatarUrl;
 
-    // 显示加载状态
-    this.setData({ avatarLoading: true });
+    // 注意：不设置 avatarLoading，保持旧头像显示直到新头像准备好
     wx.showLoading({ title: '上传中...', mask: true });
 
     try {
@@ -208,7 +207,8 @@ Page({
         const localPath = await this.downloadAndSaveAvatar(uploadResult.fileID);
         const displayUrl = localPath || tempUrl;
 
-        this.setData({ avatarUrl: displayUrl, avatarLoading: false });
+        // 新头像准备好后，再更新页面显示
+        this.setData({ avatarUrl: displayUrl });
 
         // 同步到云端
         const app = getApp<IAppOption>();
@@ -220,7 +220,6 @@ Page({
       }
     } catch (error) {
       console.error('上传头像失败:', error);
-      this.setData({ avatarLoading: false });
       wx.showToast({ title: '上传失败', icon: 'none' });
     } finally {
       wx.hideLoading();
