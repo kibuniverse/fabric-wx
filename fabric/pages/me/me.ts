@@ -19,11 +19,8 @@ Page({
     totalTimeHours: 24, // 知织总时长（小时），默认24
     zhizhiId: '', // 知织号（9位唯一ID）
     isLoggingIn: false, // 是否正在登录中
-    avatarLoading: false, // 头像是否正在加载中
   },
 
-  // 请求锁，防止并发重复请求
-  _isRefreshingAvatar: false,
   // 下载锁，防止并发下载
   _isDownloadingAvatar: false,
 
@@ -52,132 +49,7 @@ Page({
   },
 
   /**
-   * 获取头像临时 URL 并缓存（带重试机制）
-   * cloud:// 协议需要转换为 https:// 临时 URL 才能直接加载
-   * @param fileID 云文件ID
-   * @param retryCount 当前重试次数
-   */
-  async getAvatarTempUrl(fileID: string, retryCount: number = 0) {
-    const MAX_RETRY = 3;
-    try {
-      const res = await wx.cloud.getTempFileURL({ fileList: [fileID] });
-      if (res.fileList?.[0]?.tempFileURL) {
-        const tempUrl = res.fileList[0].tempFileURL;
-        // 缓存临时 URL（有效期 2 小时，设为 1.5 小时留余量）
-        wx.setStorageSync(`avatar_url_${fileID}`, tempUrl);
-        wx.setStorageSync(`avatar_expire_${fileID}`, Date.now() + 1.5 * 60 * 60 * 1000);
-        this.setData({ avatarUrl: tempUrl, avatarLoading: false });
-      } else {
-        this.setData({ avatarLoading: false });
-      }
-    } catch (e) {
-      console.error('获取头像临时 URL 失败:', e);
-      // 重试逻辑
-      if (retryCount < MAX_RETRY) {
-        console.log(`重试获取头像临时 URL (${retryCount + 1}/${MAX_RETRY})...`);
-        setTimeout(() => {
-          this.getAvatarTempUrl(fileID, retryCount + 1);
-        }, 1000 * (retryCount + 1)); // 递增延迟
-      } else {
-        this.setData({ avatarLoading: false });
-      }
-    }
-  },
-
-  /**
-   * 静默刷新头像缓存（后台刷新，不显示占位图）
-   * @param fileID 云文件ID
-   * @param retryCount 当前重试次数
-   */
-  async refreshAvatarCache(fileID: string, retryCount: number = 0) {
-    // 防止并发重复请求
-    if (this._isRefreshingAvatar) return;
-    this._isRefreshingAvatar = true;
-
-    const MAX_RETRY = 3;
-    try {
-      const res = await wx.cloud.getTempFileURL({ fileList: [fileID] });
-      if (res.fileList?.[0]?.tempFileURL) {
-        const tempUrl = res.fileList[0].tempFileURL;
-        // 缓存临时 URL
-        wx.setStorageSync(`avatar_url_${fileID}`, tempUrl);
-        wx.setStorageSync(`avatar_expire_${fileID}`, Date.now() + 1.5 * 60 * 60 * 1000);
-        // 更新页面显示
-        this.setData({ avatarUrl: tempUrl });
-      }
-    } catch (e) {
-      console.error('静默刷新头像缓存失败:', e);
-      // 重试逻辑
-      if (retryCount < MAX_RETRY) {
-        console.log(`重试刷新头像缓存 (${retryCount + 1}/${MAX_RETRY})...`);
-        setTimeout(() => {
-          this._isRefreshingAvatar = false; // 重置锁以便重试
-          this.refreshAvatarCache(fileID, retryCount + 1);
-          return;
-        }, 1000 * (retryCount + 1));
-      }
-      // 重试失败，保留显示旧头像，不下沉到占位图
-    } finally {
-      this._isRefreshingAvatar = false;
-    }
-  },
-
-  /**
-   * 下载并保存头像到本地持久化存储
-   * @param fileID 云文件ID 或临时 URL
-   * @returns 本地文件路径，失败返回空字符串
-   */
-  async downloadAndSaveAvatar(fileID: string): Promise<string> {
-    if (this._isDownloadingAvatar) return '';
-    this._isDownloadingAvatar = true;
-
-    try {
-      let downloadUrl = fileID;
-
-      // 如果是 cloud:// 协议，先获取临时 URL
-      if (fileID.startsWith('cloud://')) {
-        const res = await wx.cloud.getTempFileURL({ fileList: [fileID] });
-        if (res.fileList?.[0]?.tempFileURL) {
-          downloadUrl = res.fileList[0].tempFileURL;
-        } else {
-          throw new Error('获取临时 URL 失败');
-        }
-      }
-
-      // 下载文件
-      const downloadRes = (await wx.downloadFile({ url: downloadUrl })) as WechatMiniprogram.DownloadFileSuccessCallbackResult;
-      if (downloadRes.statusCode !== 200) {
-        throw new Error('下载失败');
-      }
-
-      // 保存到本地持久化存储
-      const savedPath = await new Promise<string>((resolve, reject) => {
-        wx.getFileSystemManager().saveFile({
-          tempFilePath: downloadRes.tempFilePath,
-          success: (res) => resolve(res.savedFilePath),
-          fail: (err) => reject(err),
-        });
-      });
-
-      // 存储本地路径和对应的云文件 ID
-      wx.setStorageSync(LOCAL_AVATAR_PATH_KEY, savedPath);
-      if (fileID.startsWith('cloud://')) {
-        wx.setStorageSync(LOCAL_AVATAR_FILE_ID_KEY, fileID);
-      }
-
-      console.log('头像已保存到本地:', savedPath);
-      return savedPath;
-    } catch (e) {
-      console.error('下载并保存头像失败:', e);
-      return '';
-    } finally {
-      this._isDownloadingAvatar = false;
-    }
-  },
-
-  /**
    * 获取本地头像路径
-   * @returns 本地头像路径，不存在返回空字符串
    */
   getLocalAvatarPath(): string {
     return wx.getStorageSync(LOCAL_AVATAR_PATH_KEY) || '';
@@ -200,37 +72,73 @@ Page({
   },
 
   /**
+   * 下载并保存头像到本地持久化存储
+   * @param fileID 云文件ID
+   * @returns 本地文件路径，失败返回空字符串
+   */
+  async downloadAndSaveAvatar(fileID: string): Promise<string> {
+    if (this._isDownloadingAvatar) return '';
+    this._isDownloadingAvatar = true;
+
+    try {
+      // 获取临时下载 URL
+      const res = await wx.cloud.getTempFileURL({ fileList: [fileID] });
+      const downloadUrl = res.fileList?.[0]?.tempFileURL;
+      if (!downloadUrl) {
+        throw new Error('获取临时URL失败');
+      }
+
+      // 下载文件
+      const downloadRes = await wx.downloadFile({ url: downloadUrl });
+      if (downloadRes.statusCode !== 200) {
+        throw new Error('下载失败');
+      }
+
+      // 保存到本地持久化存储
+      const savedPath = await new Promise<string>((resolve, reject) => {
+        wx.getFileSystemManager().saveFile({
+          tempFilePath: downloadRes.tempFilePath,
+          success: (res) => resolve(res.savedFilePath),
+          fail: (err) => reject(err),
+        });
+      });
+
+      // 存储本地路径和对应的云文件 ID
+      wx.setStorageSync(LOCAL_AVATAR_PATH_KEY, savedPath);
+      wx.setStorageSync(LOCAL_AVATAR_FILE_ID_KEY, fileID);
+
+      return savedPath;
+    } catch (e) {
+      console.error('下载并保存头像失败:', e);
+      return '';
+    } finally {
+      this._isDownloadingAvatar = false;
+    }
+  },
+
+  /**
    * 加载用户信息
    */
   async loadUserInfo() {
-    // 尝试从本地存储获取用户信息
     const userInfo = wx.getStorageSync('userInfo');
     if (userInfo && userInfo.isLoggedIn) {
-      let avatarUrl = userInfo.avatarUrl || '';
+      const cloudAvatarUrl = userInfo.avatarUrl || '';
 
       // 优先使用本地持久化头像
       const localAvatarPath = this.getLocalAvatarPath();
       const localAvatarFileId = wx.getStorageSync(LOCAL_AVATAR_FILE_ID_KEY);
 
-      if (localAvatarPath && localAvatarFileId === avatarUrl) {
-        // 本地头像存在且与当前用户匹配，直接使用
+      let avatarUrl = '';
+      if (localAvatarPath && localAvatarFileId === cloudAvatarUrl) {
+        // 本地头像存在且匹配，直接使用
         avatarUrl = localAvatarPath;
-      } else if (avatarUrl.startsWith('cloud://')) {
-        // 本地头像不存在或不匹配，尝试从缓存或云端获取
-        const cachedUrl = wx.getStorageSync(`avatar_url_${avatarUrl}`);
-        const expireTime = wx.getStorageSync(`avatar_expire_${avatarUrl}`);
-
-        if (cachedUrl && expireTime && Date.now() < expireTime) {
-          // 使用缓存的临时 URL
-          avatarUrl = cachedUrl;
-        } else {
-          // 缓存过期或不存在，先使用旧缓存（如果有），后台静默刷新
-          if (cachedUrl) {
-            avatarUrl = cachedUrl;
+      } else if (cloudAvatarUrl.startsWith('cloud://')) {
+        // 本地头像不存在或不匹配，后台下载
+        this.downloadAndSaveAvatar(cloudAvatarUrl).then((localPath) => {
+          if (localPath) {
+            this.setData({ avatarUrl: localPath });
           }
-          // 后台静默刷新缓存并下载到本地
-          this.refreshAndSaveAvatar(userInfo.avatarUrl);
-        }
+        });
       }
 
       this.setData({
@@ -247,8 +155,6 @@ Page({
       // 未登录状态
       this.setData({ isLoggedIn: false });
 
-      // 如果 userInfo 不存在（注销后），重置为默认值
-      // 如果 userInfo 存在但 isLoggedIn 为 false（退出登录），保留显示
       if (!userInfo) {
         this.setData({
           avatarUrl: '',
@@ -269,89 +175,49 @@ Page({
   },
 
   /**
-   * 后台静默刷新缓存并下载保存头像到本地
+   * 从云端同步数据
    */
-  async refreshAndSaveAvatar(fileID: string) {
-    if (this._isRefreshingAvatar || this._isDownloadingAvatar) return;
-    this._isRefreshingAvatar = true;
+  async syncCloudData() {
+    const app = getApp<IAppOption>();
+    if (!app) return;
 
-    try {
-      const res = await wx.cloud.getTempFileURL({ fileList: [fileID] });
-      if (res.fileList?.[0]?.tempFileURL) {
-        const tempUrl = res.fileList[0].tempFileURL;
-        // 缓存临时 URL
-        wx.setStorageSync(`avatar_url_${fileID}`, tempUrl);
-        wx.setStorageSync(`avatar_expire_${fileID}`, Date.now() + 1.5 * 60 * 60 * 1000);
-        // 更新页面显示
-        this.setData({ avatarUrl: tempUrl });
+    const result = await app.syncFromCloud();
+    if (!result) return;
 
-        // 后台下载保存到本地
-        this.downloadAndSaveAvatar(fileID).then((localPath) => {
+    const { totalKnittingTime, zhizhiId, zhizhiIdModified, nickName, avatarUrl: cloudAvatarUrl } = result;
+    const hours = Math.floor((totalKnittingTime || 0) / 3600000);
+
+    // 更新页面数据
+    this.setData({
+      totalTimeHours: hours,
+      zhizhiId: zhizhiId || this.data.zhizhiId,
+    });
+
+    // 更新本地存储的用户信息
+    const userInfo = wx.getStorageSync('userInfo') || {};
+    if (zhizhiId) userInfo.zhizhiId = zhizhiId;
+    if (zhizhiIdModified !== undefined) userInfo.zhizhiIdModified = zhizhiIdModified;
+    if (nickName) userInfo.nickName = nickName;
+
+    if (cloudAvatarUrl) {
+      userInfo.avatarUrl = cloudAvatarUrl;
+
+      // 优先使用本地持久化头像
+      const localAvatarPath = this.getLocalAvatarPath();
+      const localAvatarFileId = wx.getStorageSync(LOCAL_AVATAR_FILE_ID_KEY);
+
+      if (localAvatarPath && localAvatarFileId === cloudAvatarUrl) {
+        this.setData({ avatarUrl: localAvatarPath });
+      } else if (cloudAvatarUrl.startsWith('cloud://')) {
+        // 本地头像不存在或不匹配，后台下载
+        this.downloadAndSaveAvatar(cloudAvatarUrl).then((localPath) => {
           if (localPath) {
             this.setData({ avatarUrl: localPath });
           }
         });
       }
-    } catch (e) {
-      console.error('刷新头像缓存失败:', e);
-    } finally {
-      this._isRefreshingAvatar = false;
     }
-  },
-
-  /**
-   * 从云端同步数据
-   */
-  async syncCloudData() {
-    const app = getApp<IAppOption>();
-    if (app) {
-      const result = await app.syncFromCloud();
-      if (result) {
-        const { totalKnittingTime, zhizhiId, zhizhiIdModified, nickName, avatarUrl } = result;
-        const hours = Math.floor((totalKnittingTime || 0) / 3600000);
-
-        // 更新页面数据
-        this.setData({
-          totalTimeHours: hours,
-          zhizhiId: zhizhiId || this.data.zhizhiId,
-        });
-
-        // 更新本地存储的用户信息
-        const userInfo = wx.getStorageSync('userInfo') || {};
-        if (zhizhiId) userInfo.zhizhiId = zhizhiId;
-        if (zhizhiIdModified !== undefined) userInfo.zhizhiIdModified = zhizhiIdModified;
-        if (nickName) userInfo.nickName = nickName;
-        if (avatarUrl) {
-          userInfo.avatarUrl = avatarUrl;
-
-          // 优先使用本地持久化头像
-          const localAvatarPath = this.getLocalAvatarPath();
-          const localAvatarFileId = wx.getStorageSync(LOCAL_AVATAR_FILE_ID_KEY);
-
-          if (localAvatarPath && localAvatarFileId === avatarUrl) {
-            // 本地头像存在且与云端匹配，直接使用
-            this.setData({ avatarUrl: localAvatarPath });
-          } else if (avatarUrl.startsWith('cloud://')) {
-            const cachedUrl = wx.getStorageSync(`avatar_url_${avatarUrl}`);
-            const expireTime = wx.getStorageSync(`avatar_expire_${avatarUrl}`);
-
-            if (cachedUrl && expireTime && Date.now() < expireTime) {
-              this.setData({ avatarUrl: cachedUrl });
-            } else {
-              // 缓存过期或不存在，先使用旧缓存（如果有），后台静默刷新
-              if (cachedUrl) {
-                this.setData({ avatarUrl: cachedUrl });
-              }
-              // 后台静默刷新缓存并下载到本地
-              this.refreshAndSaveAvatar(avatarUrl);
-            }
-          } else {
-            this.setData({ avatarUrl });
-          }
-        }
-        wx.setStorageSync('userInfo', userInfo);
-      }
-    }
+    wx.setStorageSync('userInfo', userInfo);
   },
 
   /**
@@ -410,32 +276,8 @@ Page({
         // 云端有用户数据，直接登录
         const userData = res.result.data;
         const cloudAvatarUrl = userData.avatarUrl || '';
-        let avatarUrl = cloudAvatarUrl;
 
-        // 优先使用本地持久化头像
-        const localAvatarPath = this.getLocalAvatarPath();
-        const localAvatarFileId = wx.getStorageSync(LOCAL_AVATAR_FILE_ID_KEY);
-
-        if (localAvatarPath && localAvatarFileId === cloudAvatarUrl) {
-          // 本地头像存在且与云端匹配，直接使用
-          avatarUrl = localAvatarPath;
-        } else if (cloudAvatarUrl.startsWith('cloud://')) {
-          // 本地头像不存在或不匹配，尝试从缓存获取
-          const cachedUrl = wx.getStorageSync(`avatar_url_${cloudAvatarUrl}`);
-          const expireTime = wx.getStorageSync(`avatar_expire_${cloudAvatarUrl}`);
-
-          if (cachedUrl && expireTime && Date.now() < expireTime) {
-            avatarUrl = cachedUrl;
-          } else {
-            // 缓存过期或不存在，先使用旧缓存（如果有），后台静默刷新
-            if (cachedUrl) {
-              avatarUrl = cachedUrl;
-            }
-            // 后台静默刷新缓存并下载到本地
-            this.refreshAndSaveAvatar(cloudAvatarUrl);
-          }
-        }
-
+        // 保存用户信息
         const userInfo = {
           avatarUrl: cloudAvatarUrl,
           nickName: userData.nickName || '微信用户',
@@ -444,6 +286,22 @@ Page({
           zhizhiIdModified: userData.zhizhiIdModified || false,
         };
         wx.setStorageSync('userInfo', userInfo);
+
+        // 优先使用本地持久化头像
+        const localAvatarPath = this.getLocalAvatarPath();
+        const localAvatarFileId = wx.getStorageSync(LOCAL_AVATAR_FILE_ID_KEY);
+
+        let avatarUrl = '';
+        if (localAvatarPath && localAvatarFileId === cloudAvatarUrl) {
+          avatarUrl = localAvatarPath;
+        } else if (cloudAvatarUrl.startsWith('cloud://')) {
+          // 后台下载头像
+          this.downloadAndSaveAvatar(cloudAvatarUrl).then((localPath) => {
+            if (localPath) {
+              this.setData({ avatarUrl: localPath });
+            }
+          });
+        }
 
         this.setData({
           avatarUrl,
@@ -477,8 +335,6 @@ Page({
     } catch (error) {
       wx.hideLoading();
       console.error('检查用户状态失败:', error);
-
-      // 网络错误或超时，只 toast 提示，不显示登录弹窗
       wx.showToast({ title: '网络异常，请检查网络连接', icon: 'none' });
     }
   },
@@ -521,35 +377,21 @@ Page({
     wx.showLoading({ title: '登录中...', mask: true });
 
     try {
-      // 1. 将临时头像上传到云存储（如果是临时文件路径）
+      // 上传头像到云存储
       let finalAvatarUrl = tempAvatarUrl;
-      let tempUrlForDisplay = tempAvatarUrl; // 用于页面显示的临时 URL
 
-      // 判断是否为临时文件（需要上传到云存储）
       if (tempAvatarUrl.startsWith('wxfile://') || tempAvatarUrl.startsWith('http://tmp') || tempAvatarUrl.startsWith('https://tmp')) {
         const cloudPath = `avatars/${Date.now()}-${Math.random().toString(36).substr(2, 9)}.png`;
         const uploadResult = await wx.cloud.uploadFile({
           cloudPath: cloudPath,
           filePath: tempAvatarUrl,
         });
-
         if (uploadResult.fileID) {
           finalAvatarUrl = uploadResult.fileID;
-          // 立即获取并缓存临时 URL
-          try {
-            const tempRes = await wx.cloud.getTempFileURL({ fileList: [finalAvatarUrl] });
-            if (tempRes.fileList?.[0]?.tempFileURL) {
-              tempUrlForDisplay = tempRes.fileList[0].tempFileURL;
-              wx.setStorageSync(`avatar_url_${finalAvatarUrl}`, tempUrlForDisplay);
-              wx.setStorageSync(`avatar_expire_${finalAvatarUrl}`, Date.now() + 1.5 * 60 * 60 * 1000);
-            }
-          } catch (e) {
-            console.error('获取头像临时 URL 失败:', e);
-          }
         }
       }
 
-      // 2. 调用云函数登录
+      // 调用云函数登录
       const res = await wx.cloud.callFunction({
         name: 'login',
         data: {
@@ -576,7 +418,7 @@ Page({
 
         // 更新页面数据
         this.setData({
-          avatarUrl: tempUrlForDisplay,
+          avatarUrl: tempAvatarUrl,
           nickName: tempNickName.trim(),
           showLoginDialog: false,
           isLoggedIn: true,

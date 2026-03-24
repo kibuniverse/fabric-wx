@@ -39,10 +39,6 @@
   box-sizing: border-box;
 }
 
-.avatar-placeholder {
-  opacity: 0.6;
-}
-
 /* 更换头像文字 */
 .change-avatar-text {
   margin-top: 36rpx;

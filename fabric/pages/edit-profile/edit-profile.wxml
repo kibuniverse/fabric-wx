@@ -2,8 +2,7 @@
   <!-- 头像区域（点击头像或文字都可更换） -->
   <button class="avatar-btn-wrapper" open-type="chooseAvatar" bindchooseavatar="onChooseAvatar">
     <view class="avatar-section">
-      <image wx:if="{{avatarLoading}}" class="avatar avatar-placeholder" src="/assets/default_avatar.jpg" mode="aspectFill" />
-      <image wx:else class="avatar" src="{{avatarUrl || '/assets/default_avatar.jpg'}}" mode="aspectFill" />
+      <image class="avatar" src="{{avatarUrl || '/assets/default_avatar.jpg'}}" mode="aspectFill" />
     </view>
     <text class="change-avatar-text">更换头像</text>
   </button>

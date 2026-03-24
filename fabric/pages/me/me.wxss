@@ -44,21 +44,6 @@
   background-color: #e0e0e0;
 }
 
-.avatar-placeholder {
-  width: 160rpx;
-  height: 160rpx;
-  border-radius: 50%;
-  background-color: #e0e0e0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.avatar-text {
-  font-size: 28rpx;
-  color: #999;
-}
-
 /* 昵称距离头像 12dp = 24rpx */
 .nickname {
   margin-top: 24rpx;
