@@ -59,12 +59,19 @@ exports.main = async (event, context) => {
       updateData.avatarUrl = avatarUrl
     }
 
-    // 更新知织ID（仅在首次设置时更新）
-    console.log('知织ID更新条件检查:', { zhizhiId, userZhizhiIdModified: user.zhizhiIdModified, willUpdate: zhizhiId && !user.zhizhiIdModified })
-    if (zhizhiId && !user.zhizhiIdModified) {
+    // 更新知织ID（仅在用户主动修改时更新）
+    // 条件：传入了新的知织ID，且用户未修改过，且新ID与云端不同
+    console.log('知织ID更新条件检查:', {
+      zhizhiId,
+      cloudZhizhiId: user.zhizhiId,
+      userZhizhiIdModified: user.zhizhiIdModified,
+      isDifferent: zhizhiId !== user.zhizhiId
+    })
+
+    if (zhizhiId && !user.zhizhiIdModified && zhizhiId !== user.zhizhiId) {
       updateData.zhizhiId = zhizhiId
       updateData.zhizhiIdModified = true
-      console.log('将更新知织ID:', zhizhiId)
+      console.log('将更新知织ID:', zhizhiId, '(原ID:', user.zhizhiId, ')')
     }
 
     // 执行更新

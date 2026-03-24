@@ -99,6 +99,11 @@ page {
   text-align: right;
 }
 
+/* 无箭头时，ID文字右边缘距离卡片右侧27dp(54rpx) */
+.zhizhi-id-text--no-arrow {
+  margin-right: 14rpx; /* 40rpx(padding) + 14rpx = 54rpx */
+}
+
 .arrow-icon {
   width: 44rpx;
   height: 44rpx;
