@@ -74,9 +74,19 @@ page {
 
 .custom-nav-right {
   width: 100rpx;
+  height: 44rpx;
   position: relative;
   display: flex;
   align-items: center;
+  justify-content: flex-end;
+  padding-right: 44rpx;
+  box-sizing: border-box;
+  background: linear-gradient(
+    to right,
+    rgba(255, 255, 255, 0),
+    rgba(255, 255, 255, 1) 40%,
+    rgba(255, 255, 255, 1)
+  );
 }
 
 .scroll-shadow {
@@ -109,18 +119,11 @@ page {
 }
 
 .add-counter-btn {
-  position: absolute;
-  right: 0rpx;
-  width: 100rpx;
+  width: 44rpx;
+  height: 44rpx;
   display: flex;
   justify-content: center;
   align-items: center;
-  background: linear-gradient(
-    to right,
-    rgba(255, 255, 255, 0),
-    rgba(255, 255, 255, 1) 80%,
-    rgba(255, 255, 255, 1)
-  );
 }
 
 .tab-line {
