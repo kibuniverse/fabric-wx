@@ -83,6 +83,8 @@ Page({
       ballH: 50,
       opacity: 0,
     },
+    // 重置按钮引导气泡
+    showResetGuide: false,
   },
 
   // 在Page对象内新增方法
@@ -148,6 +150,21 @@ Page({
     this.initKeepScreen();
     this.initEventListeners();
     this.initFloatPosition();
+    this.initResetGuide();
+  },
+
+  initResetGuide() {
+    const GUIDE_SHOWN_KEY = 'counter_reset_guide_shown';
+    const hasShown = wx.getStorageSync(GUIDE_SHOWN_KEY);
+    if (!hasShown) {
+      this.setData({ showResetGuide: true });
+    }
+  },
+
+  onHideResetGuide() {
+    this.setData({ showResetGuide: false });
+    const GUIDE_SHOWN_KEY = 'counter_reset_guide_shown';
+    wx.setStorageSync(GUIDE_SHOWN_KEY, true);
   },
 
   onShow() {
