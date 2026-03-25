@@ -41,6 +41,14 @@
       <view class="operation-btn timer {{isSmartTimerOn ? 'timer-start' : 'timer-stop'}} {{isTimerRunning ? 'timer-counting' : ''}}" bindtap="toggleTimer">
         <image class="timer-icon" src="{{isSmartTimerOn ? '/assets/clock_colorful.svg' : '/assets/clock.svg'}}" />
       </view>
+      <!-- 计时器功能引导气泡 -->
+      <view class="timer-guide {{showTimerGuide ? 'show' : ''}}" catchtap="hideTimerGuide">
+        <view class="timer-guide-content">
+          <text>现在操作计数器可以自动开始计时啦～</text>
+          <text class="timer-guide-confirm">我知道啦</text>
+        </view>
+        <view class="timer-guide-arrow"></view>
+      </view>
       <view class="operation-btn reset" bindtap="showResetConfirm" bindlongpress="onResetLongPress">
         <image class="reset-icon" src="/assets/reset.svg" />
       </view>

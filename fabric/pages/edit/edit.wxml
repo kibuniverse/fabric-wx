@@ -14,7 +14,7 @@
   <view wx:if="{{showTip}}" class="tip-bubble" style="top: {{navBarHeight + 12}}px;">
     <view class="tip-bubble-content">
       <text class="tip-text">长按图片可调整顺序或删除</text>
-      <view class="tip-btn" bindtap="dismissTip">我知道了</view>
+      <view class="tip-btn" bindtap="dismissTip">我知道啦</view>
     </view>
     <view class="tip-bubble-arrow"></view>
   </view>

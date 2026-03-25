@@ -28,7 +28,7 @@
       <block wx:for="{{counterKeys}}" wx:key="title">
         <van-tab tab-class="tab-content-container" title="{{item.title}}" title-class="tab-title" title-style="max-width: 260rpx; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
           <view class="tab-content" data-set="{{item.key}}">
-            <counter id="counter" showDeleteBtn="{{counterKeys.length > 1}}" data-id="{{item.key}}" vibrationOn="{{isVibrationOn}}" voiceOn="{{isVoiceOn}}" storageKey="{{item.key}}" showResetGuide="{{showResetGuide && index === activeTab}}" bind:hideResetGuide="onHideResetGuide" bind:showResumeDialog="handleShowResumeDialog" bind:showIdleDialog="handleShowIdleDialog" bind:handleCounterDelete="handleCounterDelete" bind:onDelete="handleCounterDelete" bind:showModifyName="handleShowModifyName" bind:showModifyCount="handleShowModifyCount" bind:showTargetInput="handleShowTargetInput" />
+            <counter id="counter" showDeleteBtn="{{counterKeys.length > 1}}" data-id="{{item.key}}" vibrationOn="{{isVibrationOn}}" voiceOn="{{isVoiceOn}}" storageKey="{{item.key}}" showResetGuide="{{showResetGuide && index === activeTab}}" showTimerGuide="{{showTimerGuide && index === activeTab}}" bind:hideResetGuide="onHideResetGuide" bind:hideTimerGuide="onHideTimerGuide" bind:showResumeDialog="handleShowResumeDialog" bind:showIdleDialog="handleShowIdleDialog" bind:handleCounterDelete="handleCounterDelete" bind:onDelete="handleCounterDelete" bind:showModifyName="handleShowModifyName" bind:showModifyCount="handleShowModifyCount" bind:showTargetInput="handleShowTargetInput" />
           </view>
         </van-tab>
       </block>

@@ -79,6 +79,10 @@ Component({
       type: Boolean,
       value: false,
     },
+    showTimerGuide: {
+      type: Boolean,
+      value: false,
+    },
   },
   pageLifetimes: {
     hide() {
@@ -710,6 +714,10 @@ Component({
     // 重置按钮引导气泡相关
     hideResetGuide() {
       this.triggerEvent('hideResetGuide');
+    },
+    // 计时器功能引导气泡相关
+    hideTimerGuide() {
+      this.triggerEvent('hideTimerGuide');
     },
     getCurrentCount(): number {
       return this.data.counterData.currentCount;

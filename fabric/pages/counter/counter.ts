@@ -85,6 +85,8 @@ Page({
     },
     // 重置按钮引导气泡
     showResetGuide: false,
+    // 计时器功能引导气泡
+    showTimerGuide: false,
     // 恢复计时弹窗
     showResumeTimerDialog: false,
     resumeTimerKey: "",
@@ -165,13 +167,21 @@ Page({
     this.initKeepScreen();
     this.initEventListeners();
     this.initFloatPosition();
-    this.initResetGuide();
+    this.initGuideBubbles();
   },
 
-  initResetGuide() {
-    const GUIDE_SHOWN_KEY = 'counter_reset_guide_shown';
-    const hasShown = wx.getStorageSync(GUIDE_SHOWN_KEY);
-    if (!hasShown) {
+  initGuideBubbles() {
+    const TIMER_GUIDE_KEY = 'counter_timer_guide_shown';
+    const RESET_GUIDE_KEY = 'counter_reset_guide_shown';
+
+    const timerGuideShown = wx.getStorageSync(TIMER_GUIDE_KEY);
+    const resetGuideShown = wx.getStorageSync(RESET_GUIDE_KEY);
+
+    // 计时器气泡优先显示
+    if (!timerGuideShown) {
+      this.setData({ showTimerGuide: true });
+    } else if (!resetGuideShown) {
+      // 计时器气泡已显示过，再显示重置气泡
       this.setData({ showResetGuide: true });
     }
   },
@@ -180,6 +190,22 @@ Page({
     this.setData({ showResetGuide: false });
     const GUIDE_SHOWN_KEY = 'counter_reset_guide_shown';
     wx.setStorageSync(GUIDE_SHOWN_KEY, true);
+  },
+
+  onHideTimerGuide() {
+    this.setData({ showTimerGuide: false });
+    const GUIDE_SHOWN_KEY = 'counter_timer_guide_shown';
+    wx.setStorageSync(GUIDE_SHOWN_KEY, true);
+
+    // 计时器气泡关闭后，检查是否需要显示重置气泡
+    const RESET_GUIDE_KEY = 'counter_reset_guide_shown';
+    const resetGuideShown = wx.getStorageSync(RESET_GUIDE_KEY);
+    if (!resetGuideShown) {
+      // 延迟显示，让用户有时间看到气泡消失
+      setTimeout(() => {
+        this.setData({ showResetGuide: true });
+      }, 300);
+    }
   },
 
   onShow() {
