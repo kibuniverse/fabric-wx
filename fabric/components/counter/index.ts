@@ -17,6 +17,7 @@ interface CounterData {
   timerState: {
     startTimestamp: number;
     elapsedTime: number;
+    wasRunning: boolean; // 离开时是否在计时中
   };
   showDeleteBtn: boolean;
   memo: string; // 添加备忘录字段
@@ -31,6 +32,7 @@ const DEFAULT_COUNTER_DATA: CounterData = {
   timerState: {
     startTimestamp: 0,
     elapsedTime: 0,
+    wasRunning: false,
   },
   showDeleteBtn: true,
   memo: "", // 默认备忘录为空
@@ -77,7 +79,7 @@ Component({
   pageLifetimes: {
     hide() {
       // 在这里可以执行一些逻辑，例如保存数据或暂停操作
-      this.stopTimer();
+      this.pauseTimerAndMark();
       // 同步时长到云端
       this.syncTimeToCloud();
     },
@@ -86,6 +88,7 @@ Component({
     counterData: DEFAULT_COUNTER_DATA,
     timerDisplay: "00:00:00",
     isTimerRunning: false,
+    isSmartTimerOn: true, // 智能计时开关（默认开启）
     timerInterval: 0,
     showTargetInput: false,
     targetInputValue: "",
@@ -243,6 +246,12 @@ Component({
       } else {
         this.updateCount(newCount, isIncrease ? "行+1" : "行-1");
       }
+
+      // 智能计时：加减操作时自动开始计时
+      if (this.data.isSmartTimerOn && !this.data.isTimerRunning) {
+        this.startTimer();
+      }
+
       if (isIncrease && newCount === targetCount) {
         Dialog.confirm({
           context: this,
@@ -355,18 +364,24 @@ Component({
       this.showToast("记录已清除");
     },
     toggleTimer() {
-      if (this.data.isTimerRunning) {
-        wx.showToast({
-          title: "暂停计时",
-          icon: "none",
+      const newSmartTimerState = !this.data.isSmartTimerOn;
+      this.setData({
+        isSmartTimerOn: newSmartTimerState,
+      });
+      wx.setStorageSync(`${this.properties.storageKey}_smart_timer`, newSmartTimerState);
+
+      if (!newSmartTimerState) {
+        // 关闭智能计时：停止计时并清除 wasRunning 标记
+        if (this.data.isTimerRunning) {
+          this.stopTimer();
+        }
+        this.setData({
+          "counterData.timerState.wasRunning": false,
         });
-        this.stopTimer();
+        this.saveCounterData();
+        this.showToast("智能计时已关闭");
       } else {
-        wx.showToast({
-          title: "开启计时",
-          icon: "none",
-        });
-        this.startTimer();
+        this.showToast("智能计时已开启");
       }
     },
 
@@ -421,6 +436,45 @@ Component({
       }
     },
 
+    // 暂停计时并标记 wasRunning（用于页面离开时）
+    pauseTimerAndMark() {
+      if (this.data.isTimerRunning) {
+        this.stopTimer();
+        this.setData({
+          "counterData.timerState.wasRunning": true,
+        });
+        this.saveCounterData();
+      }
+    },
+
+    // 检查是否需要显示恢复计时弹窗
+    checkAndShowResumeDialog() {
+      const { wasRunning } = this.data.counterData.timerState;
+      if (wasRunning && this.data.isSmartTimerOn) {
+        // 触发弹窗显示（由页面层处理）
+        this.triggerEvent('showResumeDialog', {
+          key: this.properties.storageKey
+        });
+      }
+    },
+
+    // 恢复计时
+    resumeTimer() {
+      this.setData({
+        "counterData.timerState.wasRunning": false,
+      });
+      this.startTimer();
+      this.saveCounterData();
+    },
+
+    // 取消恢复计时
+    cancelResumeTimer() {
+      this.setData({
+        "counterData.timerState.wasRunning": false,
+      });
+      this.saveCounterData();
+    },
+
     clearTimer() {
       if (this.data.timerInterval) {
         clearInterval(this.data.timerInterval);
@@ -439,9 +493,13 @@ Component({
       const { counterData } = this.data;
       if (counterData) {
         const totalElapsed = counterData.timerState.elapsedTime || 0;
+        // 恢复智能计时开关状态
+        const savedSmartTimer = wx.getStorageSync(`${this.properties.storageKey}_smart_timer`);
+        const isSmartTimerOn = savedSmartTimer !== '' ? savedSmartTimer : true;
         this.setData({
           timerDisplay: this.formatTime(totalElapsed),
           isTimerRunning: false,
+          isSmartTimerOn,
         });
       }
     },

@@ -362,3 +362,21 @@ scroll-view::-webkit-scrollbar {
     line-height: 30px;
   }
 }
+
+/* 恢复计时弹窗样式 */
+.resume-dialog {
+  padding: 40rpx;
+  text-align: center;
+}
+
+.resume-dialog-title {
+  font-size: 32rpx;
+  font-weight: 500;
+  color: #333;
+  margin-bottom: 16rpx;
+}
+
+.resume-dialog-desc {
+  font-size: 28rpx;
+  color: #666;
+}

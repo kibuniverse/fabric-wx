@@ -85,6 +85,9 @@ Page({
     },
     // 重置按钮引导气泡
     showResetGuide: false,
+    // 恢复计时弹窗
+    showResumeTimerDialog: false,
+    resumeTimerKey: "",
   },
 
   // 在Page对象内新增方法
@@ -183,6 +186,51 @@ Page({
         isMemoModified = false;
       }, 300);
     }
+    // 检查当前 Tab 是否需要显示恢复计时弹窗
+    this.checkResumeTimerDialog();
+  },
+
+  // 检查当前 Tab 是否需要显示恢复计时弹窗
+  checkResumeTimerDialog() {
+    wx.nextTick(() => {
+      const counter = this.getCounterByIndex(this.data.activeTab);
+      if (counter && counter.checkAndShowResumeDialog) {
+        counter.checkAndShowResumeDialog();
+      }
+    });
+  },
+
+  // 处理组件触发的显示恢复弹窗事件
+  handleShowResumeDialog(e: any) {
+    const { key } = e.detail;
+    this.setData({
+      showResumeTimerDialog: true,
+      resumeTimerKey: key,
+    });
+  },
+
+  // 确认恢复计时
+  onConfirmResumeTimer() {
+    const counter = this.getCounterByIndex(this.data.activeTab);
+    if (counter && counter.resumeTimer) {
+      counter.resumeTimer();
+    }
+    this.setData({
+      showResumeTimerDialog: false,
+      resumeTimerKey: "",
+    });
+  },
+
+  // 取消恢复计时
+  onCancelResumeTimer() {
+    const counter = this.getCounterByIndex(this.data.activeTab);
+    if (counter && counter.cancelResumeTimer) {
+      counter.cancelResumeTimer();
+    }
+    this.setData({
+      showResumeTimerDialog: false,
+      resumeTimerKey: "",
+    });
   },
   onConnectChange(e: any) {
     if (e.detail.source === "touch") {
@@ -207,18 +255,23 @@ Page({
   },
   onChange(e: { detail: { index: number } }) {
     const index = e.detail.index;
+    const previousIndex = this.data.activeTab;
+
+    // 先暂停当前 Tab 的计时器
+    const currentCounter = this.getCounterByIndex(previousIndex);
+    if (currentCounter && currentCounter.pauseTimerAndMark) {
+      currentCounter.pauseTimerAndMark();
+    }
+
     this.setData({
       activeTab: index,
     });
+
     wx.nextTick(() => {
-      // 切换 tab 后，确保 counter 组件已渲染再暂停计时器
-      const components = this.selectAllComponents("#counter");
-      if (components && components.length) {
-        components.forEach((comp) => {
-          if (comp && comp.stopTimer) {
-            comp.stopTimer();
-          }
-        });
+      // 检查新 Tab 是否需要显示恢复弹窗
+      const newCounter = this.getCounterByIndex(index);
+      if (newCounter && newCounter.checkAndShowResumeDialog) {
+        newCounter.checkAndShowResumeDialog();
       }
     });
   },

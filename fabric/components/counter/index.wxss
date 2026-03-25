@@ -201,6 +201,20 @@
   background-color: #0000001a;
 }
 
+/* 计时中的脉冲动画 */
+.timer-counting {
+  animation: pulse 2s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(168, 137, 200, 0.4);
+  }
+  50% {
+    box-shadow: 0 0 0 12rpx rgba(168, 137, 200, 0);
+  }
+}
+
 /* 重置按钮引导气泡 */
 .reset-guide {
   position: absolute;

@@ -28,7 +28,7 @@
       <block wx:for="{{counterKeys}}" wx:key="title">
         <van-tab tab-class="tab-content-container" title="{{item.title}}" title-class="tab-title" title-style="max-width: 260rpx; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
           <view class="tab-content" data-set="{{item.key}}">
-            <counter id="counter" showDeleteBtn="{{counterKeys.length > 1}}" data-id="{{item.key}}" vibrationOn="{{isVibrationOn}}" voiceOn="{{isVoiceOn}}" storageKey="{{item.key}}" showResetGuide="{{showResetGuide && index === activeTab}}" bind:hideResetGuide="onHideResetGuide" bind:handleCounterDelete="handleCounterDelete" bind:onDelete="handleCounterDelete" bind:showModifyName="handleShowModifyName" bind:showModifyCount="handleShowModifyCount" bind:showTargetInput="handleShowTargetInput" />
+            <counter id="counter" showDeleteBtn="{{counterKeys.length > 1}}" data-id="{{item.key}}" vibrationOn="{{isVibrationOn}}" voiceOn="{{isVoiceOn}}" storageKey="{{item.key}}" showResetGuide="{{showResetGuide && index === activeTab}}" bind:hideResetGuide="onHideResetGuide" bind:showResumeDialog="handleShowResumeDialog" bind:handleCounterDelete="handleCounterDelete" bind:onDelete="handleCounterDelete" bind:showModifyName="handleShowModifyName" bind:showModifyCount="handleShowModifyCount" bind:showTargetInput="handleShowTargetInput" />
           </view>
         </van-tab>
       </block>
@@ -94,3 +94,10 @@
     <text class="content-counter-repeat">重复</text>
   </view>
 </view>
+<!-- 恢复计时弹窗 -->
+<van-dialog use-slot z-index="10000" transition="fade" show="{{showResumeTimerDialog}}" show-cancel-button confirm-button-text="恢复计时" cancel-button-text="取消" confirm-button-color="#A889C8" bind:confirm="onConfirmResumeTimer" bind:close="onCancelResumeTimer">
+  <view class="resume-dialog">
+    <view class="resume-dialog-title">刚才的计时已自动暂停</view>
+    <view class="resume-dialog-desc">是否恢复计时？</view>
+  </view>
+</van-dialog>
