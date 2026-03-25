@@ -88,6 +88,9 @@ Page({
     // 恢复计时弹窗
     showResumeTimerDialog: false,
     resumeTimerKey: "",
+    // 空闲暂停弹窗
+    showIdleDialog: false,
+    idleTimerKey: "",
   },
 
   // 在Page对象内新增方法
@@ -230,6 +233,39 @@ Page({
     this.setData({
       showResumeTimerDialog: false,
       resumeTimerKey: "",
+    });
+  },
+
+  // 处理空闲暂停弹窗事件
+  handleShowIdleDialog(e: any) {
+    const { key } = e.detail;
+    this.setData({
+      showIdleDialog: true,
+      idleTimerKey: key,
+    });
+  },
+
+  // 空闲暂停后恢复计时
+  onConfirmIdleResume() {
+    const counter = this.getCounterByIndex(this.data.activeTab);
+    if (counter && counter.resumeFromIdle) {
+      counter.resumeFromIdle();
+    }
+    this.setData({
+      showIdleDialog: false,
+      idleTimerKey: "",
+    });
+  },
+
+  // 空闲暂停后保持暂停
+  onCancelIdleResume() {
+    const counter = this.getCounterByIndex(this.data.activeTab);
+    if (counter && counter.cancelIdleResume) {
+      counter.cancelIdleResume();
+    }
+    this.setData({
+      showIdleDialog: false,
+      idleTimerKey: "",
     });
   },
   onConnectChange(e: any) {

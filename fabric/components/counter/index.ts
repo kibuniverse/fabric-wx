@@ -18,6 +18,7 @@ interface CounterData {
     startTimestamp: number;
     elapsedTime: number;
     wasRunning: boolean; // 离开时是否在计时中
+    idlePaused?: boolean; // 是否因空闲而暂停
   };
   showDeleteBtn: boolean;
   memo: string; // 添加备忘录字段
@@ -48,6 +49,9 @@ const voiceConfig = {
   src: "/assets/audio_voice.m4a",
   enableOperate: ["increase", "decrease"],
 };
+
+// 空闲自动暂停时间（毫秒），默认10分钟
+const IDLE_TIMEOUT = 10 * 60 * 1000;
 
 Component({
   properties: {
@@ -90,6 +94,8 @@ Component({
     isTimerRunning: false,
     isSmartTimerOn: true, // 智能计时开关（默认开启）
     timerInterval: 0,
+    idleCheckInterval: 0, // 空闲检测定时器
+    lastOperationTime: 0, // 最后操作时间戳
     showTargetInput: false,
     targetInputValue: "",
     options: {
@@ -195,6 +201,9 @@ Component({
       type: "increase" | "decrease" | "reset",
       isFromChildCounter = false
     ) {
+      // 更新最后操作时间（重置空闲计时器）
+      this.updateLastOperationTime();
+
       const { currentCount, targetCount } = this.data.counterData;
       const canShowVoice =
         this.properties.voiceOn && voiceConfig.enableOperate.includes(type);
@@ -431,15 +440,20 @@ Component({
         timerInterval,
         isTimerRunning: true,
         counterData,
+        lastOperationTime: Date.now(), // 初始化最后操作时间
       });
       // 6. 立即存储当前状态
       this.saveCounterData();
+      // 7. 启动空闲检测
+      this.startIdleCheck();
     },
 
     stopTimer() {
       // 1. 清理定时器
       this.clearTimer();
-      // 2. 计算累计用时
+      // 2. 停止空闲检测
+      this.stopIdleCheck();
+      // 3. 计算累计用时
       const counterData = this.data.counterData;
       const elapsed = this.getCurrentElapsedTime();
       const previousElapsed = counterData.timerState.elapsedTime || 0;
@@ -447,14 +461,14 @@ Component({
 
       counterData.timerState.elapsedTime = elapsed;
       counterData.timerState.startTimestamp = 0;
-      // 3. 更新状态
+      // 4. 更新状态
       this.setData({
         counterData,
         isTimerRunning: false,
       });
-      // 4. 存储当前状态
+      // 5. 存储当前状态
       this.saveCounterData();
-      // 5. 累加到全局总时长（仅当有新增时长时）
+      // 6. 累加到全局总时长（仅当有新增时长时）
       if (newSessionTime > 0) {
         this.addGlobalKnittingTime(newSessionTime);
       }
@@ -504,6 +518,67 @@ Component({
         clearInterval(this.data.timerInterval);
         this.setData({ timerInterval: 0 });
       }
+    },
+
+    // 空闲检测相关
+    startIdleCheck() {
+      this.stopIdleCheck(); // 先清理旧的
+      const idleCheckInterval = setInterval(() => {
+        const lastOpTime = this.data.lastOperationTime;
+        if (lastOpTime && Date.now() - lastOpTime >= IDLE_TIMEOUT) {
+          // 空闲超时，暂停计时器并通知页面
+          this.pauseForIdle();
+        }
+      }, 30000); // 每30秒检查一次
+
+      this.setData({ idleCheckInterval });
+    },
+
+    stopIdleCheck() {
+      if (this.data.idleCheckInterval) {
+        clearInterval(this.data.idleCheckInterval);
+        this.setData({ idleCheckInterval: 0 });
+      }
+    },
+
+    updateLastOperationTime() {
+      this.setData({ lastOperationTime: Date.now() });
+    },
+
+    pauseForIdle() {
+      if (!this.data.isTimerRunning) return;
+
+      // 暂停计时器并标记为空闲暂停
+      this.stopTimer();
+      this.setData({
+        "counterData.timerState.wasRunning": true,
+        "counterData.timerState.idlePaused": true, // 区分是空闲暂停还是页面离开
+      });
+      this.saveCounterData();
+
+      // 通知页面显示弹窗
+      this.triggerEvent('showIdleDialog', {
+        key: this.properties.storageKey
+      });
+    },
+
+    // 从空闲暂停恢复计时
+    resumeFromIdle() {
+      this.setData({
+        "counterData.timerState.wasRunning": false,
+        "counterData.timerState.idlePaused": false,
+      });
+      this.startTimer();
+      this.saveCounterData();
+    },
+
+    // 取消空闲恢复，保持暂停状态
+    cancelIdleResume() {
+      this.setData({
+        "counterData.timerState.wasRunning": false,
+        "counterData.timerState.idlePaused": false,
+      });
+      this.saveCounterData();
     },
 
     getCurrentElapsedTime(): number {
