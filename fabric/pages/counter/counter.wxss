@@ -17,7 +17,7 @@ page {
   align-items: center;
   padding: 40rpx 44rpx 0;
   background: #fff;
-  margin-bottom: 20rpx;
+  margin-bottom: 36rpx;
 }
 
 .title-text {
@@ -134,6 +134,15 @@ page {
 
 .tab-item {
   font-size: 32rpx !important;
+  font-weight: 400 !important;
+  font-style: normal !important;
+  line-height: 22px !important;
+  letter-spacing: -0.43px !important;
+  text-align: center !important;
+}
+
+.van-tab--active {
+  font-weight: 500 !important;
 }
 
 .tab-custom-line {
@@ -180,6 +189,10 @@ scroll-view::-webkit-scrollbar {
 
 .my-tabs {
   z-index: 0 !important;
+}
+
+.van-tabs__line {
+  bottom: -16rpx !important;
 }
 
 .van-sticky {
