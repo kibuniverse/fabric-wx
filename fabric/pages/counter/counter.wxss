@@ -213,7 +213,8 @@ scroll-view::-webkit-scrollbar {
   left: 0;
   top: 0;
   width: 100vw;
-  height: 100vh;
+  /* 排除底部 tab 栏区域 (96rpx + 安全区域)，防止悬浮球被遮挡 */
+  height: calc(100vh - 96rpx - env(safe-area-inset-bottom));
   pointer-events: none;
   /* 让事件穿透到页面 */
   z-index: 999;

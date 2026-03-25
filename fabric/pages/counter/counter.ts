@@ -121,22 +121,31 @@ Page({
 
   initFloatPosition() {
     const sys = wx.getSystemInfoSync();
-    const { windowWidth, windowHeight } = sys;
+    const { windowWidth, windowHeight, safeArea } = sys;
     const margin = 10;
+
+    // 计算 tab 栏高度 (96rpx 转 px + 安全区域底部)
+    const tabBarHeight = 96 / 750 * windowWidth + (sys.screenHeight - safeArea.bottom);
 
     const query = wx.createSelectorQuery();
     query
       .select("#connect-ball")
       .boundingClientRect((rect) => {
-        const floatPos = wx.getStorageSync("floatPos") || {
-          x: windowWidth - rect.width - margin,
-          y: windowHeight * 0.75,
-        };
+        const savedPos = wx.getStorageSync("floatPos");
+        const maxY = windowHeight - rect.height - tabBarHeight - margin;
+        const defaultX = windowWidth - rect.width - margin;
+        const defaultY = windowHeight * 0.75;
+
+        // 如果有保存的位置，确保 y 不超过安全区域
+        let finalX = savedPos?.x ?? defaultX;
+        let finalY = savedPos?.y ?? defaultY;
+        finalY = Math.min(finalY, maxY);
+
         this.setData({
           "floatBall.winW": windowWidth,
           "floatBall.winH": windowHeight,
-          "floatBall.x": floatPos.x, // 右下角定位
-          "floatBall.y": floatPos.y,
+          "floatBall.x": finalX,
+          "floatBall.y": finalY,
           "floatBall.ballW": rect.width,
           "floatBall.ballH": rect.height,
         });
@@ -278,16 +287,24 @@ Page({
 
   onTouchend() {
     const { floatBall: float } = this.data;
-    const centerX = (this.moveX ?? float.x) + float.ballW / 2;
+    const sys = wx.getSystemInfoSync();
+    // 计算 tab 栏高度 (96rpx 转 px + 安全区域底部)
+    const tabBarHeight = 96 / 750 * float.winW + (sys.screenHeight - sys.safeArea.bottom);
     const margin = 10;
+    const maxY = float.winH - float.ballH - tabBarHeight - margin;
+
+    const centerX = (this.moveX ?? float.x) + float.ballW / 2;
     const finalX =
       centerX > float.winW / 2 ? float.winW - float.ballW - margin : margin;
-    // 只改 x，y 保持手指离开时的值
+    // y 也要限制在安全区域内
+    const rawY = this.moveY ?? float.y;
+    const finalY = Math.max(margin, Math.min(rawY, maxY));
+
     this.setData({
       "floatBall.x": finalX,
-      "floatBall.y": this.moveY ?? float.y,
+      "floatBall.y": finalY,
     });
-    wx.setStorageSync("floatPos", { x: finalX, y: this.moveY ?? float.y });
+    wx.setStorageSync("floatPos", { x: finalX, y: finalY });
   },
   onChange(e: { detail: { index: number } }) {
     const index = e.detail.index;
