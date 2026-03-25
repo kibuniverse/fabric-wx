@@ -11,6 +11,9 @@ Page({
     lastModified: ''
   },
 
+  // 保存原始内容，用于判断是否有修改
+  _originalContent: '',
+
   onLoad(options) {
     const key = options.key;
     const type = options.type || 'item'; // 默认为 item 类型（图解）
@@ -25,6 +28,9 @@ Page({
       console.warn('Failed to decode memo content:', e);
       content = "";
     }
+
+    // 保存原始内容
+    this._originalContent = content;
 
     this.setData({
       key: key,
@@ -83,8 +89,8 @@ Page({
     } catch (e) {
       console.warn('EventChannel not available:', e);
     }
-    // 通知计数器页面备忘录已更新
-    if (this.data.type === 'counter') {
+    // 只有内容确实发生变化时，才通知计数器页面
+    if (this.data.type === 'counter' && this.data.content !== this._originalContent) {
       eventBus.emit('onMemoContentChange', void 0);
     }
   },
