@@ -139,7 +139,7 @@ page {
   font-size: 32rpx !important;
   font-weight: 400 !important;
   font-style: normal !important;
-  line-height: 22px !important;
+  line-height: normal !important;
   letter-spacing: -0.43px !important;
   text-align: center !important;
 }
