@@ -343,6 +343,9 @@
   padding: 4rpx; /* 2dp描边 = 4rpx */
   background: rgba(255, 255, 255, 0.3); /* 70%透明度的白色描边 */
   box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .avatar-large {
