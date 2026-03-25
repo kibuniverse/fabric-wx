@@ -62,7 +62,7 @@
           <view class="history-item {{item.isNew ? 'slide-in' : ''}}">
             <view class="history-time">{{item.time}}</view>
             <view class="history-action">{{item.action}}</view>
-            <view class="history-count">{{item.count}}</view>
+            <view class="history-count">第{{item.count}}行</view>
             <view class="history-interval">{{item.interval || '--'}}</view>
           </view>
         </block>

@@ -405,7 +405,7 @@ Component({
         this.saveCounterData();
         this.showToast("智能计时已关闭");
       } else {
-        this.showToast("智能计时已开启");
+        this.showToast("智能计时已开启，操作计数器将开始自动计时");
       }
     },
 
