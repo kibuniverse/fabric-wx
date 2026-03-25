@@ -51,10 +51,10 @@
 }
 
 .delete-text {
-  font-family: PingFang SC;
   font-weight: 400;
   font-size: 28rpx;
   line-height: 44rpx;
+  letter-spacing: -0.86rpx;
   color: #b22222e5;
 }
 

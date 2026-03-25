@@ -86,7 +86,7 @@ Component({
   },
   data: {
     counterData: DEFAULT_COUNTER_DATA,
-    timerDisplay: "00:00:00",
+    timerDisplay: "00 : 00 : 00",
     isTimerRunning: false,
     isSmartTimerOn: true, // 智能计时开关（默认开启）
     timerInterval: 0,
@@ -548,7 +548,7 @@ Component({
     },
 
     padNumbers(...numbers: number[]): string {
-      return numbers.map((n) => n.toString().padStart(2, "0")).join(":");
+      return numbers.map((n) => n.toString().padStart(2, "0")).join(" : ");
     },
 
     // 目标设置相关
@@ -610,7 +610,7 @@ Component({
       this.setData({
         "counterData.timerState.elapsedTime": 0,
         "counterData.timerState.startTimestamp": 0,
-        timerDisplay: "00:00:00",
+        timerDisplay: "00 : 00 : 00",
         isTimerRunning: false,
       });
       this.saveCounterData();
@@ -624,7 +624,7 @@ Component({
       this.setData({
         "counterData.timerState.elapsedTime": 0,
         "counterData.timerState.startTimestamp": 0,
-        timerDisplay: "00:00:00",
+        timerDisplay: "00 : 00 : 00",
         isTimerRunning: false,
       });
       // 再重置行数
