@@ -198,6 +198,11 @@ scroll-view::-webkit-scrollbar {
   bottom: -16rpx !important;
 }
 
+/* 让 counter 内容区域上移，使边框线紧贴 indicator 下边缘 */
+.van-tabs__content {
+  margin-top: -33rpx;
+}
+
 .van-sticky {
   position: relative;
   z-index: 0 !important;

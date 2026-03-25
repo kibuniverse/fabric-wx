@@ -4,7 +4,6 @@
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  margin-top: 4rpx;
   border-top: 2rpx solid #0000001a;
 }
 
