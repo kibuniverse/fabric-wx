@@ -1,5 +1,5 @@
 {
-  "disableScroll": true,
+  "disableScroll": false,
   "usingComponents": {
     "dynamic-svg": "/components/dynamic-svg/index"
   },
