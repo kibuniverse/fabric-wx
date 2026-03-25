@@ -80,6 +80,10 @@
   color: #a889c8;
 }
 
+.counter-btn-hover {
+  opacity: 0.7;
+}
+
 .minus {
   background: #0000001a;
 }
