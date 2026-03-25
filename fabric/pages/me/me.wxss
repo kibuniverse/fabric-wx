@@ -284,6 +284,13 @@
   padding: 0 44rpx 0; /* 22dp = 44rpx */
 }
 
+/* 平板适配：整体下移 20dp */
+@media (min-width: 500px) {
+  .header-row {
+    margin-top: 60rpx; /* 20dp = 40rpx */
+  }
+}
+
 .total-time {
   display: flex;
   flex-direction: row;
