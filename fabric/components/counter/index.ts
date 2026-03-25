@@ -307,8 +307,9 @@ Component({
 
     // 历史记录相关
     addHistory(action: string) {
-      const now = new Date();
-      const timeString = this.formatDateTime(now);
+      const nowDate = new Date();
+      const timeString = this.formatDateTime(nowDate);
+      const timestamp = Date.now();
 
       // 先将所有现有记录的 isNew 标记移除
       const currentHistory = this.data.counterData.history.map((item) => ({
@@ -322,8 +323,31 @@ Component({
         action,
         count: this.data.counterData.currentCount,
         isNew: true,
-        id: Date.now(), // 添加唯一标识符
+        id: timestamp,
+        timestamp,
+        interval: "", // 稍后计算
       };
+
+      // 计算时间差
+      if (currentHistory.length > 0) {
+        const prevTimestamp = currentHistory[0].timestamp;
+        if (prevTimestamp) {
+          const diffMs = timestamp - prevTimestamp;
+          const diffSec = Math.floor(diffMs / 1000);
+
+          // 超过60分钟不显示
+          if (diffSec >= 3600) {
+            newHistoryItem.interval = "";
+          } else if (diffSec >= 60) {
+            // 超过60秒，显示x分x秒
+            const minutes = Math.floor(diffSec / 60);
+            const seconds = diffSec % 60;
+            newHistoryItem.interval = `${minutes}分${seconds}秒`;
+          } else {
+            newHistoryItem.interval = `${diffSec}秒`;
+          }
+        }
+      }
 
       // 更新历史记录列表，只保留最近20条
       const newHistory = [newHistoryItem, ...currentHistory].slice(0, 20);
@@ -516,7 +540,7 @@ Component({
 
     formatDateTime(date: Date): string {
       const pad = (n: number) => String(n).padStart(2, "0");
-      return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(
+      return `${pad(date.getMonth() + 1)}-${pad(
         date.getDate()
       )} ${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(
         date.getSeconds()
@@ -560,7 +584,7 @@ Component({
     // 长按重置按钮显示菜单
     onResetLongPress() {
       wx.showActionSheet({
-        itemList: ['重置计时', '重置行数', '重置全部'],
+        itemList: ['重置计时', '重置行数', '重置全部', '清除操作记录'],
         success: (res) => {
           switch (res.tapIndex) {
             case 0:
@@ -571,6 +595,9 @@ Component({
               break;
             case 2:
               this.resetAll();
+              break;
+            case 3:
+              this.clearHistory();
               break;
           }
         }
