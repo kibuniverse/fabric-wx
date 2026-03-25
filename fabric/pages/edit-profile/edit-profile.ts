@@ -90,8 +90,14 @@ Page({
           throw new Error('获取临时URL失败');
         }
 
-        // 下载文件
-        const downloadRes = await wx.downloadFile({ url: downloadUrl });
+        // 下载文件 - 使用 Promise 包装等待下载完成
+        const downloadRes = await new Promise<WechatMiniprogram.DownloadSuccessCallbackResult>((resolve, reject) => {
+          wx.downloadFile({
+            url: downloadUrl,
+            success: resolve,
+            fail: reject,
+          });
+        });
         if (downloadRes.statusCode !== 200) {
           throw new Error('下载失败');
         }
