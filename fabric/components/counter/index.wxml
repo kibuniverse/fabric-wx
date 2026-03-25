@@ -6,7 +6,7 @@
       <image class='edit-icon' src="/assets/edit.svg" />
     </view>
     <view class="target-count" bindtap="showTargetInput" bind:showTargetInput="handleShowTargetInput">
-      <view>目标行数：</view>
+      <view class="target-label">目标行数：</view>
       <view class="target-num">{{counterData.targetCount}}</view>
     </view>
   </view>

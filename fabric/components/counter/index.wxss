@@ -1,5 +1,5 @@
 .counter-wrapper {
-  padding: 44rpx;
+  padding: 56rpx 44rpx 44rpx 44rpx;
   /* height: calc(100vh - 500rpx); */
   display: flex;
   flex-direction: column;
@@ -18,14 +18,17 @@
 
 .counter-name-wrapper {
   display: flex;
-  align-items: flex-end;
+  align-items: center;
 }
 
 
 .counter-name {
   max-width: 320rpx;
   font-size: 32rpx;
-  color: var(--main-default-gray);
+  font-weight: 400;
+  line-height: 44rpx;
+  letter-spacing: -0.86rpx;
+  color: #00000066;
 }
 
 .edit-icon {
@@ -33,7 +36,6 @@
   height: 32rpx;
   color: var(--main-default-gray);
   margin-left: 8rpx;
-  transform: translateY(-10rpx);
 }
 
 .counter-delete-btn {
@@ -54,13 +56,6 @@
   font-size: 28rpx;
   line-height: 44rpx;
   color: #b22222e5;
-}
-
-.target-count {
-  flex-shrink: 0;
-  color: #333333;
-  font-size: 32rpx;
-  font-weight: 500;
 }
 
 /* 计数器主体样式 */
@@ -141,15 +136,22 @@
 .target-count {
   display: flex;
   align-items: center;
-  color: #333333;
+  margin-left: 20rpx;
+}
+
+.target-label {
   font-size: 32rpx;
   font-weight: 500;
-  margin-left: 20rpx;
-  display: flex;
+  line-height: 44rpx;
+  letter-spacing: -0.86rpx;
+  color: #333333;
 }
 
 .target-num {
   font-size: 40rpx;
+  font-weight: 500;
+  line-height: 44rpx;
+  letter-spacing: -0.86rpx;
   color: var(--main-color);
 }
 
