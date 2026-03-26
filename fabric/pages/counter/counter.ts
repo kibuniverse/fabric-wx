@@ -23,6 +23,14 @@ Page({
   // 用于记录浮球移动的坐标
   moveX: 0,
   moveY: 0,
+  // 平滑眼珠动画的当前值
+  smoothEyeOffsetX: 0,
+  smoothEyeOffsetY: 0,
+  // 目标眼珠偏移
+  targetEyeOffsetX: 0,
+  targetEyeOffsetY: 0,
+  // 动画帧 ID
+  animationFrameId: 0,
 
   onShareAppMessage() {
     return {
@@ -93,6 +101,13 @@ Page({
     // 空闲暂停弹窗
     showIdleDialog: false,
     idleTimerKey: "",
+    // 眼睛动画相关
+    isDragging: false,
+    eyeState: 'normal' as 'normal' | 'shocked',
+    eyeOffsetX: 0,
+    eyeOffsetY: 0,
+    eyeScale: 1,
+    mouthOffsetX: 0,
   },
 
   // 在Page对象内新增方法
@@ -108,6 +123,10 @@ Page({
       isVoiceOn: loadStorageData(STORAGE_KEYS.VOICE, false),
     });
   },
+
+  // 平滑眼珠动画的当前值
+  smoothEyeOffsetX: 0,
+  smoothEyeOffsetY: 0,
 
   initKeepScreen() {
     wx.setKeepScreenOn({
@@ -319,12 +338,109 @@ Page({
   onConnectChange(e: any) {
     if (e.detail.source === "touch") {
       // 实时记录
+      const prevX = this.moveX;
+      const prevY = this.moveY;
       this.moveX = e.detail.x;
       this.moveY = e.detail.y;
+
+      // 计算眼睛动画
+      const sys = wx.getSystemInfoSync();
+      const tabBarHeight = 96 / 750 * this.data.floatBall.winW + (sys.screenHeight - sys.safeArea.bottom);
+      const maxY = this.data.floatBall.winH - this.data.floatBall.ballH - tabBarHeight - 10;
+
+      // 计算目标眼珠偏移 - 跟随拖动方向
+      const maxOffset = 4;
+      const sensitivity = 0.4;
+      const deltaX = this.moveX - (prevX || this.data.floatBall.x);
+      const deltaY = this.moveY - (prevY || this.data.floatBall.y);
+
+      // 更新目标偏移
+      this.targetEyeOffsetX = Math.max(-maxOffset, Math.min(maxOffset, deltaX * sensitivity));
+      this.targetEyeOffsetY = Math.max(-maxOffset, Math.min(maxOffset, deltaY * sensitivity));
+
+      // 检测是否触边（震惊效果）
+      const isAtBottom = this.moveY >= maxY - 10;
+      const isAtTop = this.moveY <= 10;
+      const isAtEdge = isAtBottom || isAtTop;
+
+      // 眼珠缩放（震惊时放大）
+      const eyeScale = isAtEdge ? 1.4 : 1;
+
+      // 使用平滑动画更新
+      this.animateEye(isAtEdge, eyeScale);
     }
   },
 
+  // 平滑动画更新眼珠位置
+  animateEye(isAtEdge: boolean, eyeScale: number) {
+    // 如果已有动画帧在运行，先取消
+    if (this.animationFrameId) {
+      cancelAnimationFrame(this.animationFrameId);
+    }
+
+    const animate = () => {
+      // 确保拖动状态正确
+      if (!this.data.isDragging) {
+        return;
+      }
+
+      // 平滑插值 - 使用更平滑的缓动
+      const smoothing = 0.2;
+      this.smoothEyeOffsetX += (this.targetEyeOffsetX - this.smoothEyeOffsetX) * smoothing;
+      this.smoothEyeOffsetY += (this.targetEyeOffsetY - this.smoothEyeOffsetY) * smoothing;
+
+      // 检查是否接近目标
+      const threshold = 0.05;
+      const isCloseEnough =
+        Math.abs(this.smoothEyeOffsetX - this.targetEyeOffsetX) < threshold &&
+        Math.abs(this.smoothEyeOffsetY - this.targetEyeOffsetY) < threshold;
+
+      if (isCloseEnough) {
+        this.smoothEyeOffsetX = this.targetEyeOffsetX;
+        this.smoothEyeOffsetY = this.targetEyeOffsetY;
+      }
+
+      this.setData({
+        eyeOffsetX: this.smoothEyeOffsetX,
+        eyeOffsetY: this.smoothEyeOffsetY,
+        eyeScale,
+        eyeState: 'shocked',
+        mouthOffsetX: this.smoothEyeOffsetX * 1.5,
+      });
+
+      // 如果还没到达目标，继续动画
+      if (!isCloseEnough && this.data.isDragging) {
+        this.animationFrameId = requestAnimationFrame(animate);
+      }
+    };
+
+    animate();
+  },
+
+  onTouchstart() {
+    // 取消之前的动画
+    if (this.animationFrameId) {
+      cancelAnimationFrame(this.animationFrameId);
+    }
+    this.smoothEyeOffsetX = 0;
+    this.smoothEyeOffsetY = 0;
+    this.targetEyeOffsetX = 0;
+    this.targetEyeOffsetY = 0;
+    this.setData({
+      isDragging: true,
+      eyeOffsetX: 0,
+      eyeOffsetY: 0,
+      mouthOffsetX: 0,
+    });
+  },
+
   onTouchend() {
+    // 取消动画帧
+    if (this.animationFrameId) {
+      cancelAnimationFrame(this.animationFrameId);
+      this.animationFrameId = 0;
+    }
+
     const { floatBall: float } = this.data;
     const sys = wx.getSystemInfoSync();
     // 计算 tab 栏高度 (96rpx 转 px + 安全区域底部)
@@ -343,6 +459,23 @@ Page({
       "floatBall.x": finalX,
       "floatBall.y": finalY,
     });
+
+    // 延时隐藏表情，等吸边动画完全停止后1秒再切换
+    setTimeout(() => {
+      this.smoothEyeOffsetX = 0;
+      this.smoothEyeOffsetY = 0;
+      this.targetEyeOffsetX = 0;
+      this.targetEyeOffsetY = 0;
+      this.setData({
+        isDragging: false,
+        eyeOffsetX: 0,
+        eyeOffsetY: 0,
+        eyeScale: 1,
+        eyeState: 'normal',
+        mouthOffsetX: 0,
+      });
+    }, 1300);
+
     wx.setStorageSync("floatPos", { x: finalX, y: finalY });
   },
   onChange(e: { detail: { index: number } }) {

@@ -35,9 +35,21 @@
     </van-tabs>
   </view>
   <movable-area class="area" wx:if="{{!showRepeatCounter}}">
-    <movable-view class="ball" id="connect-ball" style="opacity: {{floatBall.opacity}};" direction="all" x="{{floatBall.x}}" y="{{floatBall.y}}" bindchange="onConnectChange" bindtouchend="onTouchend" bindtap="showRepeatCounterDialog">
-      <image src="/assets/connect.svg" mode="aspectFill" />
-      <text class="text">子计数器</text>
+    <movable-view class="ball {{isDragging ? 'ball-dragging' : ''}}" id="connect-ball" style="opacity: {{floatBall.opacity}};" direction="all" x="{{floatBall.x}}" y="{{floatBall.y}}" bindchange="onConnectChange" bindtouchstart="onTouchstart" bindtouchend="onTouchend" bindtap="showRepeatCounterDialog">
+      <!-- 可爱的眼睛 -->
+      <view class="eyes-container {{isDragging ? 'eyes-visible' : ''}}">
+        <view class="eye left-eye">
+          <view class="pupil" style="transform: translate({{eyeOffsetX}}px, {{eyeOffsetY}}px) scale({{eyeScale}});"></view>
+        </view>
+        <view class="eye right-eye">
+          <view class="pupil" style="transform: translate({{eyeOffsetX}}px, {{eyeOffsetY}}px) scale({{eyeScale}});"></view>
+        </view>
+      </view>
+      <!-- 震惊时的嘴巴 -->
+      <view class="shock-mouth {{eyeState === 'shocked' && isDragging ? 'mouth-visible' : ''}}" style="transform: translateX(calc(-50% + {{mouthOffsetX}}px));"></view>
+      <!-- 原始图标，拖动时隐藏 -->
+      <image src="/assets/connect.svg" mode="aspectFill" class="{{isDragging ? 'icon-hidden' : ''}}" />
+      <text class="text {{isDragging ? 'icon-hidden' : ''}}">子计数器</text>
     </movable-view>
   </movable-area>
 </view>
