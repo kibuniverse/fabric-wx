@@ -436,56 +436,59 @@ Page({
       clearTimeout(this.buttonClickTimer);
     }
 
-    // 获取悬浮球当前位置
-    const query = wx.createSelectorQuery();
-    query.select('#connect-ball').boundingClientRect();
-    query.exec((res) => {
-      const ballRect = res[0];
-      if (!ballRect || !numberPosition) return;
+    // 延迟 0.4 秒后展现表情
+    setTimeout(() => {
+      // 获取悬浮球当前位置
+      const query = wx.createSelectorQuery();
+      query.select('#connect-ball').boundingClientRect();
+      query.exec((res) => {
+        const ballRect = res[0];
+        if (!ballRect || !numberPosition) return;
 
-      // 计算悬浮球中心位置
-      const ballCenterX = ballRect.left + ballRect.width / 2;
-      const ballCenterY = ballRect.top + ballRect.height / 2;
+        // 计算悬浮球中心位置
+        const ballCenterX = ballRect.left + ballRect.width / 2;
+        const ballCenterY = ballRect.top + ballRect.height / 2;
 
-      // 计算眼睛偏移 - 眼睛看向数字位置
-      const dx = numberPosition.x - ballCenterX;
-      const dy = numberPosition.y - ballCenterY;
+        // 计算眼睛偏移 - 眼睛看向数字位置
+        const dx = numberPosition.x - ballCenterX;
+        const dy = numberPosition.y - ballCenterY;
 
-      // 根据距离计算偏移，限制在最大范围内
-      const maxOffset = 3;
-      const distance = Math.sqrt(dx * dx + dy * dy);
-      const normalizedX = distance > 0 ? dx / distance : 0;
-      const normalizedY = distance > 0 ? dy / distance : 0;
+        // 根据距离计算偏移，限制在最大范围内
+        const maxOffset = 3;
+        const distance = Math.sqrt(dx * dx + dy * dy);
+        const normalizedX = distance > 0 ? dx / distance : 0;
+        const normalizedY = distance > 0 ? dy / distance : 0;
 
-      // 眼睛偏移方向
-      const eyeOffsetX = normalizedX * maxOffset;
-      const eyeOffsetY = normalizedY * maxOffset;
+        // 眼睛偏移方向
+        const eyeOffsetX = normalizedX * maxOffset;
+        const eyeOffsetY = normalizedY * maxOffset;
 
-      this.setData({
-        isDragging: true,
-        showFaceFromButton: true,
-        eyeOffsetX,
-        eyeOffsetY,
-        eyeScale: 1,
-        eyeState: 'shocked',
-      });
-
-      // 启动眨眼动画
-      this.startBlinkAnimation();
-
-      // 1秒后隐藏表情
-      this.buttonClickTimer = setTimeout(() => {
-        this.stopBlinkAnimation();
         this.setData({
-          isDragging: false,
-          showFaceFromButton: false,
-          eyeOffsetX: 0,
-          eyeOffsetY: 0,
+          isDragging: true,
+          showFaceFromButton: true,
+          eyeOffsetX,
+          eyeOffsetY,
           eyeScale: 1,
-          eyeState: 'normal',
+          eyeState: 'shocked',
         });
-      }, 1000);
-    });
+
+        // 启动眨眼动画
+        this.startBlinkAnimation();
+
+        // 1秒后隐藏表情
+        this.buttonClickTimer = setTimeout(() => {
+          this.stopBlinkAnimation();
+          this.setData({
+            isDragging: false,
+            showFaceFromButton: false,
+            eyeOffsetX: 0,
+            eyeOffsetY: 0,
+            eyeScale: 1,
+            eyeState: 'normal',
+          });
+        }, 1000);
+      });
+    }, 200);
   },
 
   onTouchstart() {

@@ -654,18 +654,24 @@ Component({
 
     // 公共方法
     increase(isFromChildCounter: boolean = false) {
-      // 获取数字位置并通知悬浮球展示表情
-      this.getCounterNumberPosition((position) => {
-        eventBus.emit('counterButtonClicked', { type: 'increase', numberPosition: position });
-      });
+      // 只有声音提示开启时才触发悬浮球表情
+      if (this.properties.voiceOn) {
+        // 获取数字位置并通知悬浮球展示表情
+        this.getCounterNumberPosition((position) => {
+          eventBus.emit('counterButtonClicked', { type: 'increase', numberPosition: position });
+        });
+      }
       this.handleCountChange("increase", isFromChildCounter === true);
     },
 
     decrease(isFromChildCounter: boolean = false) {
-      // 获取数字位置并通知悬浮球展示表情
-      this.getCounterNumberPosition((position) => {
-        eventBus.emit('counterButtonClicked', { type: 'decrease', numberPosition: position });
-      });
+      // 只有声音提示开启时才触发悬浮球表情
+      if (this.properties.voiceOn) {
+        // 获取数字位置并通知悬浮球展示表情
+        this.getCounterNumberPosition((position) => {
+          eventBus.emit('counterButtonClicked', { type: 'decrease', numberPosition: position });
+        });
+      }
       this.handleCountChange("decrease", isFromChildCounter === true);
     },
 
