@@ -87,6 +87,15 @@
   height: 64rpx;
 }
 
+/* 点击反馈 */
+.counter-btn-hover {
+  opacity: 0.7;
+}
+
+.btn-hover {
+  opacity: 0.7;
+}
+
 /* 修改计数弹窗样式 */
 .modal-content {
   margin: 40rpx;

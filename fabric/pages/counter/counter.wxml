@@ -79,13 +79,13 @@
     <text class="content-counter-number">正在重复第 {{repeatTimes}} 次</text>
     <!-- 重复计数器主体 -->
     <view class="counter-repeat">
-      <view class="counter-repeat-button minus" bindtap="decreaseRepeatNumber">
+      <view class="counter-repeat-button minus" hover-class="counter-btn-hover" bindtap="decreaseRepeatNumber">
         <image class='repeat-minus-icon' src="/assets/minus.svg" />
       </view>
       <view class="counter-repeat-number">
         <animate-numbers value="{{repeatCounterCurValue}}" min='{{0}}' max='{{999}}' options='{{options}}' bindtap='onRepeatCountChange' />
       </view>
-      <view class=" counter-repeat-button plus" bindtap="increaseRepeatNumber">
+      <view class=" counter-repeat-button plus" hover-class="counter-btn-hover" bindtap="increaseRepeatNumber">
         <image class='repeat-minus-icon' src="/assets/plus.svg" />
       </view>
     </view>
