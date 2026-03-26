@@ -226,6 +226,19 @@ Page({
     }
     // 检查当前 Tab 是否需要显示恢复计时弹窗
     this.checkResumeTimerDialog();
+    // 开始针织总时长计时
+    const app = getApp<IAppOption>();
+    if (app) {
+      app.startKnittingSession();
+    }
+  },
+
+  onHide() {
+    // 暂停针织总时长计时
+    const app = getApp<IAppOption>();
+    if (app) {
+      app.pauseKnittingSession(true);
+    }
   },
 
   // 检查当前 Tab 是否需要显示恢复计时弹窗

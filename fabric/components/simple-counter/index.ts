@@ -172,6 +172,12 @@ Component({
      * 增加计数器值
      */
     increaseCount() {
+      // 重置针织总时长计时器的活跃时间
+      const app = getApp<IAppOption>();
+      if (app) {
+        app.resetKnittingActivity();
+      }
+
       // 防止计数超过最大值
       if (this.data.count >= 999) {
         this.showToast("已经是最大值了");
@@ -204,6 +210,12 @@ Component({
      * 减少计数器值
      */
     decreaseCount() {
+      // 重置针织总时长计时器的活跃时间
+      const app = getApp<IAppOption>();
+      if (app) {
+        app.resetKnittingActivity();
+      }
+
       // 防止计数为负数
       if (this.data.count <= 0) {
         this.showToast("已经是最小值了");

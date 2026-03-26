@@ -1,8 +1,18 @@
 // app.ts
+
+// 空闲超时时间（毫秒），10分钟
+const KNITTING_IDLE_TIMEOUT = 10 * 60 * 1000;
+
 App<IAppOption>({
   globalData: {
     totalKnittingTime: 0, // 全局针织总时长（毫秒）
     isSyncing: false, // 是否正在同步
+    // 针织时长计时相关
+    knittingSessionStart: 0, // 当前会话开始时间
+    knittingSessionElapsed: 0, // 当前会话已累计时长
+    isKnittingTimerRunning: false, // 计时器是否运行中
+    knittingIdleTimer: 0, // 空闲检测定时器
+    lastKnittingActivity: 0, // 最后活跃时间
   },
 
   onLaunch() {
@@ -21,7 +31,115 @@ App<IAppOption>({
 
     const info = wx.getSystemInfoSync()
     console.log('info', info)
+
+    // 初始化总时长
+    this.globalData.totalKnittingTime = wx.getStorageSync('total_zhizhi_time') || 0
   },
+
+  // ========== 针织总时长计时器 ==========
+
+  /**
+   * 开始针织计时会话
+   */
+  startKnittingSession() {
+    // 如果已在计时，只重置活跃时间
+    if (this.globalData.isKnittingTimerRunning) {
+      this.resetKnittingActivity()
+      return
+    }
+
+    const now = Date.now()
+    this.globalData.knittingSessionStart = now
+    this.globalData.knittingSessionElapsed = 0
+    this.globalData.isKnittingTimerRunning = true
+    this.globalData.lastKnittingActivity = now
+
+    // 启动空闲检测
+    this.startKnittingIdleCheck()
+
+    console.log('[KnittingTimer] 开始计时')
+  },
+
+  /**
+   * 暂停针织计时会话
+   * @param syncToCloud 是否同步到云端
+   */
+  pauseKnittingSession(syncToCloud: boolean = true) {
+    if (!this.globalData.isKnittingTimerRunning) return
+
+    // 计算本次会话时长
+    const sessionTime = this.getCurrentKnittingSessionTime()
+    this.globalData.knittingSessionElapsed = sessionTime
+    this.globalData.isKnittingTimerRunning = false
+    this.globalData.knittingSessionStart = 0
+
+    // 停止空闲检测
+    this.stopKnittingIdleCheck()
+
+    // 累加到总时长
+    if (sessionTime > 0) {
+      this.addKnittingTime(sessionTime)
+      console.log(`[KnittingTimer] 暂停，本次时长: ${Math.round(sessionTime / 1000)}秒`)
+
+      // 同步到云端
+      if (syncToCloud) {
+        this.syncToCloud(sessionTime)
+      }
+    }
+  },
+
+  /**
+   * 获取当前会话已计时时长（毫秒）
+   */
+  getCurrentKnittingSessionTime(): number {
+    if (!this.globalData.isKnittingTimerRunning) {
+      return this.globalData.knittingSessionElapsed
+    }
+    return this.globalData.knittingSessionElapsed + (Date.now() - this.globalData.knittingSessionStart)
+  },
+
+  /**
+   * 重置活跃时间（用户有操作时调用）
+   */
+  resetKnittingActivity() {
+    this.globalData.lastKnittingActivity = Date.now()
+  },
+
+  /**
+   * 启动空闲检测
+   */
+  startKnittingIdleCheck() {
+    this.stopKnittingIdleCheck()
+
+    this.globalData.knittingIdleTimer = setInterval(() => {
+      const lastActivity = this.globalData.lastKnittingActivity
+      const idleTime = Date.now() - lastActivity
+
+      if (idleTime >= KNITTING_IDLE_TIMEOUT) {
+        console.log('[KnittingTimer] 空闲超时，自动暂停')
+        this.pauseKnittingSession(true)
+      }
+    }, 60000) as unknown as number // 每分钟检查一次
+  },
+
+  /**
+   * 停止空闲检测
+   */
+  stopKnittingIdleCheck() {
+    if (this.globalData.knittingIdleTimer) {
+      clearInterval(this.globalData.knittingIdleTimer)
+      this.globalData.knittingIdleTimer = 0
+    }
+  },
+
+  /**
+   * 检查计时器是否运行中
+   */
+  isKnittingTimerRunning(): boolean {
+    return this.globalData.isKnittingTimerRunning
+  },
+
+  // ========== 原有的时长管理方法 ==========
 
   /**
    * 累加针织时长到全局总时长

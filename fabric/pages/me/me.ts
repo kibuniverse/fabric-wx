@@ -233,11 +233,11 @@ Page({
     if (!result) return;
 
     const { totalKnittingTime, zhizhiId, zhizhiIdModified, nickName, avatarUrl: cloudAvatarUrl } = result;
-    const hours = Math.floor((totalKnittingTime || 0) / 3600000);
+    const hours = (totalKnittingTime || 0) / 3600000;
 
     // 更新页面数据
     this.setData({
-      totalTimeHours: hours,
+      totalTimeHours: hours.toFixed(1),
       zhizhiId: zhizhiId || this.data.zhizhiId,
     });
 
@@ -272,7 +272,7 @@ Page({
    */
   loadTotalTime() {
     const totalTime = wx.getStorageSync('total_zhizhi_time') || 0;
-    const hours = Math.floor(totalTime / 3600000); // 毫秒转小时
+    const hours = (totalTime / 3600000).toFixed(1); // 毫秒转小时，保留1位小数
     this.setData({ totalTimeHours: hours });
   },
 

@@ -296,6 +296,12 @@ Page<DetailPageData, WechatMiniprogram.IAnyObject>({
    * 触摸开始
    */
   onTouchStart(e: WechatMiniprogram.TouchEvent) {
+    // 重置针织总时长计时器的活跃时间
+    const app = getApp<IAppOption>();
+    if (app) {
+      app.resetKnittingActivity();
+    }
+
     const touches = e.touches;
     const touchCount = touches.length;
     const { scale } = this.data;
@@ -623,6 +629,12 @@ Page<DetailPageData, WechatMiniprogram.IAnyObject>({
    * Swiper 切换
    */
   onSwiperChange(e: WechatMiniprogram.SwiperChange) {
+    // 重置针织总时长计时器的活跃时间
+    const app = getApp<IAppOption>();
+    if (app) {
+      app.resetKnittingActivity();
+    }
+
     const newIndex = e.detail.current;
 
     this.setData({
@@ -686,10 +698,30 @@ Page<DetailPageData, WechatMiniprogram.IAnyObject>({
       this.loadItemDetail(this.data.itemId, true);
     }
     this.getContainerSize();
+    // 开始针织总时长计时
+    const app = getApp<IAppOption>();
+    if (app) {
+      app.startKnittingSession();
+    }
   },
 
-  onHide() { this.saveLastImageIndex(); },
-  onUnload() { this.saveLastImageIndex(); },
+  onHide() {
+    this.saveLastImageIndex();
+    // 暂停针织总时长计时
+    const app = getApp<IAppOption>();
+    if (app) {
+      app.pauseKnittingSession(true);
+    }
+  },
+
+  onUnload() {
+    this.saveLastImageIndex();
+    // 暂停针织总时长计时
+    const app = getApp<IAppOption>();
+    if (app) {
+      app.pauseKnittingSession(true);
+    }
+  },
 
   saveLastImageIndex() {
     const { itemId, currentImageIndex, itemType } = this.data;

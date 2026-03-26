@@ -88,8 +88,8 @@ Component({
     hide() {
       // 在这里可以执行一些逻辑，例如保存数据或暂停操作
       this.pauseTimerAndMark();
-      // 同步时长到云端
-      this.syncTimeToCloud();
+      // 注意：同步时长到云端的逻辑已移至页面层 (counter.ts onHide -> pauseKnittingSession)
+      // 避免与页面层的同步逻辑冲突
     },
   },
   data: {
@@ -207,6 +207,12 @@ Component({
     ) {
       // 更新最后操作时间（重置空闲计时器）
       this.updateLastOperationTime();
+
+      // 重置针织总时长计时器的活跃时间
+      const app = getApp<IAppOption>();
+      if (app) {
+        app.resetKnittingActivity();
+      }
 
       const { currentCount, targetCount } = this.data.counterData;
       const canShowVoice =
@@ -472,10 +478,8 @@ Component({
       });
       // 5. 存储当前状态
       this.saveCounterData();
-      // 6. 累加到全局总时长（仅当有新增时长时）
-      if (newSessionTime > 0) {
-        this.addGlobalKnittingTime(newSessionTime);
-      }
+      // 注意：不再累加到全局总时长，因为针织总时长计时器会自动记录
+      // 原因：避免与页面层的针织总时长计时器重复计算
     },
 
     // 暂停计时并标记 wasRunning（用于页面离开时）
