@@ -4,6 +4,21 @@
 const LOCAL_AVATAR_PATH_KEY = 'local_avatar_path';
 const LOCAL_AVATAR_FILE_ID_KEY = 'local_avatar_file_id';
 
+/**
+ * 格式化针织总时长
+ * @param totalMs 总时长（毫秒）
+ * @returns 格式化后的小时数（整数或一位小数）
+ */
+function formatTotalTime(totalMs: number): string | number {
+  const hours = totalMs / 3600000;
+  const hoursFixed = parseFloat(hours.toFixed(1));
+  const decimalPart = hoursFixed - Math.floor(hoursFixed);
+  if (decimalPart > 0) {
+    return hoursFixed.toFixed(1);
+  }
+  return Math.floor(hoursFixed);
+}
+
 Page({
   data: {
     statusBarHeight: 0, // 状态栏高度
@@ -233,11 +248,10 @@ Page({
     if (!result) return;
 
     const { totalKnittingTime, zhizhiId, zhizhiIdModified, nickName, avatarUrl: cloudAvatarUrl } = result;
-    const hours = (totalKnittingTime || 0) / 3600000;
 
     // 更新页面数据
     this.setData({
-      totalTimeHours: hours.toFixed(1),
+      totalTimeHours: formatTotalTime(totalKnittingTime || 0),
       zhizhiId: zhizhiId || this.data.zhizhiId,
     });
 
@@ -272,8 +286,7 @@ Page({
    */
   loadTotalTime() {
     const totalTime = wx.getStorageSync('total_zhizhi_time') || 0;
-    const hours = (totalTime / 3600000).toFixed(1); // 毫秒转小时，保留1位小数
-    this.setData({ totalTimeHours: hours });
+    this.setData({ totalTimeHours: formatTotalTime(totalTime) });
   },
 
   /**
@@ -358,8 +371,7 @@ Page({
 
         // 加载总时长
         const totalTime = userData.totalKnittingTime || 0;
-        const hours = Math.floor(totalTime / 3600000);
-        this.setData({ totalTimeHours: hours });
+        this.setData({ totalTimeHours: formatTotalTime(totalTime) });
         wx.setStorageSync('total_zhizhi_time', totalTime);
 
         wx.showToast({ title: '欢迎回来', icon: 'success' });
@@ -476,8 +488,7 @@ Page({
 
         // 加载总时长
         const totalTime = userData.totalKnittingTime || 0;
-        const hours = Math.floor(totalTime / 3600000);
-        this.setData({ totalTimeHours: hours });
+        this.setData({ totalTimeHours: formatTotalTime(totalTime) });
         wx.setStorageSync('total_zhizhi_time', totalTime);
 
         wx.showToast({
