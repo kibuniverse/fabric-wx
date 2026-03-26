@@ -266,39 +266,62 @@ scroll-view::-webkit-scrollbar {
 .eye {
   width: 22rpx;
   height: 22rpx;
-  background: radial-gradient(circle at 35% 35%, #ffffff 0%, #f5f5f5 50%, #e8e8e8 100%);
+  background-color: #ffffff;
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
   position: relative;
   border: 1rpx solid rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+}
+
+/* 眨眼状态 - 整个眼睛垂直缩放 */
+.eye-blink {
+  animation: eye-blink 0.15s ease-in-out;
+}
+
+@keyframes eye-blink {
+  0% {
+    transform: scaleY(1);
+  }
+  40% {
+    transform: scaleY(0.1);
+  }
+  60% {
+    transform: scaleY(0.1);
+  }
+  100% {
+    transform: scaleY(1);
+  }
 }
 
 /* 眼珠 - 小点状 */
 .pupil {
-  width: 8rpx;
-  height: 8rpx;
+  width: 10rpx;
+  height: 10rpx;
   background-color: #333333;
   border-radius: 50%;
 }
 
-/* 震惊时的嘴巴 - 细长横线 */
-.shock-mouth {
-  position: absolute;
-  top: 54rpx;
-  left: 50%;
-  width: 20rpx;
-  height: 3rpx;
-  background-color: #333333;
-  border-radius: 2rpx;
-  opacity: 0;
-  z-index: 10;
-  transform: translateX(-50%);
+/* 眼珠眨眼动画 - 使用 opacity 避免与 transform 冲突 */
+.pupil-blink {
+  animation: pupil-blink 0.15s ease-in-out;
 }
 
-.mouth-visible {
-  opacity: 1;
+@keyframes pupil-blink {
+  0% {
+    opacity: 1;
+  }
+  40% {
+    opacity: 0;
+  }
+  60% {
+    opacity: 0;
+  }
+  100% {
+    opacity: 1;
+  }
 }
 
 .ball:hover {

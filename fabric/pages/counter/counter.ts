@@ -30,7 +30,13 @@ Page({
   targetEyeOffsetX: 0,
   targetEyeOffsetY: 0,
   // 动画帧 ID
-  animationFrameId: 0,
+  animationFrameId: 0 as number,
+  // 按钮点击计时器
+  buttonClickTimer: 0 as number,
+  // 眨眼定时器
+  blinkTimer: 0 as number,
+  // 隐藏表情定时器（onTouchend 中使用）
+  hideFaceTimer: 0 as number,
 
   onShareAppMessage() {
     return {
@@ -107,7 +113,10 @@ Page({
     eyeOffsetX: 0,
     eyeOffsetY: 0,
     eyeScale: 1,
-    mouthOffsetX: 0,
+    // 按钮点击展示表情
+    showFaceFromButton: false,
+    // 眨眼动画
+    isBlinking: false,
   },
 
   // 在Page对象内新增方法
@@ -137,6 +146,10 @@ Page({
   initEventListeners() {
     eventBus.on("onMemoContentChange", () => {
       isMemoModified = true;
+    });
+    // 监听计数器按钮点击事件
+    eventBus.on("counterButtonClicked", ({ type, numberPosition }) => {
+      this.handleCounterButtonClick(type, numberPosition);
     });
   },
 
@@ -349,7 +362,7 @@ Page({
       const maxY = this.data.floatBall.winH - this.data.floatBall.ballH - tabBarHeight - 10;
 
       // 计算目标眼珠偏移 - 跟随拖动方向
-      const maxOffset = 4;
+      const maxOffset = 3;
       const sensitivity = 0.4;
       const deltaX = this.moveX - (prevX || this.data.floatBall.x);
       const deltaY = this.moveY - (prevY || this.data.floatBall.y);
@@ -372,7 +385,7 @@ Page({
   },
 
   // 平滑动画更新眼珠位置
-  animateEye(isAtEdge: boolean, eyeScale: number) {
+  animateEye(_isAtEdge: boolean, eyeScale: number) {
     // 如果已有动画帧在运行，先取消
     if (this.animationFrameId) {
       cancelAnimationFrame(this.animationFrameId);
@@ -405,7 +418,6 @@ Page({
         eyeOffsetY: this.smoothEyeOffsetY,
         eyeScale,
         eyeState: 'shocked',
-        mouthOffsetX: this.smoothEyeOffsetX * 1.5,
       });
 
       // 如果还没到达目标，继续动画
@@ -417,21 +429,95 @@ Page({
     animate();
   },
 
+  // 处理计数器按钮点击，展示表情
+  handleCounterButtonClick(_type: 'increase' | 'decrease', numberPosition: { x: number; y: number }) {
+    // 如果已经在展示表情，先重置
+    if (this.buttonClickTimer) {
+      clearTimeout(this.buttonClickTimer);
+    }
+
+    // 获取悬浮球当前位置
+    const query = wx.createSelectorQuery();
+    query.select('#connect-ball').boundingClientRect();
+    query.exec((res) => {
+      const ballRect = res[0];
+      if (!ballRect || !numberPosition) return;
+
+      // 计算悬浮球中心位置
+      const ballCenterX = ballRect.left + ballRect.width / 2;
+      const ballCenterY = ballRect.top + ballRect.height / 2;
+
+      // 计算眼睛偏移 - 眼睛看向数字位置
+      const dx = numberPosition.x - ballCenterX;
+      const dy = numberPosition.y - ballCenterY;
+
+      // 根据距离计算偏移，限制在最大范围内
+      const maxOffset = 3;
+      const distance = Math.sqrt(dx * dx + dy * dy);
+      const normalizedX = distance > 0 ? dx / distance : 0;
+      const normalizedY = distance > 0 ? dy / distance : 0;
+
+      // 眼睛偏移方向
+      const eyeOffsetX = normalizedX * maxOffset;
+      const eyeOffsetY = normalizedY * maxOffset;
+
+      this.setData({
+        isDragging: true,
+        showFaceFromButton: true,
+        eyeOffsetX,
+        eyeOffsetY,
+        eyeScale: 1,
+        eyeState: 'shocked',
+      });
+
+      // 启动眨眼动画
+      this.startBlinkAnimation();
+
+      // 1秒后隐藏表情
+      this.buttonClickTimer = setTimeout(() => {
+        this.stopBlinkAnimation();
+        this.setData({
+          isDragging: false,
+          showFaceFromButton: false,
+          eyeOffsetX: 0,
+          eyeOffsetY: 0,
+          eyeScale: 1,
+          eyeState: 'normal',
+        });
+      }, 1000);
+    });
+  },
+
   onTouchstart() {
     // 取消之前的动画
     if (this.animationFrameId) {
       cancelAnimationFrame(this.animationFrameId);
     }
+
+    // 清除按钮点击的定时器，防止意外重置 isDragging
+    if (this.buttonClickTimer) {
+      clearTimeout(this.buttonClickTimer);
+      this.buttonClickTimer = 0;
+    }
+
+    // 清除隐藏表情的定时器，防止拖动过程中表情消失
+    if (this.hideFaceTimer) {
+      clearTimeout(this.hideFaceTimer);
+      this.hideFaceTimer = 0;
+    }
+
     this.smoothEyeOffsetX = 0;
     this.smoothEyeOffsetY = 0;
     this.targetEyeOffsetX = 0;
     this.targetEyeOffsetY = 0;
     this.setData({
       isDragging: true,
+      showFaceFromButton: false,
       eyeOffsetX: 0,
       eyeOffsetY: 0,
-      mouthOffsetX: 0,
     });
+    // 启动眨眼动画
+    this.startBlinkAnimation();
   },
 
   onTouchend() {
@@ -461,18 +547,18 @@ Page({
     });
 
     // 延时隐藏表情，等吸边动画完全停止后1秒再切换
-    setTimeout(() => {
+    this.hideFaceTimer = setTimeout(() => {
       this.smoothEyeOffsetX = 0;
       this.smoothEyeOffsetY = 0;
       this.targetEyeOffsetX = 0;
       this.targetEyeOffsetY = 0;
+      this.stopBlinkAnimation();
       this.setData({
         isDragging: false,
         eyeOffsetX: 0,
         eyeOffsetY: 0,
         eyeScale: 1,
         eyeState: 'normal',
-        mouthOffsetX: 0,
       });
     }, 1300);
 
@@ -925,6 +1011,45 @@ Page({
     });
   },
 
+  // 启动眨眼动画
+  startBlinkAnimation() {
+    // 先清除之前的定时器
+    this.stopBlinkAnimation();
+
+    // 随机间隔眨眼（2-4秒之间）
+    const scheduleNextBlink = () => {
+      const delay = 2000 + Math.random() * 2000;
+      this.blinkTimer = setTimeout(() => {
+        this.doBlink();
+        scheduleNextBlink();
+      }, delay);
+    };
+
+    scheduleNextBlink();
+  },
+
+  // 停止眨眼动画
+  stopBlinkAnimation() {
+    if (this.blinkTimer) {
+      clearTimeout(this.blinkTimer);
+      this.blinkTimer = 0;
+    }
+  },
+
+  // 执行眨眼
+  doBlink() {
+    // 只在表情显示时眨眼
+    if (!this.data.isDragging && !this.data.showFaceFromButton) {
+      return;
+    }
+
+    this.setData({ isBlinking: true });
+
+    // 眨眼持续 150ms
+    setTimeout(() => {
+      this.setData({ isBlinking: false });
+    }, 150);
+  },
 
 
 });

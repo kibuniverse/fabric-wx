@@ -654,11 +654,33 @@ Component({
 
     // 公共方法
     increase(isFromChildCounter: boolean = false) {
+      // 获取数字位置并通知悬浮球展示表情
+      this.getCounterNumberPosition((position) => {
+        eventBus.emit('counterButtonClicked', { type: 'increase', numberPosition: position });
+      });
       this.handleCountChange("increase", isFromChildCounter === true);
     },
 
     decrease(isFromChildCounter: boolean = false) {
+      // 获取数字位置并通知悬浮球展示表情
+      this.getCounterNumberPosition((position) => {
+        eventBus.emit('counterButtonClicked', { type: 'decrease', numberPosition: position });
+      });
       this.handleCountChange("decrease", isFromChildCounter === true);
+    },
+
+    // 获取数字显示区域的位置
+    getCounterNumberPosition(callback: (position: { x: number; y: number }) => void) {
+      const query = this.createSelectorQuery();
+      query.select('.counter-number').boundingClientRect();
+      query.exec((res) => {
+        if (res && res[0]) {
+          callback({
+            x: res[0].left + res[0].width / 2,
+            y: res[0].top + res[0].height / 2
+          });
+        }
+      });
     },
     showResetConfirm() {
       this.handleCountChange("reset");

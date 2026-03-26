@@ -3,6 +3,7 @@ type EventMap = {
     'onMemoContentChange': void;
     // 在此处继续追加业务事件与参数类型
     'refreshCounter': { counterKey: string };
+    'counterButtonClicked': { type: 'increase' | 'decrease'; numberPosition: { x: number; y: number } };
 };
 
 type EventKey = keyof EventMap;
