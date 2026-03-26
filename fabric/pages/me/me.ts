@@ -16,7 +16,7 @@ Page({
     tempAvatarUrl: '', // 临时头像URL
     tempNickName: '', // 临时昵称
     isLoggedIn: false, // 登录状态
-    totalTimeHours: 24, // 知织总时长（小时），默认24
+    totalTimeHours: 0, // 知织总时长（小时），默认0
     zhizhiId: '', // 知织号（9位唯一ID）
     isLoggingIn: false, // 是否正在登录中
   },

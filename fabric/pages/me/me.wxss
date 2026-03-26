@@ -308,6 +308,7 @@
   font-weight: bold;
   color: #333;
   margin: 0 8rpx;
+  transform: translateY(3rpx); /* 向下移动约 1.5dp */
 }
 
 /* 设置按钮：24*24dp 圆形背景，颜色 #A889C8 60% */
