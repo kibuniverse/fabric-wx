@@ -173,13 +173,17 @@ App<IAppOption>({
       if (res.result && res.result.success && res.result.data) {
         const { totalKnittingTime, zhizhiId, zhizhiIdModified, nickName, avatarUrl } = res.result.data
 
+        // 【修复】使用 max 策略，保留较大的值（避免旧数据覆盖新数据）
+        const localTime = this.globalData.totalKnittingTime
+        const maxTime = Math.max(totalKnittingTime || 0, localTime)
+
         // 更新全局数据
-        this.globalData.totalKnittingTime = totalKnittingTime || 0
+        this.globalData.totalKnittingTime = maxTime
 
         // 更新本地存储
-        wx.setStorageSync('total_zhizhi_time', totalKnittingTime || 0)
+        wx.setStorageSync('total_zhizhi_time', maxTime)
 
-        return { totalKnittingTime, zhizhiId, zhizhiIdModified, nickName, avatarUrl }
+        return { totalKnittingTime: maxTime, zhizhiId, zhizhiIdModified, nickName, avatarUrl }
       }
       return null
     } catch (error) {
@@ -218,8 +222,14 @@ App<IAppOption>({
       if (res.result && res.result.success) {
         // 更新本地存储的总时长
         if (res.result.data.totalKnittingTime !== undefined) {
-          this.globalData.totalKnittingTime = res.result.data.totalKnittingTime
-          wx.setStorageSync('total_zhizhi_time', res.result.data.totalKnittingTime)
+          const cloudTime = res.result.data.totalKnittingTime
+          const localTime = this.globalData.totalKnittingTime
+
+          // 【修复】只有云端数据更大时才更新（避免旧数据覆盖新数据）
+          if (cloudTime > localTime) {
+            this.globalData.totalKnittingTime = cloudTime
+            wx.setStorageSync('total_zhizhi_time', cloudTime)
+          }
         }
         return true
       }
