@@ -52,11 +52,11 @@
   </movable-area>
 </view>
 <!-- 添加计数器对话框 -->
-<mp-dialog title="添加新计数器" buttons="{{addCounterButtons}}" show="{{showAddCounter}}" bindbuttontap="handleAddCounterDialogButton">
-  <view class="dialog-content">
-    <input type="text" value="{{newCounterName}}" bindinput="onNewCounterNameInput" placeholder="请输入计数器名称" focus="{{showAddCounter}}" maxlength="20" />
+<van-dialog use-slot z-index="10000" title="添加新计数器" transition="fade" show="{{showAddCounter}}" show-cancel-button confirm-button-text="确定" confirm-button-color="#A889C8" bind:confirm="addNewCounter" bind:close="onCloseAddCounter">
+  <view class="modal-content">
+    <input type="text" class="modal-content-input" value="{{newCounterName}}" bindinput="onNewCounterNameInput" placeholder="请输入计数器名称" maxlength="20" />
   </view>
-</mp-dialog>
+</van-dialog>
 <toast id="toast" duration="2000" />
 <!-- 重复计数器弹窗 -->
 <van-dialog use-slot z-index="10000" title="创建一个子计数器" transition="fade" show="{{ showRepeatStartInputDialog }}" show-cancel-button confirm-button-color="#A889C8" bind:confirm="onConfirmRepeatStartInputDialog">

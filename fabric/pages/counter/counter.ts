@@ -84,10 +84,6 @@ Page({
       columnStyle: "font-size:32px;", // (string) 字体单元 覆盖样式
     },
     newCounterName: "",
-    addCounterButtons: [
-      { text: "取消", className: "cancel-btn" },
-      { text: "确定", className: "confirm-btn" },
-    ],
     floatBall: {
       x: 0, // movable-view 坐标
       y: 0,
@@ -753,17 +749,11 @@ Page({
     });
   },
 
-  handleAddCounterDialogButton(e: any) {
-    const { index } = e.detail;
-    if (index === 0) {
-      // 取消按钮
-      this.setData({
-        showAddCounter: false,
-      });
-    } else if (index === 1) {
-      // 确定按钮
-      this.addNewCounter();
-    }
+  onCloseAddCounter() {
+    this.setData({
+      showAddCounter: false,
+      newCounterName: "",
+    });
   },
 
   addNewCounter() {
