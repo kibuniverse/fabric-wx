@@ -374,6 +374,12 @@ Page({
         this.setData({ totalTimeHours: formatTotalTime(totalTime) });
         wx.setStorageSync('total_zhizhi_time', totalTime);
 
+        // 同步更新全局数据（避免旧缓存污染）
+        const app = getApp<IAppOption>();
+        if (app) {
+          app.globalData.totalKnittingTime = totalTime;
+        }
+
         wx.showToast({ title: '欢迎回来', icon: 'success' });
       } else {
         // 云端没有数据，清除本地缓存并显示登录对话框
@@ -490,6 +496,12 @@ Page({
         const totalTime = userData.totalKnittingTime || 0;
         this.setData({ totalTimeHours: formatTotalTime(totalTime) });
         wx.setStorageSync('total_zhizhi_time', totalTime);
+
+        // 同步更新全局数据（避免旧缓存污染）
+        const app = getApp<IAppOption>();
+        if (app) {
+          app.globalData.totalKnittingTime = totalTime;
+        }
 
         wx.showToast({
           title: res.result.isNewUser ? '注册成功' : '欢迎回来',

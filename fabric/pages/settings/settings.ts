@@ -134,6 +134,13 @@ Page({
           userInfo.isLoggedIn = false;
           wx.setStorageSync('userInfo', userInfo);
 
+          // 清除针织总时长缓存（避免污染新账号）
+          wx.removeStorageSync('total_zhizhi_time');
+          const app = getApp<IAppOption>();
+          if (app) {
+            app.globalData.totalKnittingTime = 0;
+          }
+
           wx.showToast({ title: '已退出登录', icon: 'success' });
 
           // 跳转到 me 页面

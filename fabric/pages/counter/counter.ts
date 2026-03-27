@@ -257,6 +257,10 @@ Page({
     // 开始针织总时长计时
     const app = getApp<IAppOption>();
     if (app) {
+      // 先从云端同步最新数据（多设备同步），再开始计时
+      app.syncFromCloud().catch(err => {
+        console.error('[Counter] 同步云端数据失败:', err)
+      })
       app.startKnittingSession();
     }
   },

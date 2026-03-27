@@ -34,6 +34,14 @@ App<IAppOption>({
 
     // 初始化总时长
     this.globalData.totalKnittingTime = wx.getStorageSync('total_zhizhi_time') || 0
+
+    // 如果已登录，从云端同步最新数据（多设备同步）
+    const userInfo = wx.getStorageSync('userInfo')
+    if (userInfo && userInfo.isLoggedIn) {
+      this.syncFromCloud().catch(err => {
+        console.error('[App] 冷启动同步云端数据失败:', err)
+      })
+    }
   },
 
   // ========== 针织总时长计时器 ==========
@@ -42,6 +50,13 @@ App<IAppOption>({
    * 开始针织计时会话
    */
   startKnittingSession() {
+    // 未登录不计时
+    const userInfo = wx.getStorageSync('userInfo')
+    if (!userInfo || !userInfo.isLoggedIn) {
+      console.log('[KnittingTimer] 未登录，不启动计时')
+      return
+    }
+
     // 如果已在计时，只重置活跃时间
     if (this.globalData.isKnittingTimerRunning) {
       this.resetKnittingActivity()
@@ -147,6 +162,14 @@ App<IAppOption>({
    */
   addKnittingTime(elapsedMs: number) {
     if (elapsedMs <= 0) return
+
+    // 未登录不累加时长
+    const userInfo = wx.getStorageSync('userInfo')
+    if (!userInfo || !userInfo.isLoggedIn) {
+      console.log('[KnittingTimer] 未登录，不累加时长')
+      return
+    }
+
     this.globalData.totalKnittingTime += elapsedMs
 
     // 同时更新本地存储
