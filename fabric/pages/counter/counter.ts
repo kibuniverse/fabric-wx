@@ -378,6 +378,10 @@ Page({
           });
           // 刷新所有计数器组件
           eventBus.emit('refreshCounter', { counterKey: 'all' });
+          // 重新计算 Tab 布局（修复云同步后 Indicator 位置错误）
+          wx.nextTick(() => {
+            this.selectComponent("#tabs")?.resize();
+          });
         }).catch(err => {
           console.error('[Counter] 同步计数器数据失败:', err)
         });
@@ -955,6 +959,11 @@ Page({
       counterList: newCounterList,
       showAddCounter: false,
       activeTab: newCounterKeys.length - 1, // 切换到新添加的计数器
+    });
+
+    // 重新计算 Tab 布局
+    wx.nextTick(() => {
+      this.selectComponent("#tabs")?.resize();
     });
 
     this.showToast("计数器添加成功");
