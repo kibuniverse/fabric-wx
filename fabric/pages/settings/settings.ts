@@ -139,12 +139,21 @@ Page({
         if (res.confirm) {
           wx.showLoading({ title: '退出中...', mask: true });
 
-          // 同步计数器数据到云端
           const app = getApp<IAppOption>();
           if (app) {
+            // 先暂停针织计时器（如果在运行），确保本次时长已累加
+            app.pauseKnittingSession(false); // false: 不触发 syncToCloud，我们后面会统一同步
+
+            // 同步计数器数据到云端
             await app.syncCounterData('upload').catch(err => {
               console.error('同步计数器数据失败:', err);
             });
+
+            // 强制同步针织总时长到云端（确保不丢失）
+            await app.forceSyncTotalKnittingTime().catch(err => {
+              console.error('同步针织总时长失败:', err);
+            });
+
             app.stopCounterHeartbeat();
           }
 
@@ -153,7 +162,7 @@ Page({
           userInfo.isLoggedIn = false;
           wx.setStorageSync('userInfo', userInfo);
 
-          // 清除针织总时长缓存（避免污染新账号）
+          // 清除针织总时长缓存（云端已同步，本地可安全清空）
           wx.removeStorageSync('total_zhizhi_time');
           if (app) {
             app.globalData.totalKnittingTime = 0;

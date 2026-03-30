@@ -269,6 +269,55 @@ App<IAppOption>({
     }
   },
 
+  /**
+   * 强制同步针织总时长到云端（使用 max 策略）
+   * 用于退出登录等场景，确保本地总时长不丢失
+   */
+  async forceSyncTotalKnittingTime(): Promise<boolean> {
+    if (this.globalData.isSyncing) {
+      // 等待当前同步完成（最多等待5秒）
+      const maxWaitTime = 5000
+      const startTime = Date.now()
+      while (this.globalData.isSyncing && (Date.now() - startTime) < maxWaitTime) {
+        await new Promise(resolve => setTimeout(resolve, 100))
+      }
+    }
+
+    const userInfo = wx.getStorageSync('userInfo')
+    if (!userInfo || !userInfo.isLoggedIn) return false
+
+    this.globalData.isSyncing = true
+
+    try {
+      const localTime = this.globalData.totalKnittingTime
+      console.log(`[forceSyncTotalKnittingTime] 上传本地总时长: ${localTime}ms`)
+
+      const res = await wx.cloud.callFunction({
+        name: 'syncData',
+        data: {
+          totalKnittingTimeAbsolute: localTime, // 使用绝对值模式
+          nickName: userInfo.nickName,
+          avatarUrl: userInfo.avatarUrl,
+          zhizhiId: userInfo.zhizhiId,
+          zhizhiIdModified: userInfo.zhizhiIdModified,
+        },
+      }) as any
+
+      this.globalData.isSyncing = false
+
+      if (res.result && res.result.success) {
+        const cloudTime = res.result.data.totalKnittingTime
+        console.log(`[forceSyncTotalKnittingTime] 云端结果: ${cloudTime}ms`)
+        return true
+      }
+      return false
+    } catch (error) {
+      this.globalData.isSyncing = false
+      console.error('[forceSyncTotalKnittingTime] 同步失败:', error)
+      return false
+    }
+  },
+
   // ========== 计数器云同步 ==========
 
   /**

@@ -44,9 +44,17 @@ exports.main = async (event, context) => {
       updatedAt: db.serverDate()
     }
 
-    // 更新针织总时长（累加）
-    if (typeof totalKnittingTime === 'number' && totalKnittingTime > 0) {
+    // 更新针织总时长
+    // 如果传入绝对值（totalKnittingTimeAbsolute），用 max 策略（用于退出登录等场景）
+    // 否则用累加模式（用于正常计时的增量上传）
+    if (event.totalKnittingTimeAbsolute !== undefined) {
+      const localTime = event.totalKnittingTimeAbsolute
+      const cloudTime = user.totalKnittingTime || 0
+      updateData.totalKnittingTime = Math.max(cloudTime, localTime)
+      console.log(`syncData 绝对值模式: 云端=${cloudTime}, 本地=${localTime}, 结果=${updateData.totalKnittingTime}`)
+    } else if (typeof totalKnittingTime === 'number' && totalKnittingTime > 0) {
       updateData.totalKnittingTime = (user.totalKnittingTime || 0) + totalKnittingTime
+      console.log(`syncData 累加模式: 云端=${user.totalKnittingTime || 0}, 本次=${totalKnittingTime}, 结果=${updateData.totalKnittingTime}`)
     }
 
     // 更新昵称

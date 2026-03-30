@@ -20,6 +20,7 @@ interface IAppOption {
   getTotalKnittingTime(): number,
   syncFromCloud(): Promise<{ totalKnittingTime: number; zhizhiId: string; zhizhiIdModified: boolean; nickName: string; avatarUrl: string } | null>,
   syncToCloud(elapsedMs?: number): Promise<boolean>,
+  forceSyncTotalKnittingTime(): Promise<boolean>,
   // 针织总时长计时器方法
   startKnittingSession(): void,
   pauseKnittingSession(syncToCloud?: boolean): void,
