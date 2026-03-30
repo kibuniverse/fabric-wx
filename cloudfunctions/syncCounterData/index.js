@@ -60,11 +60,31 @@ exports.main = async (event, context) => {
 
     // 下载模式：将云端数据下载到本地
     if (action === 'download') {
+      const cloudKeys = user.counterKeys || []
+      const cloudCounters = user.counters || {}
+
+      // 兼容旧数据：如果 cloudKeys 是对象数组（旧格式），转换为字符串数组
+      // 同时将 title 信息合入 counters[key].name
+      const normalizedCloudKeys = []
+      for (const k of cloudKeys) {
+        if (typeof k === 'string') {
+          normalizedCloudKeys.push(k)
+        } else {
+          // 旧格式：{key: 'xxx', title: '计数器名'}
+          const keyStr = k.key
+          normalizedCloudKeys.push(keyStr)
+          // 如果 title 存在但 counters 中没有 name，将 title 合入 counters
+          if (k.title && cloudCounters[keyStr] && !cloudCounters[keyStr].name) {
+            cloudCounters[keyStr].name = k.title
+          }
+        }
+      }
+
       return {
         success: true,
         data: {
-          counterKeys: user.counterKeys || [],
-          counters: user.counters || {}
+          counterKeys: normalizedCloudKeys,
+          counters: cloudCounters
         }
       }
     }
@@ -80,7 +100,21 @@ exports.main = async (event, context) => {
       const localKeys = counterKeys || []
 
       // 兼容旧数据：如果 cloudKeys 是对象数组（旧格式），转换为字符串数组
-      const normalizedCloudKeys = cloudKeys.map(k => typeof k === 'string' ? k : k.key)
+      // 同时将 title 信息合入 counters[key].name（防止名称丢失）
+      const normalizedCloudKeys = []
+      for (const k of cloudKeys) {
+        if (typeof k === 'string') {
+          normalizedCloudKeys.push(k)
+        } else {
+          // 旧格式：{key: 'xxx', title: '计数器名'}
+          const keyStr = k.key
+          normalizedCloudKeys.push(keyStr)
+          // 如果 title 存在但 counters 中没有 name，将 title 合入 counters
+          if (k.title && cloudCounters[keyStr] && !cloudCounters[keyStr].name) {
+            cloudCounters[keyStr].name = k.title
+          }
+        }
+      }
       const cloudKeysSet = new Set(normalizedCloudKeys)
 
       // 合并计数器数据和 keys

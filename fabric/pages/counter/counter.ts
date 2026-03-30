@@ -143,14 +143,27 @@ Page({
 
     const activeKey = wx.getStorageSync(STORAGE_KEYS.ACTIVE_KEY) || "";
 
+    // 兼容旧格式：确保 keys 是字符串数组
+    const normalizedKeys = keys.map((k: any) => {
+      if (typeof k === 'string') {
+        return k;
+      }
+      return k.key || k;
+    });
+
+    // 如果存在旧格式数据，更新为新格式
+    if (normalizedKeys.some((k, i) => k !== keys[i])) {
+      wx.setStorageSync(STORAGE_KEYS.COUNTER_KEYS, normalizedKeys);
+    }
+
     // 构建 counterList（用于渲染 Tab）
-    const counterList = keys.map((key: string) => {
+    const counterList = normalizedKeys.map((key: string) => {
       const data = wx.getStorageSync(key);
       return { key, name: data?.name || "默认计数器" };
     });
 
     this.setData({
-      counterKeys: keys,
+      counterKeys: normalizedKeys,
       counterList,
       activeKey,
       isVibrationOn: wx.getStorageSync(STORAGE_KEYS.VIBRATION) || false,
@@ -161,11 +174,19 @@ Page({
 
   // 根据 counterKeys 构建 counterList
   buildCounterList() {
-    const counterList = this.data.counterKeys.map((key: string) => {
+    // 兼容旧格式：确保 counterKeys 是字符串数组
+    const normalizedKeys = this.data.counterKeys.map((k: any) => {
+      if (typeof k === 'string') {
+        return k;
+      }
+      return k.key || k;
+    });
+
+    const counterList = normalizedKeys.map((key: string) => {
       const data = wx.getStorageSync(key);
       return { key, name: data?.name || "默认计数器" };
     });
-    this.setData({ counterList });
+    this.setData({ counterList, counterKeys: normalizedKeys });
   },
 
   // 平滑眼珠动画的当前值
@@ -295,16 +316,25 @@ Page({
     // 无论是否登录，都重新从 Storage 加载计数器列表
     const keys = wx.getStorageSync(STORAGE_KEYS.COUNTER_KEYS) || [];
     const activeKey = wx.getStorageSync(STORAGE_KEYS.ACTIVE_KEY) || "";
+
+    // 兼容旧格式：确保 keys 是字符串数组
+    const normalizedKeys = keys.map((k: any) => {
+      if (typeof k === 'string') {
+        return k;
+      }
+      return k.key || k;
+    });
+
     // 构建 counterList
-    const counterList = keys.map((key: string) => {
+    const counterList = normalizedKeys.map((key: string) => {
       const data = wx.getStorageSync(key);
       return { key, name: data?.name || "默认计数器" };
     });
     this.setData({
-      counterKeys: keys,
+      counterKeys: normalizedKeys,
       counterList,
       activeKey,
-      activeTab: Math.min(this.data.activeTab, keys.length - 1),
+      activeTab: Math.min(this.data.activeTab, normalizedKeys.length - 1),
     });
     // 刷新所有计数器组件
     eventBus.emit('refreshCounter', { counterKey: 'all' });
@@ -326,16 +356,25 @@ Page({
           // 同步完成后重新加载计数器列表
           const syncKeys = wx.getStorageSync(STORAGE_KEYS.COUNTER_KEYS) || [];
           const syncActiveKey = wx.getStorageSync(STORAGE_KEYS.ACTIVE_KEY) || "";
+
+          // 兼容旧格式：确保 syncKeys 是字符串数组
+          const normalizedSyncKeys = syncKeys.map((k: any) => {
+            if (typeof k === 'string') {
+              return k;
+            }
+            return k.key || k;
+          });
+
           // 构建 counterList
-          const syncCounterList = syncKeys.map((key: string) => {
+          const syncCounterList = normalizedSyncKeys.map((key: string) => {
             const data = wx.getStorageSync(key);
             return { key, name: data?.name || "默认计数器" };
           });
           this.setData({
-            counterKeys: syncKeys,
+            counterKeys: normalizedSyncKeys,
             counterList: syncCounterList,
             activeKey: syncActiveKey,
-            activeTab: Math.min(this.data.activeTab, syncKeys.length - 1),
+            activeTab: Math.min(this.data.activeTab, normalizedSyncKeys.length - 1),
           });
           // 刷新所有计数器组件
           eventBus.emit('refreshCounter', { counterKey: 'all' });

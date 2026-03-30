@@ -379,7 +379,16 @@ App<IAppOption>({
 
           // 获取本地当前的计数器 keys（用于对比删除）
           const localKeys = wx.getStorageSync('counter_keys') || [];
-          const cloudKeysList = cloudKeys || [];
+
+          // 兼容旧格式：确保 cloudKeys 是字符串数组
+          // 旧格式可能是 [{key: 'xxx', title: '计数器名'}] 或 [{key: 'xxx'}]
+          const cloudKeysList = (cloudKeys || []).map((k: any) => {
+            if (typeof k === 'string') {
+              return k;
+            }
+            // 旧格式对象，取 key 字段
+            return k.key || k;
+          });
 
           // 构建云端 keys 的 Set
           const cloudKeysSet = new Set(cloudKeysList);
@@ -391,13 +400,18 @@ App<IAppOption>({
             }
           }
 
-          // 更新本地 counterKeys
+          // 更新本地 counterKeys（只存储字符串数组）
           wx.setStorageSync('counter_keys', cloudKeysList);
 
           // 更新云端返回的计数器数据
           if (cloudCounters && Object.keys(cloudCounters).length > 0) {
             for (const key of Object.keys(cloudCounters)) {
-              wx.setStorageSync(key, cloudCounters[key]);
+              const counterData = cloudCounters[key];
+              // 确保 name 字段存在（兼容可能缺失 name 的旧数据）
+              if (!counterData.name) {
+                counterData.name = '默认计数器';
+              }
+              wx.setStorageSync(key, counterData);
             }
           }
         }
@@ -536,19 +550,33 @@ App<IAppOption>({
     // 云端有数据
     const { counterKeys: cloudKeys, counters: cloudCounters } = cloudData;
 
+    // 兼容旧格式：确保 cloudKeys 是字符串数组
+    const normalizedCloudKeys = (cloudKeys || []).map((k: any) => {
+      if (typeof k === 'string') {
+        return k;
+      }
+      return k.key || k;
+    });
+
     // 如果本地有修改，先将临时计数器作为新计数器保存到云端
     if (localModified) {
-      await this.saveLocalCounterToCloud(cloudKeys, cloudCounters);
+      await this.saveLocalCounterToCloud(normalizedCloudKeys, cloudCounters);
     }
 
     // 加载云端数据到本地（覆盖临时计数器）
-    if (cloudKeys.length > 0) {
+    if (normalizedCloudKeys.length > 0) {
       // 先清除本地临时计数器数据
       wx.removeStorageSync('local_default_counter');
 
-      wx.setStorageSync('counter_keys', cloudKeys);
-      for (const key of Object.keys(cloudCounters)) {
-        wx.setStorageSync(key, cloudCounters[key]);
+      // 存储 counterKeys（只存储字符串数组）
+      wx.setStorageSync('counter_keys', normalizedCloudKeys);
+      for (const key of Object.keys(cloudCounters || {})) {
+        const counterData = cloudCounters[key];
+        // 确保 name 字段存在
+        if (!counterData.name) {
+          counterData.name = '默认计数器';
+        }
+        wx.setStorageSync(key, counterData);
       }
     }
 
