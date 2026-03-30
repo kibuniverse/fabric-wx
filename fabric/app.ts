@@ -521,15 +521,125 @@ App<IAppOption>({
   },
 
   /**
+   * 检测是否需要执行计数器迁移
+   * 迁移是一次性操作，迁移后设置标记，不再重复执行
+   */
+  isOldUserMigration(): boolean {
+    // 已迁移过，不再执行
+    if (wx.getStorageSync('counter_migrated')) return false;
+
+    const keys = wx.getStorageSync('counter_keys') || [];
+    // 有计数器数据就需要迁移（无论是老用户升级还是新用户退出登录后的情况）
+    // 迁移后设置标记，下次不再执行
+    return keys.length > 0;
+  },
+
+  /**
+   * 处理老用户升级时的计数器迁移
+   * 将本地所有计数器合并到云端（两边都保留）
+   */
+  async handleOldUserMigration(): Promise<void> {
+    // 1. 获取所有本地计数器
+    const localKeys = wx.getStorageSync('counter_keys') || [];
+    const localCounters: Record<string, any> = {};
+    for (const key of localKeys) {
+      const data = wx.getStorageSync(key);
+      if (data) {
+        localCounters[key] = { ...data, updatedAt: data.updatedAt || Date.now() };
+      }
+    }
+
+    // 2. 也检查 local_default_counter（可能并存）
+    const localDefaultData = wx.getStorageSync('local_default_counter');
+    if (localDefaultData && this.isDefaultCounterModified()) {
+      if (!localKeys.includes('local_default_counter')) {
+        localKeys.push('local_default_counter');
+        localCounters['local_default_counter'] = localDefaultData;
+      }
+    }
+
+    // 3. 获取云端数据
+    const cloudData = await this.fetchCounterDataFromCloud();
+
+    if (!cloudData) {
+      // 云端无数据：直接上传所有本地计数器
+      if (localKeys.length > 0) {
+        await wx.cloud.callFunction({
+          name: 'syncCounterData',
+          data: { action: 'upload', counterKeys: localKeys, counters: localCounters }
+        });
+        // 更新本地数据
+        wx.setStorageSync('counter_keys', localKeys);
+        for (const key of Object.keys(localCounters)) {
+          wx.setStorageSync(key, localCounters[key]);
+        }
+      }
+      // 清除临时计数器
+      wx.removeStorageSync('local_default_counter');
+      // 设置迁移标记，防止重复迁移
+      wx.setStorageSync('counter_migrated', true);
+      return;
+    }
+
+    // 4. 云端有数据：合并（两边都保留）
+    const { counterKeys: cloudKeys, counters: cloudCounters } = cloudData;
+    const normalizedCloudKeys = (cloudKeys || []).map((k: any) => typeof k === 'string' ? k : k.key);
+
+    const mergedKeys = [...normalizedCloudKeys];
+    const mergedCounters = { ...cloudCounters };
+
+    for (const key of localKeys) {
+      if (normalizedCloudKeys.includes(key)) {
+        // 冲突：本地计数器改名，添加后缀
+        const newKey = `${key}_${Date.now()}`;
+        mergedKeys.push(newKey);
+        mergedCounters[newKey] = {
+          ...localCounters[key],
+          name: localCounters[key]?.name === cloudCounters[key]?.name
+            ? `${localCounters[key].name} (本地)`
+            : localCounters[key]?.name || '默认计数器',
+          updatedAt: Date.now()
+        };
+      } else {
+        mergedKeys.push(key);
+        mergedCounters[key] = localCounters[key];
+      }
+    }
+
+    // 5. 上传合并数据
+    await wx.cloud.callFunction({
+      name: 'syncCounterData',
+      data: { action: 'upload', counterKeys: mergedKeys, counters: mergedCounters }
+    });
+
+    // 6. 更新本地数据
+    wx.setStorageSync('counter_keys', mergedKeys);
+    for (const key of Object.keys(mergedCounters)) {
+      wx.setStorageSync(key, mergedCounters[key]);
+    }
+    wx.removeStorageSync('local_default_counter');
+
+    // 7. 设置迁移标记，防止重复迁移
+    wx.setStorageSync('counter_migrated', true);
+  },
+
+  /**
    * 用户登录时处理数据合并
    * 核心逻辑：
-   * 1. 如果本地有修改过的临时计数器（local_default_counter），将其作为新计数器保存到云端
-   * 2. 然后加载云端原有的数据到本地
+   * 1. 如果是老用户升级场景，处理多计数器迁移
+   * 2. 如果本地有修改过的临时计数器（local_default_counter），将其作为新计数器保存到云端
+   * 3. 然后加载云端原有的数据到本地
    */
   async handleLoginDataMerge(): Promise<boolean> {
     const userInfo = wx.getStorageSync('userInfo');
     if (!userInfo || !userInfo.isLoggedIn) {
       return false;
+    }
+
+    // 检测老用户升级场景
+    if (this.isOldUserMigration()) {
+      await this.handleOldUserMigration();
+      return true;
     }
 
     // 检查本地临时计数器是否被修改过
