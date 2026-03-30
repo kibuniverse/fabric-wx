@@ -128,7 +128,8 @@ Component({
       this.loadCounterData();
       this.restoreTimerState();
       eventBus.on("refreshCounter", ({ counterKey }) => {
-        if (counterKey === this.properties.storageKey) {
+        // 支持刷新所有计数器或指定计数器
+        if (counterKey === 'all' || counterKey === this.properties.storageKey) {
           this.loadCounterData();
         }
       });
@@ -167,7 +168,7 @@ Component({
           this.data.counterData.memo || ""
         )}&type=counter`,
         events: {
-          onMemoContentChange: (data: { key: string; content: string }) => {
+          onMemoContentChange: (data) => {
             if (data.key === this.properties.storageKey && typeof data.content === "string") {
               this.updateMemo(data.content);
             }
@@ -177,7 +178,7 @@ Component({
     },
 
     // 添加更新备忘录的方法
-    updateMemo(content: string) {
+    updateMemo(content) {
       this.setData({
         "counterData.memo": content,
         hasMemo: !!content,
@@ -186,6 +187,10 @@ Component({
     },
 
     saveCounterData() {
+      // 每次保存时更新 updatedAt，用于云同步时判断数据新旧
+      this.setData({
+        'counterData.updatedAt': Date.now()
+      });
       wx.setStorageSync(this.properties.storageKey, this.data.counterData);
     },
     playVoice() {
@@ -212,6 +217,8 @@ Component({
       const app = getApp<IAppOption>();
       if (app) {
         app.resetKnittingActivity();
+        // 重置心跳计时器
+        app.resetCounterHeartbeat();
       }
 
       const { currentCount, targetCount } = this.data.counterData;
@@ -235,7 +242,7 @@ Component({
           title: "确认重置",
           content: "确定要重置计数器吗？",
           success: async (
-            res: WechatMiniprogram.ShowModalSuccessCallbackResult
+            res
           ) => {
             if (res.confirm) {
               await this.updateCount(0, "重置计数");
@@ -300,7 +307,7 @@ Component({
         currentName: this.data.counterData.name
       });
     },
-    async updateCount(newCount: number, action: string) {
+    async updateCount(newCount, action) {
       this.setData({
         "counterData.currentCount": newCount,
       });
@@ -309,23 +316,19 @@ Component({
       this.saveCounterData();
       this.addHistory(action);
     },
-    showToast(title: string) {
+    showToast(title) {
       wx.showToast({
         title,
         ...TOAST_CONFIG,
       });
     },
 
-    showModal(options: {
-      title: string;
-      content: string;
-      success: (res: WechatMiniprogram.ShowModalSuccessCallbackResult) => void;
-    }) {
+    showModal(options) {
       wx.showModal(options);
     },
 
     // 历史记录相关
-    addHistory(action: string) {
+    addHistory(action) {
       const nowDate = new Date();
       const timeString = this.formatDateTime(nowDate);
       const timestamp = Date.now();
@@ -589,7 +592,7 @@ Component({
       this.saveCounterData();
     },
 
-    getCurrentElapsedTime(): number {
+    getCurrentElapsedTime() {
       const { startTimestamp, elapsedTime } = this.data.counterData.timerState;
       if (!this.data.isTimerRunning || !startTimestamp) return elapsedTime || 0;
       return (elapsedTime || 0) + (Date.now() - startTimestamp);
@@ -612,7 +615,7 @@ Component({
     },
 
     // 格式化相关
-    formatTime(milliseconds: number): string {
+    formatTime(milliseconds) {
       const totalSeconds = Math.floor(milliseconds / 1000);
       const hours = Math.floor(totalSeconds / 3600);
       const minutes = Math.floor((totalSeconds % 3600) / 60);
@@ -621,8 +624,8 @@ Component({
       return this.padNumbers(hours, minutes, seconds);
     },
 
-    formatDateTime(date: Date): string {
-      const pad = (n: number) => String(n).padStart(2, "0");
+    formatDateTime(date) {
+      const pad = (n) => String(n).padStart(2, "0");
       return `${pad(date.getMonth() + 1)}-${pad(
         date.getDate()
       )} ${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(
@@ -630,7 +633,7 @@ Component({
       )}`;
     },
 
-    padNumbers(...numbers: number[]): string {
+    padNumbers(...numbers) {
       return numbers.map((n) => n.toString().padStart(2, "0")).join(" : ");
     },
 
@@ -653,7 +656,7 @@ Component({
     },
 
     // 公共方法
-    increase(isFromChildCounter: boolean = false) {
+    increase(isFromChildCounter = false) {
       // 只有声音提示开启时才触发悬浮球表情
       if (this.properties.voiceOn) {
         // 获取数字位置并通知悬浮球展示表情
@@ -664,7 +667,7 @@ Component({
       this.handleCountChange("increase", isFromChildCounter === true);
     },
 
-    decrease(isFromChildCounter: boolean = false) {
+    decrease(isFromChildCounter = false) {
       // 只有声音提示开启时才触发悬浮球表情
       if (this.properties.voiceOn) {
         // 获取数字位置并通知悬浮球展示表情

@@ -1,6 +1,5 @@
 import { eventBus } from "../../utils/event_bus";
 import { vibrate } from "../../utils/vibrate";
-import { loadStorageData } from "../../utils/util";
 
 // pages/counter/counter.ts
 const STORAGE_KEYS = {
@@ -13,7 +12,6 @@ const STORAGE_KEYS = {
 
 const defaultCounterKeys = [
   { key: "default_counter", title: "默认计数器" },
-  { key: "default_counter_1", title: "默认计数器1" },
 ];
 
 /** 监听是否有备忘录的修改 */
@@ -113,19 +111,44 @@ Page({
     showFaceFromButton: false,
     // 眨眼动画
     isBlinking: false,
+    // 登录引导弹窗
+    showLoginPrompt: false,
   },
 
   // 在Page对象内新增方法
   initStorageSettings() {
-    const keys = loadStorageData(STORAGE_KEYS.COUNTER_KEYS, defaultCounterKeys);
-    const activeKey = loadStorageData(STORAGE_KEYS.ACTIVE_KEY, "");
+    let keys = wx.getStorageSync(STORAGE_KEYS.COUNTER_KEYS);
+    // 如果 Storage 中没有计数器数据，写入默认值
+    // 注意：未登录用户使用 local_default_counter，登录用户使用正常的计数器
+    if (!keys || keys.length === 0) {
+      keys = [{ key: "local_default_counter", title: "默认计数器" }];
+      wx.setStorageSync(STORAGE_KEYS.COUNTER_KEYS, keys);
+      // 同时写入默认计数器数据
+      const defaultData = {
+        name: "默认计数器",
+        targetCount: 999,
+        currentCount: 0,
+        startTime: 0,
+        history: [],
+        timerState: {
+          startTimestamp: 0,
+          elapsedTime: 0,
+          wasRunning: false,
+        },
+        memo: "",
+        updatedAt: Date.now(),
+      };
+      wx.setStorageSync("local_default_counter", defaultData);
+    }
+
+    const activeKey = wx.getStorageSync(STORAGE_KEYS.ACTIVE_KEY) || "";
 
     this.setData({
       counterKeys: keys,
       activeKey,
-      isVibrationOn: loadStorageData(STORAGE_KEYS.VIBRATION, false),
-      isKeepScreenOn: loadStorageData(STORAGE_KEYS.KEEP_SCREEN, false),
-      isVoiceOn: loadStorageData(STORAGE_KEYS.VOICE, false),
+      isVibrationOn: wx.getStorageSync(STORAGE_KEYS.VIBRATION) || false,
+      isKeepScreenOn: wx.getStorageSync(STORAGE_KEYS.KEEP_SCREEN) || false,
+      isVoiceOn: wx.getStorageSync(STORAGE_KEYS.VOICE) || false,
     });
   },
 
@@ -252,6 +275,18 @@ Page({
         isMemoModified = false;
       }, 300);
     }
+
+    // 无论是否登录，都重新从 Storage 加载计数器列表
+    const keys = wx.getStorageSync(STORAGE_KEYS.COUNTER_KEYS) || [];
+    const activeKey = wx.getStorageSync(STORAGE_KEYS.ACTIVE_KEY) || "";
+    this.setData({
+      counterKeys: keys,
+      activeKey,
+      activeTab: Math.min(this.data.activeTab, keys.length - 1),
+    });
+    // 刷新所有计数器组件
+    eventBus.emit('refreshCounter', { counterKey: 'all' });
+
     // 检查当前 Tab 是否需要显示恢复计时弹窗
     this.checkResumeTimerDialog();
     // 开始针织总时长计时
@@ -262,6 +297,25 @@ Page({
         console.error('[Counter] 同步云端数据失败:', err)
       })
       app.startKnittingSession();
+      // 只有已登录才执行云同步和心跳
+      const userInfo = wx.getStorageSync('userInfo');
+      if (userInfo && userInfo.isLoggedIn) {
+        app.syncCounterData('sync').then(() => {
+          // 同步完成后重新加载计数器列表
+          const syncKeys = wx.getStorageSync(STORAGE_KEYS.COUNTER_KEYS) || [];
+          const syncActiveKey = wx.getStorageSync(STORAGE_KEYS.ACTIVE_KEY) || "";
+          this.setData({
+            counterKeys: syncKeys,
+            activeKey: syncActiveKey,
+            activeTab: Math.min(this.data.activeTab, syncKeys.length - 1),
+          });
+          // 刷新所有计数器组件
+          eventBus.emit('refreshCounter', { counterKey: 'all' });
+        }).catch(err => {
+          console.error('[Counter] 同步计数器数据失败:', err)
+        });
+        app.startCounterHeartbeat();
+      }
     }
   },
 
@@ -270,6 +324,14 @@ Page({
     const app = getApp<IAppOption>();
     if (app) {
       app.pauseKnittingSession(true);
+      // 停止心跳并同步计数器数据
+      app.stopCounterHeartbeat();
+      const userInfo = wx.getStorageSync('userInfo');
+      if (userInfo && userInfo.isLoggedIn) {
+        app.syncCounterData('upload').catch(err => {
+          console.error('[Counter] 同步计数器数据失败:', err)
+        });
+      }
     }
   },
 
@@ -581,6 +643,12 @@ Page({
       activeTab: index,
     });
 
+    // 重置心跳计时器
+    const app = getApp<IAppOption>();
+    if (app) {
+      app.resetCounterHeartbeat();
+    }
+
     wx.nextTick(() => {
       // 检查新 Tab 是否需要显示恢复弹窗
       const newCounter = this.getCounterByIndex(index);
@@ -626,10 +694,28 @@ Page({
 
   // 添加新计数器相关方法
   showAddCounterDialog() {
+    // 检查是否已登录
+    const userInfo = wx.getStorageSync('userInfo');
+    if (!userInfo || !userInfo.isLoggedIn) {
+      // 未登录，显示登录引导弹窗
+      this.setData({ showLoginPrompt: true });
+      return;
+    }
     this.setData({
       showAddCounter: true,
       newCounterName: "",
     });
+  },
+
+  // 关闭登录引导弹窗
+  onCloseLoginPrompt() {
+    this.setData({ showLoginPrompt: false });
+  },
+
+  // 去登录
+  goToLogin() {
+    this.setData({ showLoginPrompt: false });
+    wx.switchTab({ url: '/pages/me/me' });
   },
 
   // 点击悬浮球时 打开重复计数器-弹窗
@@ -794,6 +880,7 @@ Page({
         startTimestamp: 0,
         elapsedTime: 0,
       },
+      updatedAt: Date.now(), // 新建时设置时间戳
     };
     wx.setStorageSync(newKey, DEFAULT_COUNTER_DATA);
 
@@ -804,6 +891,15 @@ Page({
     });
 
     this.showToast("计数器添加成功");
+
+    // 同步到云端
+    const app = getApp<IAppOption>();
+    if (app) {
+      app.syncCounterData('upload').catch(err => {
+        console.error('[Counter] 同步计数器数据失败:', err)
+      });
+      app.resetCounterHeartbeat();
+    }
   },
   modifyName(e: any) {
     const key = e.currentTarget.dataset.id;
@@ -875,6 +971,15 @@ Page({
             this.data.childCounterParentTab === deletedIndex
           ) {
             this.onCloseRepeatCounter();
+          }
+
+          // 同步到云端
+          const app = getApp<IAppOption>();
+          if (app) {
+            app.syncCounterData('upload').catch(err => {
+              console.error('[Counter] 同步计数器数据失败:', err)
+            });
+            app.resetCounterHeartbeat();
           }
         } else if (res.cancel) {
           // 用户点击了取消按钮

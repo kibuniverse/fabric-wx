@@ -118,3 +118,10 @@
     <view class="resume-dialog-desc">计时已自动暂停，是否继续计时？</view>
   </view>
 </van-dialog>
+<!-- 登录引导弹窗 -->
+<van-dialog use-slot z-index="10000" transition="fade" show="{{showLoginPrompt}}" show-cancel-button confirm-button-text="去登录" cancel-button-text="取消" confirm-button-color="#A889C8" bind:confirm="goToLogin" bind:close="onCloseLoginPrompt">
+  <view class="resume-dialog">
+    <view class="resume-dialog-title">添加计数器需要登录</view>
+    <view class="resume-dialog-desc">登录后可以添加多个计数器，还能同步数据哦～</view>
+  </view>
+</van-dialog>

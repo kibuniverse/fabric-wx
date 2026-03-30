@@ -2,7 +2,7 @@
 type EventMap = {
     'onMemoContentChange': void;
     // 在此处继续追加业务事件与参数类型
-    'refreshCounter': { counterKey: string };
+    'refreshCounter': { counterKey: string }; // counterKey='all' 表示刷新所有计数器
     'counterButtonClicked': { type: 'increase' | 'decrease'; numberPosition: { x: number; y: number } };
 };
 

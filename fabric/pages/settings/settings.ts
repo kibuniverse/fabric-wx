@@ -127,8 +127,19 @@ Page({
       confirmText: '确认退出',
       cancelText: '取消',
       confirmColor: '#B22222',
-      success: (res) => {
+      success: async (res) => {
         if (res.confirm) {
+          wx.showLoading({ title: '退出中...', mask: true });
+
+          // 同步计数器数据到云端
+          const app = getApp<IAppOption>();
+          if (app) {
+            await app.syncCounterData('upload').catch(err => {
+              console.error('同步计数器数据失败:', err);
+            });
+            app.stopCounterHeartbeat();
+          }
+
           // 清除登录状态
           const userInfo = wx.getStorageSync('userInfo') || {};
           userInfo.isLoggedIn = false;
@@ -136,11 +147,13 @@ Page({
 
           // 清除针织总时长缓存（避免污染新账号）
           wx.removeStorageSync('total_zhizhi_time');
-          const app = getApp<IAppOption>();
           if (app) {
             app.globalData.totalKnittingTime = 0;
+            // 重置本地计数器为默认状态
+            app.resetLocalCountersToDefault();
           }
 
+          wx.hideLoading();
           wx.showToast({ title: '已退出登录', icon: 'success' });
 
           // 跳转到 me 页面

@@ -378,6 +378,8 @@ Page({
         const app = getApp<IAppOption>();
         if (app) {
           app.globalData.totalKnittingTime = totalTime;
+          // 处理计数器数据合并
+          await app.handleLoginDataMerge();
         }
 
         wx.showToast({ title: '欢迎回来', icon: 'success' });
@@ -501,6 +503,8 @@ Page({
         const app = getApp<IAppOption>();
         if (app) {
           app.globalData.totalKnittingTime = totalTime;
+          // 处理计数器数据合并（新用户可能本地有默认计数器的修改）
+          await app.handleLoginDataMerge();
         }
 
         wx.showToast({

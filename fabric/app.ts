@@ -2,6 +2,8 @@
 
 // 空闲超时时间（毫秒），10分钟
 const KNITTING_IDLE_TIMEOUT = 10 * 60 * 1000;
+// 心跳同步间隔时间（毫秒），3分钟
+const HEARTBEAT_SYNC_INTERVAL = 3 * 60 * 1000;
 
 App<IAppOption>({
   globalData: {
@@ -13,6 +15,9 @@ App<IAppOption>({
     isKnittingTimerRunning: false, // 计时器是否运行中
     knittingIdleTimer: 0, // 空闲检测定时器
     lastKnittingActivity: 0, // 最后活跃时间
+    // 计数器心跳同步相关
+    lastCounterSyncTime: 0, // 上次计数器同步时间
+    counterHeartbeatTimer: 0, // 心跳定时器
   },
 
   onLaunch() {
@@ -262,5 +267,298 @@ App<IAppOption>({
       console.error('同步数据到云端失败:', error)
       return false
     }
+  },
+
+  // ========== 计数器云同步 ==========
+
+  /**
+   * 启动计数器心跳同步
+   */
+  startCounterHeartbeat() {
+    this.stopCounterHeartbeat();
+    this.globalData.lastCounterSyncTime = Date.now();
+
+    this.globalData.counterHeartbeatTimer = setInterval(() => {
+      const now = Date.now();
+      const elapsed = now - this.globalData.lastCounterSyncTime;
+
+      if (elapsed >= HEARTBEAT_SYNC_INTERVAL) {
+        this.syncCounterData('sync');
+      }
+    }, 60000) as unknown as number; // 每分钟检查一次
+  },
+
+  /**
+   * 停止计数器心跳同步
+   */
+  stopCounterHeartbeat() {
+    if (this.globalData.counterHeartbeatTimer) {
+      clearInterval(this.globalData.counterHeartbeatTimer);
+      this.globalData.counterHeartbeatTimer = 0;
+    }
+  },
+
+  /**
+   * 重置心跳计时器（用户有操作时调用）
+   */
+  resetCounterHeartbeat() {
+    this.globalData.lastCounterSyncTime = Date.now();
+  },
+
+  /**
+   * 同步计数器数据到云端
+   * @param action 'upload' | 'download' | 'sync'
+   */
+  async syncCounterData(action: 'upload' | 'download' | 'sync'): Promise<boolean> {
+    // 检查是否已登录
+    const userInfo = wx.getStorageSync('userInfo');
+    if (!userInfo || !userInfo.isLoggedIn) {
+      return false;
+    }
+
+    if (this.globalData.isSyncing) {
+      return false;
+    }
+    this.globalData.isSyncing = true;
+
+    try {
+      // 获取本地计数器数据，保留原有的 updatedAt
+      const counterKeys = wx.getStorageSync('counter_keys') || [];
+      const counters: Record<string, any> = {};
+
+      for (const item of counterKeys) {
+        const counterData = wx.getStorageSync(item.key);
+        if (counterData) {
+          counters[item.key] = {
+            ...counterData,
+            // 保留原有的 updatedAt，只有在没有时才设置为当前时间（新建计数器）
+            updatedAt: counterData.updatedAt || Date.now()
+          };
+        }
+      }
+
+      const res = await wx.cloud.callFunction({
+        name: 'syncCounterData',
+        data: {
+          action,
+          counterKeys,
+          counters,
+        },
+      }) as any;
+
+      this.globalData.isSyncing = false;
+      this.globalData.lastCounterSyncTime = Date.now();
+
+      if (res.result && res.result.success) {
+        // 如果是下载或同步，更新本地数据
+        if ((action === 'download' || action === 'sync') && res.result.data) {
+          const { counterKeys: cloudKeys, counters: cloudCounters } = res.result.data;
+
+          // 只有在云端有有效数据时才更新本地（避免空数据覆盖）
+          if (cloudKeys && Array.isArray(cloudKeys) && cloudKeys.length > 0) {
+            wx.setStorageSync('counter_keys', cloudKeys);
+          }
+
+          if (cloudCounters && Object.keys(cloudCounters).length > 0) {
+            for (const key of Object.keys(cloudCounters)) {
+              wx.setStorageSync(key, cloudCounters[key]);
+            }
+          }
+        }
+        return true;
+      }
+      return false;
+    } catch (error) {
+      this.globalData.isSyncing = false;
+      console.error('同步计数器数据失败:', error);
+      return false;
+    }
+  },
+
+  /**
+   * 从云端获取计数器数据
+   */
+  async fetchCounterDataFromCloud(): Promise<{ counterKeys: any[]; counters: Record<string, any> } | null> {
+    const userInfo = wx.getStorageSync('userInfo');
+    if (!userInfo || !userInfo.isLoggedIn) {
+      return null;
+    }
+
+    try {
+      const res = await wx.cloud.callFunction({
+        name: 'syncCounterData',
+        data: { action: 'download' },
+      }) as any;
+
+      if (res.result && res.result.success && res.result.data) {
+        return {
+          counterKeys: res.result.data.counterKeys || [],
+          counters: res.result.data.counters || {},
+        };
+      }
+      return null;
+    } catch (error) {
+      console.error('获取云端计数器数据失败:', error);
+      return null;
+    }
+  },
+
+  /**
+   * 检查本地临时默认计数器是否被修改过（未登录状态下使用的计数器）
+   */
+  isDefaultCounterModified(): boolean {
+    const defaultData = {
+      name: "默认计数器",
+      targetCount: 999,
+      currentCount: 0,
+      history: [],
+      timerState: {
+        startTimestamp: 0,
+        elapsedTime: 0,
+        wasRunning: false,
+      },
+      memo: "",
+    };
+
+    // 检查未登录状态下的临时计数器
+    const savedData = wx.getStorageSync('local_default_counter');
+    if (!savedData) return false;
+
+    // 检查是否有实质性的修改
+    return (
+      savedData.currentCount !== 0 ||
+      savedData.targetCount !== 999 ||
+      savedData.name !== "默认计数器" ||
+      (savedData.history && savedData.history.length > 0) ||
+      (savedData.memo && savedData.memo.length > 0) ||
+      (savedData.timerState && savedData.timerState.elapsedTime > 0)
+    );
+  },
+
+  /**
+   * 重置本地计数器为默认状态（用于退出登录后）
+   * 使用 local_default_counter 作为 key，与云端数据完全隔离
+   */
+  resetLocalCountersToDefault() {
+    // 清除所有计数器相关数据
+    const counterKeys = wx.getStorageSync('counter_keys') || [];
+    for (const item of counterKeys) {
+      wx.removeStorageSync(item.key);
+    }
+    wx.removeStorageSync('counter_keys');
+    // 清除可能存在的临时计数器
+    wx.removeStorageSync('local_default_counter');
+
+    // 创建全新的本地默认计数器（使用 local_default_counter 作为 key）
+    const defaultKeys = [{ key: "local_default_counter", title: "默认计数器" }];
+    const defaultData = {
+      name: "默认计数器",
+      targetCount: 999,
+      currentCount: 0,
+      startTime: 0,
+      history: [],
+      timerState: {
+        startTimestamp: 0,
+        elapsedTime: 0,
+        wasRunning: false,
+      },
+      memo: "",
+      updatedAt: Date.now(), // 初始化时设置时间戳
+    };
+
+    wx.setStorageSync('counter_keys', defaultKeys);
+    wx.setStorageSync('local_default_counter', defaultData);
+  },
+
+  /**
+   * 用户登录时处理数据合并
+   * 核心逻辑：
+   * 1. 如果本地有修改过的临时计数器（local_default_counter），将其作为新计数器保存到云端
+   * 2. 然后加载云端原有的数据到本地
+   */
+  async handleLoginDataMerge(): Promise<boolean> {
+    const userInfo = wx.getStorageSync('userInfo');
+    if (!userInfo || !userInfo.isLoggedIn) {
+      return false;
+    }
+
+    // 检查本地临时计数器是否被修改过
+    const localModified = this.isDefaultCounterModified();
+
+    // 获取云端数据
+    const cloudData = await this.fetchCounterDataFromCloud();
+
+    if (!cloudData) {
+      // 云端没有数据
+      if (localModified) {
+        // 本地有修改，将临时计数器转为正式计数器并上传
+        await this.saveLocalCounterToCloud();
+      }
+      return true;
+    }
+
+    // 云端有数据
+    const { counterKeys: cloudKeys, counters: cloudCounters } = cloudData;
+
+    // 如果本地有修改，先将临时计数器作为新计数器保存到云端
+    if (localModified) {
+      await this.saveLocalCounterToCloud(cloudKeys, cloudCounters);
+    }
+
+    // 加载云端数据到本地（覆盖临时计数器）
+    if (cloudKeys.length > 0) {
+      // 先清除本地临时计数器数据
+      wx.removeStorageSync('local_default_counter');
+
+      wx.setStorageSync('counter_keys', cloudKeys);
+      for (const key of Object.keys(cloudCounters)) {
+        wx.setStorageSync(key, cloudCounters[key]);
+      }
+    }
+
+    return true;
+  },
+
+  /**
+   * 将本地临时计数器保存到云端作为新计数器
+   * @param existingKeys 已有的云端计数器 keys（可选）
+   * @param existingCounters 已有的云端计数器数据（可选）
+   */
+  async saveLocalCounterToCloud(existingKeys?: any[], existingCounters?: Record<string, any>): Promise<void> {
+    const localData = wx.getStorageSync('local_default_counter');
+    if (!localData) return;
+
+    // 创建新的计数器，使用唯一 key
+    const timestamp = Date.now();
+    const newKey = `counter_${timestamp}`;
+    const newData = {
+      ...localData,
+      updatedAt: timestamp,
+    };
+
+    // 准备上传数据
+    let mergedKeys = existingKeys || [];
+    let mergedCounters = existingCounters || {};
+
+    // 添加新计数器
+    mergedKeys = [...mergedKeys, { key: newKey, title: localData.name || "临时计数器" }];
+    mergedCounters[newKey] = newData;
+
+    // 上传到云端
+    try {
+      await wx.cloud.callFunction({
+        name: 'syncCounterData',
+        data: {
+          action: 'upload',
+          counterKeys: mergedKeys,
+          counters: mergedCounters,
+        },
+      });
+    } catch (error) {
+      console.error('保存本地计数器到云端失败:', error);
+    }
+
+    // 清除本地临时计数器
+    wx.removeStorageSync('local_default_counter');
   },
 })

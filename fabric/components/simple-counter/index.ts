@@ -32,7 +32,7 @@ Component({
     counterId: {
       type: String,
       value: "",
-      observer(newVal: string) {
+      observer(newVal) {
         if (newVal) {
           this.loadCounterValue();
         }
@@ -264,7 +264,7 @@ Component({
     /**
      * 设置当前计数值（供父组件调用）
      */
-    setCount(count: number) {
+    setCount(count) {
       this.setData({
         count,
       });
@@ -293,7 +293,7 @@ Component({
     /**
      * 输入框内容变化
      */
-    onModifyCountInput(e: WechatMiniprogram.Input) {
+    onModifyCountInput(e) {
       this.setData({
         modifyCountInput: e.detail.value,
       });
@@ -332,7 +332,7 @@ Component({
     /**
      * 显示Toast提示
      */
-    showToast(title: string) {
+    showToast(title) {
       wx.showToast({
         title,
         ...TOAST_CONFIG,
