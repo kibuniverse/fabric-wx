@@ -18,6 +18,9 @@ App<IAppOption>({
     // 计数器心跳同步相关
     lastCounterSyncTime: 0, // 上次计数器同步时间
     counterHeartbeatTimer: 0, // 心跳定时器
+    // 账号状态相关
+    accountInvalidatedShown: false, // 账号失效弹窗是否已显示（防止重复弹窗）
+    needRefreshMePage: false, // 是否需要刷新"我的"页面（账号失效后跳转时使用）
   },
 
   onLaunch() {
@@ -47,6 +50,72 @@ App<IAppOption>({
         console.error('[App] 冷启动同步云端数据失败:', err)
       })
     }
+  },
+
+  // ========== 账号状态管理 ==========
+
+  /**
+   * 处理账号失效（在其他设备被注销）
+   * 显示弹窗提示用户，清除本地数据，跳转到"我的"页面
+   */
+  handleAccountInvalidated() {
+    // 防止重复弹窗
+    if (this.globalData.accountInvalidatedShown) {
+      return;
+    }
+    this.globalData.accountInvalidatedShown = true;
+
+    // 停止所有计时器和心跳
+    this.stopKnittingIdleCheck();
+    this.stopCounterHeartbeat();
+
+    // 清除本地数据
+    wx.removeStorageSync('userInfo');
+    wx.removeStorageSync('total_zhizhi_time');
+    this.globalData.totalKnittingTime = 0;
+    this.resetLocalCountersToDefault();
+
+    // 清除本地头像存储
+    const localAvatarPath = wx.getStorageSync('local_avatar_path');
+    if (localAvatarPath) {
+      try {
+        wx.getFileSystemManager().unlinkSync(localAvatarPath);
+      } catch (e) {
+        console.warn('删除本地头像文件失败:', e);
+      }
+    }
+    wx.removeStorageSync('local_avatar_path');
+    wx.removeStorageSync('local_avatar_file_id');
+
+    // 显示弹窗
+    wx.showModal({
+      title: '登录状态已失效',
+      content: '您的账号已在其他设备注销，请重新登录',
+      showCancel: false,
+      confirmText: '知道了',
+      success: () => {
+        // 不重置标志位，保持 accountInvalidatedShown = true
+        // 直到用户重新登录后才会在 login 云函数成功后重置
+        // 设置标志位，通知 me 页面刷新
+        this.globalData.needRefreshMePage = true;
+        // 跳转到"我的"页面
+        wx.switchTab({ url: '/pages/me/me' });
+      }
+    });
+  },
+
+  /**
+   * 检查云函数返回结果是否表示账号失效
+   * @param result 云函数返回结果
+   * @returns 是否账号失效
+   */
+  isAccountInvalidated(result: any): boolean {
+    if (!result) return false;
+    // 用户不存在 = 账号已被注销
+    if (result.error === '用户不存在' || result.error === '用户不存在，请先登录') {
+      return true;
+    }
+    return false;
   },
 
   // ========== 针织总时长计时器 ==========
@@ -193,10 +262,22 @@ App<IAppOption>({
    * 从云端同步用户数据到本地
    */
   async syncFromCloud(): Promise<{ totalKnittingTime: number; zhizhiId: string; zhizhiIdModified: boolean; nickName: string; avatarUrl: string } | null> {
+    // 检查是否已登录，未登录不调用云函数
+    const userInfo = wx.getStorageSync('userInfo');
+    if (!userInfo || !userInfo.isLoggedIn) {
+      return null;
+    }
+
     try {
       const res = await wx.cloud.callFunction({
         name: 'getUserData',
       }) as any
+
+      // 检查账号是否失效（在其他设备被注销）
+      if (res.result && !res.result.success && this.isAccountInvalidated(res.result)) {
+        this.handleAccountInvalidated();
+        return null;
+      }
 
       if (res.result && res.result.success && res.result.data) {
         const { totalKnittingTime, zhizhiId, zhizhiIdModified, nickName, avatarUrl } = res.result.data
@@ -246,6 +327,12 @@ App<IAppOption>({
       }) as any
 
       this.globalData.isSyncing = false
+
+      // 检查账号是否失效（在其他设备被注销）
+      if (res.result && !res.result.success && this.isAccountInvalidated(res.result)) {
+        this.handleAccountInvalidated();
+        return false;
+      }
 
       if (res.result && res.result.success) {
         // 更新本地存储的总时长
@@ -304,6 +391,12 @@ App<IAppOption>({
       }) as any
 
       this.globalData.isSyncing = false
+
+      // 检查账号是否失效（在其他设备被注销）
+      if (res.result && !res.result.success && this.isAccountInvalidated(res.result)) {
+        this.handleAccountInvalidated();
+        return false;
+      }
 
       if (res.result && res.result.success) {
         const cloudTime = res.result.data.totalKnittingTime
@@ -420,6 +513,12 @@ App<IAppOption>({
 
       this.globalData.isSyncing = false;
       this.globalData.lastCounterSyncTime = Date.now();
+
+      // 检查账号是否失效（在其他设备被注销）
+      if (res.result && !res.result.success && this.isAccountInvalidated(res.result)) {
+        this.handleAccountInvalidated();
+        return false;
+      }
 
       if (res.result && res.result.success) {
         // 如果是下载或同步，更新本地数据
@@ -547,6 +646,8 @@ App<IAppOption>({
     wx.removeStorageSync('counter_keys');
     // 清除可能存在的临时计数器
     wx.removeStorageSync('local_default_counter');
+    // 清除迁移标记（注销后重新登录需要重新处理数据）
+    wx.removeStorageSync('counter_migrated');
 
     // 创建全新的本地默认计数器（使用 local_default_counter 作为 key）
     const defaultKeys = ["local_default_counter"];
@@ -586,6 +687,7 @@ App<IAppOption>({
   /**
    * 处理老用户升级时的计数器迁移
    * 将本地所有计数器合并到云端（两边都保留）
+   * 注意：local_default_counter 是未登录临时计数器，需要转换为正式计数器
    */
   async handleOldUserMigration(): Promise<void> {
     // 1. 获取所有本地计数器
@@ -610,65 +712,70 @@ App<IAppOption>({
     // 3. 获取云端数据
     const cloudData = await this.fetchCounterDataFromCloud();
 
-    if (!cloudData) {
-      // 云端无数据：直接上传所有本地计数器
-      if (localKeys.length > 0) {
-        await wx.cloud.callFunction({
-          name: 'syncCounterData',
-          data: { action: 'upload', counterKeys: localKeys, counters: localCounters }
-        });
-        // 更新本地数据
-        wx.setStorageSync('counter_keys', localKeys);
-        for (const key of Object.keys(localCounters)) {
-          wx.setStorageSync(key, localCounters[key]);
+    // 4. 处理 local_default_counter：转换为正式计数器
+    let finalKeys: string[] = [];
+    const finalCounters: Record<string, any> = {};
+
+    if (cloudData) {
+      // 云端有数据：合并（两边都保留）
+      const { counterKeys: cloudKeys, counters: cloudCounters } = cloudData;
+      const normalizedCloudKeys = (cloudKeys || []).map((k: any) => typeof k === 'string' ? k : k.key);
+
+      finalKeys = [...normalizedCloudKeys];
+      for (const key of normalizedCloudKeys) {
+        if (cloudCounters && cloudCounters[key]) {
+          finalCounters[key] = cloudCounters[key];
         }
       }
-      // 清除临时计数器
-      wx.removeStorageSync('local_default_counter');
-      // 设置迁移标记，防止重复迁移
-      wx.setStorageSync('counter_migrated', true);
-      return;
     }
 
-    // 4. 云端有数据：合并（两边都保留）
-    const { counterKeys: cloudKeys, counters: cloudCounters } = cloudData;
-    const normalizedCloudKeys = (cloudKeys || []).map((k: any) => typeof k === 'string' ? k : k.key);
-
-    const mergedKeys = [...normalizedCloudKeys];
-    const mergedCounters = { ...cloudCounters };
-
+    // 处理本地计数器（排除 local_default_counter，它需要特殊处理）
     for (const key of localKeys) {
-      if (normalizedCloudKeys.includes(key)) {
+      if (key === 'local_default_counter') {
+        // local_default_counter 转换为正式计数器
+        if (localCounters['local_default_counter']) {
+          const timestamp = Date.now();
+          const newKey = `counter_${timestamp}`;
+          finalKeys.push(newKey);
+          finalCounters[newKey] = {
+            ...localCounters['local_default_counter'],
+            updatedAt: timestamp,
+          };
+        }
+      } else if (finalKeys.includes(key)) {
         // 冲突：本地计数器改名，添加后缀
         const newKey = `${key}_${Date.now()}`;
-        mergedKeys.push(newKey);
-        mergedCounters[newKey] = {
+        finalKeys.push(newKey);
+        finalCounters[newKey] = {
           ...localCounters[key],
-          name: localCounters[key]?.name === cloudCounters[key]?.name
+          name: localCounters[key]?.name === finalCounters[key]?.name
             ? `${localCounters[key].name} (本地)`
             : localCounters[key]?.name || '默认计数器',
           updatedAt: Date.now()
         };
       } else {
-        mergedKeys.push(key);
-        mergedCounters[key] = localCounters[key];
+        // 不冲突：直接添加
+        finalKeys.push(key);
+        finalCounters[key] = localCounters[key];
       }
     }
 
-    // 5. 上传合并数据
-    await wx.cloud.callFunction({
-      name: 'syncCounterData',
-      data: { action: 'upload', counterKeys: mergedKeys, counters: mergedCounters }
-    });
+    // 5. 上传数据
+    if (finalKeys.length > 0) {
+      await wx.cloud.callFunction({
+        name: 'syncCounterData',
+        data: { action: 'upload', counterKeys: finalKeys, counters: finalCounters }
+      });
 
-    // 6. 更新本地数据
-    wx.setStorageSync('counter_keys', mergedKeys);
-    for (const key of Object.keys(mergedCounters)) {
-      wx.setStorageSync(key, mergedCounters[key]);
+      // 6. 更新本地数据
+      wx.setStorageSync('counter_keys', finalKeys);
+      for (const key of Object.keys(finalCounters)) {
+        wx.setStorageSync(key, finalCounters[key]);
+      }
     }
-    wx.removeStorageSync('local_default_counter');
 
-    // 7. 设置迁移标记，防止重复迁移
+    // 7. 清除临时计数器和设置迁移标记
+    wx.removeStorageSync('local_default_counter');
     wx.setStorageSync('counter_migrated', true);
   },
 

@@ -14,6 +14,9 @@ interface IAppOption {
     // 计数器心跳同步相关
     lastCounterSyncTime: number, // 上次计数器同步时间
     counterHeartbeatTimer: number, // 心跳定时器
+    // 账号状态相关
+    accountInvalidatedShown: boolean, // 账号失效弹窗是否已显示
+    needRefreshMePage: boolean, // 是否需要刷新"我的"页面
   }
   userInfoReadyCallback?: WechatMiniprogram.GetUserInfoSuccessCallback,
   addKnittingTime(elapsedMs: number): void,
@@ -29,6 +32,9 @@ interface IAppOption {
   startKnittingIdleCheck(): void,
   stopKnittingIdleCheck(): void,
   isKnittingTimerRunning(): boolean,
+  // 账号状态管理方法
+  handleAccountInvalidated(): void,
+  isAccountInvalidated(result: any): boolean,
   // 计数器云同步方法
   startCounterHeartbeat(): void,
   stopCounterHeartbeat(): void,

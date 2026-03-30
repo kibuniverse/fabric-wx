@@ -82,6 +82,8 @@ Page({
               if (app) {
                 app.stopCounterHeartbeat();
                 app.globalData.totalKnittingTime = 0;
+                // 设置标志位：主动注销，不触发"登录状态已失效"弹窗
+                app.globalData.accountInvalidatedShown = true;
                 app.resetLocalCountersToDefault();
               }
 

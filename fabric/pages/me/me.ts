@@ -59,6 +59,22 @@ Page({
     if (typeof this.getTabBar === 'function' && this.getTabBar()) {
       this.getTabBar().setData({ selected: 2 }); // me 是第三个 tab
     }
+
+    // 检查是否需要刷新页面（账号失效后跳转）
+    const app = getApp<IAppOption>();
+    if (app && app.globalData.needRefreshMePage) {
+      app.globalData.needRefreshMePage = false; // 重置标志位
+      // 直接设置为未登录状态
+      this.setData({
+        avatarUrl: '',
+        nickName: '微信用户',
+        isLoggedIn: false,
+        zhizhiId: '',
+        totalTimeHours: 0,
+      });
+      return;
+    }
+
     // 重新检查登录状态
     this.loadUserInfo();
   },
@@ -378,6 +394,8 @@ Page({
         const app = getApp<IAppOption>();
         if (app) {
           app.globalData.totalKnittingTime = totalTime;
+          // 重置账号失效标志（用户重新登录）
+          app.globalData.accountInvalidatedShown = false;
           // 处理计数器数据合并
           await app.handleLoginDataMerge();
         }
@@ -503,6 +521,8 @@ Page({
         const app = getApp<IAppOption>();
         if (app) {
           app.globalData.totalKnittingTime = totalTime;
+          // 重置账号失效标志（用户重新登录）
+          app.globalData.accountInvalidatedShown = false;
           // 处理计数器数据合并（新用户可能本地有默认计数器的修改）
           await app.handleLoginDataMerge();
         }
