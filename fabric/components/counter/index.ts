@@ -131,6 +131,7 @@ Component({
         // 支持刷新所有计数器或指定计数器
         if (counterKey === 'all' || counterKey === this.properties.storageKey) {
           this.loadCounterData();
+          this.restoreTimerState(); // 同步更新计时器显示
         }
       });
     },

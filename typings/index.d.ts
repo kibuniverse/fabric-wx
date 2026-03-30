@@ -33,6 +33,7 @@ interface IAppOption {
   stopCounterHeartbeat(): void,
   resetCounterHeartbeat(): void,
   syncCounterData(action: 'upload' | 'download' | 'sync'): Promise<boolean>,
+  forceSyncCounterData(action: 'upload' | 'download' | 'sync'): Promise<boolean>,
   fetchCounterDataFromCloud(): Promise<{ counterKeys: any[]; counters: Record<string, any> } | null>,
   isDefaultCounterModified(): boolean,
   resetLocalCountersToDefault(): void,

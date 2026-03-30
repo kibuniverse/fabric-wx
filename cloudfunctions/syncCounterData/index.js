@@ -42,7 +42,7 @@ exports.main = async (event, context) => {
     if (action === 'upload') {
       await usersCollection.doc(user._id).update({
         data: {
-          counterKeys: counterKeys || [],
+          counterKeys: counterKeys || [],  // 只存 keys 数组
           counters: db.command.set(counters || {}),
           lastCounterSyncTime: now,
           updatedAt: now
@@ -70,60 +70,61 @@ exports.main = async (event, context) => {
     }
 
     // 同步模式：基于 updatedAt 合并数据
-    // 核心逻辑：只合并云端 counterKeys 中存在的计数器（删除的计数器会被丢弃）
+    // 核心逻辑：
+    // - counterKeys 以云端为准（删除操作只在云端 counterKeys 中体现）
+    // - counters 数据基于 updatedAt 合并（只合并云端 counterKeys 中存在的计数器）
     if (action === 'sync') {
       const cloudCounters = user.counters || {}
       const cloudKeys = user.counterKeys || []
       const localCounters = counters || {}
       const localKeys = counterKeys || []
 
-      // 构建云端 counterKeys 的 Set（用于判断哪些计数器应该保留）
-      const cloudKeysSet = new Set(cloudKeys.map(k => k.key))
+      // 兼容旧数据：如果 cloudKeys 是对象数组（旧格式），转换为字符串数组
+      const normalizedCloudKeys = cloudKeys.map(k => typeof k === 'string' ? k : k.key)
+      const cloudKeysSet = new Set(normalizedCloudKeys)
 
-      // 合并计数器列表：本地 + 云端独有的新增
-      const mergedKeysMap = new Map()
-      for (const key of localKeys) {
-        mergedKeysMap.set(key.key, key)
-      }
-      for (const key of cloudKeys) {
-        if (!mergedKeysMap.has(key.key)) {
-          mergedKeysMap.set(key.key, key)
-        }
-      }
-      const mergedKeys = Array.from(mergedKeysMap.values())
-
-      // 合并计数器数据：只合并在云端 counterKeys 中存在的计数器
-      // 这样可以确保：被删除的计数器（不在云端 counterKeys 中）的数据不会被恢复
+      // 合并计数器数据和 keys
       const mergedCounters = {}
+      const mergedKeys = []
 
-      for (const key of Object.keys(localCounters)) {
-        // 如果云端没有这个计数器（已被其他设备删除），跳过
-        if (!cloudKeysSet.has(key)) {
-          continue
-        }
-
+      // 1. 以云端 counterKeys 为基准（云端没有 = 已删除）
+      for (const key of normalizedCloudKeys) {
         const localCounter = localCounters[key]
         const cloudCounter = cloudCounters[key]
 
-        if (!cloudCounter) {
+        if (!cloudCounter && !localCounter) {
+          // 两边都没有 counterData，保留 key（可能有数据延迟）
+          mergedKeys.push(key)
+        } else if (!localCounter) {
+          // 只有云端有 counterData，使用云端的
+          mergedCounters[key] = cloudCounter
+          mergedKeys.push(key)
+        } else if (!cloudCounter) {
+          // 只有本地有 counterData（云端可能有数据延迟），使用本地的
           mergedCounters[key] = localCounter
+          mergedKeys.push(key)
         } else {
+          // 两边都有 counterData，基于 updatedAt 选择较新的
           const localTime = localCounter.updatedAt || 0
           const cloudTime = cloudCounter.updatedAt || 0
-          mergedCounters[key] = localTime >= cloudTime ? localCounter : cloudCounter
+
+          if (localTime >= cloudTime) {
+            mergedCounters[key] = localCounter
+            mergedKeys.push(key)
+          } else {
+            mergedCounters[key] = cloudCounter
+            mergedKeys.push(key)
+          }
         }
       }
 
-      // 添加云端独有的新增计数器数据
-      for (const key of cloudKeys) {
-        if (!localCounters[key.key] && cloudCounters[key.key]) {
-          mergedCounters[key.key] = cloudCounters[key.key]
-        }
-      }
+      // 2. 本地有但云端没有的计数器 → 已被删除，不保留
+      // （删除操作只在云端 counterKeys 中体现，本地应跟随删除）
+      // 注意：不再添加本地独有的计数器
 
       await usersCollection.doc(user._id).update({
         data: {
-          counterKeys: mergedKeys,
+          counterKeys: mergedKeys,  // 只存 keys 数组
           counters: db.command.set(mergedCounters),
           lastCounterSyncTime: now,
           updatedAt: now

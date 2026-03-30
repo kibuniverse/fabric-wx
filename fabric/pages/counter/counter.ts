@@ -10,9 +10,7 @@ const STORAGE_KEYS = {
   ACTIVE_KEY: "counter_active_key",
 };
 
-const defaultCounterKeys = [
-  { key: "default_counter", title: "默认计数器" },
-];
+const defaultCounterKeys = ["local_default_counter"];
 
 /** 监听是否有备忘录的修改 */
 let isMemoModified = false;
@@ -47,8 +45,10 @@ Page({
     isVibrationOn: false,
     isKeepScreenOn: false,
     isVoiceOn: false,
-    // 增加计数器key列表
-    counterKeys: [] as { key: string; title: string }[],
+    // 计数器 key 列表（只存 key）
+    counterKeys: [] as string[],
+    // 计数器列表（用于渲染 Tab，包含 key 和 name）
+    counterList: [] as { key: string; name: string }[],
     activeKey: "",
     activeTab: 0,
     // 弹窗相关
@@ -121,7 +121,7 @@ Page({
     // 如果 Storage 中没有计数器数据，写入默认值
     // 注意：未登录用户使用 local_default_counter，登录用户使用正常的计数器
     if (!keys || keys.length === 0) {
-      keys = [{ key: "local_default_counter", title: "默认计数器" }];
+      keys = ["local_default_counter"];
       wx.setStorageSync(STORAGE_KEYS.COUNTER_KEYS, keys);
       // 同时写入默认计数器数据
       const defaultData = {
@@ -143,13 +143,29 @@ Page({
 
     const activeKey = wx.getStorageSync(STORAGE_KEYS.ACTIVE_KEY) || "";
 
+    // 构建 counterList（用于渲染 Tab）
+    const counterList = keys.map((key: string) => {
+      const data = wx.getStorageSync(key);
+      return { key, name: data?.name || "默认计数器" };
+    });
+
     this.setData({
       counterKeys: keys,
+      counterList,
       activeKey,
       isVibrationOn: wx.getStorageSync(STORAGE_KEYS.VIBRATION) || false,
       isKeepScreenOn: wx.getStorageSync(STORAGE_KEYS.KEEP_SCREEN) || false,
       isVoiceOn: wx.getStorageSync(STORAGE_KEYS.VOICE) || false,
     });
+  },
+
+  // 根据 counterKeys 构建 counterList
+  buildCounterList() {
+    const counterList = this.data.counterKeys.map((key: string) => {
+      const data = wx.getStorageSync(key);
+      return { key, name: data?.name || "默认计数器" };
+    });
+    this.setData({ counterList });
   },
 
   // 平滑眼珠动画的当前值
@@ -279,8 +295,14 @@ Page({
     // 无论是否登录，都重新从 Storage 加载计数器列表
     const keys = wx.getStorageSync(STORAGE_KEYS.COUNTER_KEYS) || [];
     const activeKey = wx.getStorageSync(STORAGE_KEYS.ACTIVE_KEY) || "";
+    // 构建 counterList
+    const counterList = keys.map((key: string) => {
+      const data = wx.getStorageSync(key);
+      return { key, name: data?.name || "默认计数器" };
+    });
     this.setData({
       counterKeys: keys,
+      counterList,
       activeKey,
       activeTab: Math.min(this.data.activeTab, keys.length - 1),
     });
@@ -304,8 +326,14 @@ Page({
           // 同步完成后重新加载计数器列表
           const syncKeys = wx.getStorageSync(STORAGE_KEYS.COUNTER_KEYS) || [];
           const syncActiveKey = wx.getStorageSync(STORAGE_KEYS.ACTIVE_KEY) || "";
+          // 构建 counterList
+          const syncCounterList = syncKeys.map((key: string) => {
+            const data = wx.getStorageSync(key);
+            return { key, name: data?.name || "默认计数器" };
+          });
           this.setData({
             counterKeys: syncKeys,
+            counterList: syncCounterList,
             activeKey: syncActiveKey,
             activeTab: Math.min(this.data.activeTab, syncKeys.length - 1),
           });
@@ -328,7 +356,9 @@ Page({
       app.stopCounterHeartbeat();
       const userInfo = wx.getStorageSync('userInfo');
       if (userInfo && userInfo.isLoggedIn) {
-        app.syncCounterData('upload').catch(err => {
+        // 强制上传：等待当前同步完成后，再执行上传
+        // 这样可以确保用户操作的数据不会丢失
+        app.forceSyncCounterData('upload').catch(err => {
           console.error('[Counter] 同步计数器数据失败:', err)
         });
       }
@@ -858,14 +888,8 @@ Page({
     const randomStr = Math.random().toString(36).substring(2, 8);
     const newKey = `counter_${timestamp}_${randomStr}`;
 
-    // 添加新计数器
-    const newCounterKeys = [
-      ...this.data.counterKeys,
-      {
-        key: newKey,
-        title: newCounterName.trim(),
-      },
-    ];
+    // 添加新计数器（只存 key）
+    const newCounterKeys = [...this.data.counterKeys, newKey];
 
     // 更新本地存储和数据
     wx.setStorageSync(STORAGE_KEYS.COUNTER_KEYS, newCounterKeys);
@@ -884,8 +908,12 @@ Page({
     };
     wx.setStorageSync(newKey, DEFAULT_COUNTER_DATA);
 
+    // 构建 counterList
+    const newCounterList = [...this.data.counterList, { key: newKey, name: newCounterName.trim() }];
+
     this.setData({
       counterKeys: newCounterKeys,
+      counterList: newCounterList,
       showAddCounter: false,
       activeTab: newCounterKeys.length - 1, // 切换到新添加的计数器
     });
@@ -901,28 +929,6 @@ Page({
       app.resetCounterHeartbeat();
     }
   },
-  modifyName(e: any) {
-    const key = e.currentTarget.dataset.id;
-    const newName = e.detail.data.name.trim();
-    const counter = this.data.counterKeys.find((item) => item.key === key);
-    if (!counter) {
-      this.showToast("计数器不存在");
-      return;
-    }
-    const newCounterKeys = this.data.counterKeys.map((item) => {
-      if (item.key === key) {
-        return { ...item, title: newName };
-      }
-      return item;
-    });
-    this.setData({
-      counterKeys: newCounterKeys,
-    });
-    wx.setStorageSync(STORAGE_KEYS.COUNTER_KEYS, newCounterKeys);
-
-    this.selectComponent("#tabs").resize();
-  },
-
   handleCounterDelete(e: { detail: { id: string } }) {
     // 添加确认删除计数器的弹窗
     wx.showModal({
@@ -935,27 +941,35 @@ Page({
         if (res.confirm) {
           const counterId = e.detail.id;
           // 用户点击了确认按钮
-          // 如果只剩余了一个计时器，则提示不能删除
           const counterKeys = this.data.counterKeys;
-          const deletedCounter = counterKeys.find(
-            (key) => key.key === counterId
+          // 获取被删除计数器的名称
+          const deletedCounter = this.data.counterList.find(
+            (item) => item.key === counterId
           );
-          const deletedCounterTitle = deletedCounter?.title;
+          const deletedCounterName = deletedCounter?.name;
 
-          // 删除 counterkeys中的key
           // 找到被删除的计数器在原数组中的索引
           const deletedIndex = this.data.counterKeys.findIndex(
-            (key) => key.key === counterId
+            (key) => key === counterId
           );
+          // 删除 counterKeys 中的 key
           const newCounterKeys = this.data.counterKeys.filter(
-            (key) => key.key !== counterId
+            (key) => key !== counterId
           );
           wx.setStorageSync(STORAGE_KEYS.COUNTER_KEYS, newCounterKeys);
-          this.setData({ counterKeys: newCounterKeys });
 
           // 清理计数器相关数据
           wx.removeStorageSync(counterId); // 计数器数据
           wx.removeStorageSync(`memo_${counterId}_lastModified`); // 备忘录修改时间
+
+          // 更新 counterList
+          const newCounterList = this.data.counterList.filter(
+            (item) => item.key !== counterId
+          );
+          this.setData({
+            counterKeys: newCounterKeys,
+            counterList: newCounterList,
+          });
 
           // 如果删除的是第一个计数器，则激活第二个计数器（新的第一个）
           // 否则激活被删除计数器的前一个
@@ -963,7 +977,7 @@ Page({
           // 确保索引有效
           newActiveTab = Math.min(newActiveTab, newCounterKeys.length - 1);
           this.setData({ activeTab: newActiveTab });
-          this.showToast(`计数器 ${deletedCounterTitle} 已删除`);
+          this.showToast(`计数器 ${deletedCounterName} 已删除`);
           this.selectComponent("#tabs").resize();
           // 如果删除的计数器是子计数器绑定的计数器，则关闭子计数器
           if (
@@ -1071,27 +1085,37 @@ Page({
       return;
     }
 
-    // 修改计数器名称
-    const newCounterKeys = this.data.counterKeys.map((item) => {
-      if (item.key === this.data.currentEditingKey) {
-        return { ...item, title: newName };
-      }
-      return item;
-    });
-    this.setData({
-      counterKeys: newCounterKeys,
-    });
-    wx.setStorageSync(STORAGE_KEYS.COUNTER_KEYS, newCounterKeys);
+    // 只更新计数器数据的 name 和 updatedAt
     const counterData = wx.getStorageSync(this.data.currentEditingKey);
     if (counterData) {
       counterData.name = newName;
+      counterData.updatedAt = Date.now(); // 更新时间戳，确保云同步时使用新名称
       wx.setStorageSync(this.data.currentEditingKey, counterData);
     }
+
+    // 更新 counterList 中的 name
+    const newCounterList = this.data.counterList.map((item) => {
+      if (item.key === this.data.currentEditingKey) {
+        return { ...item, name: newName };
+      }
+      return item;
+    });
+    this.setData({ counterList: newCounterList });
+
     eventBus.emit('refreshCounter', { counterKey: this.data.currentEditingKey });
     this.setData({
       showModifyCounterName: false
     });
     this.selectComponent("#tabs").resize();
+
+    // 触发云同步，确保名称变更立即上传
+    const app = getApp<IAppOption>();
+    if (app) {
+      app.syncCounterData('upload').catch(err => {
+        console.error('[Counter] 同步计数器名称失败:', err)
+      });
+      app.resetCounterHeartbeat();
+    }
   },
 
   // 确认修改当前行数

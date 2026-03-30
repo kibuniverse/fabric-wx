@@ -306,6 +306,29 @@ App<IAppOption>({
   },
 
   /**
+   * 强制同步计数器数据到云端（等待当前同步完成后再执行）
+   * 用于确保用户离开页面时数据不会丢失
+   * @param action 'upload' | 'download' | 'sync'
+   */
+  async forceSyncCounterData(action: 'upload' | 'download' | 'sync'): Promise<boolean> {
+    // 检查是否已登录
+    const userInfo = wx.getStorageSync('userInfo');
+    if (!userInfo || !userInfo.isLoggedIn) {
+      return false;
+    }
+
+    // 等待当前同步完成（最多等待5秒）
+    const maxWaitTime = 5000;
+    const startTime = Date.now();
+    while (this.globalData.isSyncing && (Date.now() - startTime) < maxWaitTime) {
+      await new Promise(resolve => setTimeout(resolve, 100));
+    }
+
+    // 执行同步
+    return this.syncCounterData(action);
+  },
+
+  /**
    * 同步计数器数据到云端
    * @param action 'upload' | 'download' | 'sync'
    */
@@ -322,16 +345,16 @@ App<IAppOption>({
     this.globalData.isSyncing = true;
 
     try {
-      // 获取本地计数器数据，保留原有的 updatedAt
+      // 获取本地计数器数据
       const counterKeys = wx.getStorageSync('counter_keys') || [];
       const counters: Record<string, any> = {};
 
-      for (const item of counterKeys) {
-        const counterData = wx.getStorageSync(item.key);
+      // 读取每个计数器的完整数据
+      for (const key of counterKeys) {
+        const counterData = wx.getStorageSync(key);
         if (counterData) {
-          counters[item.key] = {
+          counters[key] = {
             ...counterData,
-            // 保留原有的 updatedAt，只有在没有时才设置为当前时间（新建计数器）
             updatedAt: counterData.updatedAt || Date.now()
           };
         }
@@ -341,7 +364,7 @@ App<IAppOption>({
         name: 'syncCounterData',
         data: {
           action,
-          counterKeys,
+          counterKeys,  // 只传 keys 数组
           counters,
         },
       }) as any;
@@ -354,11 +377,24 @@ App<IAppOption>({
         if ((action === 'download' || action === 'sync') && res.result.data) {
           const { counterKeys: cloudKeys, counters: cloudCounters } = res.result.data;
 
-          // 只有在云端有有效数据时才更新本地（避免空数据覆盖）
-          if (cloudKeys && Array.isArray(cloudKeys) && cloudKeys.length > 0) {
-            wx.setStorageSync('counter_keys', cloudKeys);
+          // 获取本地当前的计数器 keys（用于对比删除）
+          const localKeys = wx.getStorageSync('counter_keys') || [];
+          const cloudKeysList = cloudKeys || [];
+
+          // 构建云端 keys 的 Set
+          const cloudKeysSet = new Set(cloudKeysList);
+
+          // 删除本地多余的计数器数据（云端已删除的）
+          for (const key of localKeys) {
+            if (!cloudKeysSet.has(key)) {
+              wx.removeStorageSync(key);
+            }
           }
 
+          // 更新本地 counterKeys
+          wx.setStorageSync('counter_keys', cloudKeysList);
+
+          // 更新云端返回的计数器数据
           if (cloudCounters && Object.keys(cloudCounters).length > 0) {
             for (const key of Object.keys(cloudCounters)) {
               wx.setStorageSync(key, cloudCounters[key]);
@@ -442,15 +478,15 @@ App<IAppOption>({
   resetLocalCountersToDefault() {
     // 清除所有计数器相关数据
     const counterKeys = wx.getStorageSync('counter_keys') || [];
-    for (const item of counterKeys) {
-      wx.removeStorageSync(item.key);
+    for (const key of counterKeys) {
+      wx.removeStorageSync(key);
     }
     wx.removeStorageSync('counter_keys');
     // 清除可能存在的临时计数器
     wx.removeStorageSync('local_default_counter');
 
     // 创建全新的本地默认计数器（使用 local_default_counter 作为 key）
-    const defaultKeys = [{ key: "local_default_counter", title: "默认计数器" }];
+    const defaultKeys = ["local_default_counter"];
     const defaultData = {
       name: "默认计数器",
       targetCount: 999,
@@ -524,7 +560,7 @@ App<IAppOption>({
    * @param existingKeys 已有的云端计数器 keys（可选）
    * @param existingCounters 已有的云端计数器数据（可选）
    */
-  async saveLocalCounterToCloud(existingKeys?: any[], existingCounters?: Record<string, any>): Promise<void> {
+  async saveLocalCounterToCloud(existingKeys?: string[], existingCounters?: Record<string, any>): Promise<void> {
     const localData = wx.getStorageSync('local_default_counter');
     if (!localData) return;
 
@@ -540,8 +576,8 @@ App<IAppOption>({
     let mergedKeys = existingKeys || [];
     let mergedCounters = existingCounters || {};
 
-    // 添加新计数器
-    mergedKeys = [...mergedKeys, { key: newKey, title: localData.name || "临时计数器" }];
+    // 添加新计数器（只存 key）
+    mergedKeys = [...mergedKeys, newKey];
     mergedCounters[newKey] = newData;
 
     // 上传到云端
