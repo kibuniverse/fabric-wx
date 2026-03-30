@@ -77,6 +77,14 @@ Page({
               // 清除本地头像文件
               this.clearLocalAvatar();
 
+              // 清除计数器相关缓存，重置为默认计数器
+              const app = getApp<IAppOption>();
+              if (app) {
+                app.stopCounterHeartbeat();
+                app.globalData.totalKnittingTime = 0;
+                app.resetLocalCountersToDefault();
+              }
+
               wx.showToast({ title: '账号已注销', icon: 'success' });
 
               // 延迟跳转到 me 页面
