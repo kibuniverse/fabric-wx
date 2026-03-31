@@ -1,1 +1,1 @@
-{"disableScroll": true, "navigationStyle": "custom", "usingComponents": {"dynamic-svg": "/components/dynamic-svg/index"}}
+{"disableScroll": false, "navigationStyle": "custom", "usingComponents": {"dynamic-svg": "/components/dynamic-svg/index"}}
