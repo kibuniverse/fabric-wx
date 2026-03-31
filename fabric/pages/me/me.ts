@@ -618,6 +618,31 @@ Page({
   },
 
   /**
+   * 显示圆角长条 Toast
+   */
+  showToast(message: string) {
+    const toast = this.selectComponent('#toast');
+    if (toast) {
+      toast.showToast(message);
+    }
+  },
+
+  /**
+   * 复制知织 ID
+   */
+  onCopyZhizhiId() {
+    const zhizhiId = this.data.zhizhiId;
+    if (!zhizhiId) {
+      this.showToast('知织号不存在');
+      return;
+    }
+    wx.setClipboardData({
+      data: zhizhiId
+    });
+    // 微信系统会自动弹出"已复制"提示
+  },
+
+  /**
    * 用户点击右上角分享
    */
   onShareAppMessage() {

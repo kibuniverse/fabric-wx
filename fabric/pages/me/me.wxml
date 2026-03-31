@@ -98,7 +98,9 @@
       </view>
       <view class="user-text">
         <text class="nickname-large">{{nickName}}</text>
-        <text class="zhizhi-id">知织号：{{zhizhiId}}</text>
+        <view class="zhizhi-id-wrapper" bindtap="onCopyZhizhiId">
+          <text class="zhizhi-id">知织号：{{zhizhiId}}</text>
+        </view>
       </view>
     </view>
   </view>
@@ -107,4 +109,5 @@
   <view class="placeholder-wrapper">
     <image class="placeholder-image" src="/assets/me_placeholder.png" mode="aspectFit" />
   </view>
+  <toast id="toast" duration="2000" />
 </view>

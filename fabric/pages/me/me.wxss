@@ -398,6 +398,18 @@
   margin-top: 0rpx;
 }
 
+.zhizhi-id-wrapper {
+  display: flex;
+  align-items: center;
+  padding: 8rpx 12rpx;
+  border-radius: 8rpx;
+  background: transparent;
+}
+
+.zhizhi-id-wrapper:active {
+  background: rgba(168, 137, 200, 0.1);
+}
+
 /* 兜底图容器 - 在渐变(556rpx)和tab(96rpx)之间垂直居中 */
 .placeholder-wrapper {
   position: fixed;
