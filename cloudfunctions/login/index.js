@@ -120,6 +120,9 @@ exports.main = async (event, context) => {
     console.log('创建新用户, openid:', openid)
     const zhizhiId = await generateUniqueZhizhiId()
 
+    // 为新用户创建默认计数器
+    const defaultCounterKey = `counter_${Date.now()}`
+
     const newUserData = {
       openid,  // 显式保存 openid
       zhizhiId,
@@ -127,6 +130,25 @@ exports.main = async (event, context) => {
       nickName: nickName || '微信用户',
       avatarUrl: avatarUrl || '',
       totalKnittingTime: 0, // 总针织时长（毫秒）
+      // 初始化默认计数器
+      counterKeys: [defaultCounterKey],
+      counters: {
+        [defaultCounterKey]: {
+          name: '默认计数器',
+          targetCount: 999,
+          currentCount: 0,
+          startTime: 0,
+          history: [],
+          timerState: {
+            startTimestamp: 0,
+            elapsedTime: 0,
+            wasRunning: false
+          },
+          memo: '',
+          updatedAt: db.serverDate()
+        }
+      },
+      lastCounterSyncTime: db.serverDate(),
       createdAt: db.serverDate(),
       updatedAt: db.serverDate()
     }

@@ -117,6 +117,8 @@
 .link {
   color: #576B95;
   font-size: 24rpx;
+  margin-left: 4rpx;
+  margin-right: 4rpx;
 }
 
 /* 登录对话框样式 */

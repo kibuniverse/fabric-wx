@@ -25,9 +25,9 @@
           <view wx:if="{{isChecked}}" class="check-icon">✓</view>
         </view>
       </view>
-      <text class="agreement-text">已阅读并同意 </text>
+      <text class="agreement-text">已阅读并同意</text>
       <text class="link" bindtap="onUserAgreement">用户协议</text>
-      <text class="agreement-text"> 和 </text>
+      <text class="agreement-text">和</text>
       <text class="link" bindtap="onPrivacyPolicy">隐私政策</text>
     </view>
   </view>
