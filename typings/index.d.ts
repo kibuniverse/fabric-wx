@@ -44,6 +44,7 @@ interface IAppOption {
   fetchCounterDataFromCloud(): Promise<{ counterKeys: any[]; counters: Record<string, any> } | null>,
   isDefaultCounterModified(): boolean,
   resetLocalCountersToDefault(): void,
+  resetLocalCountersForLogout(): void,
   handleLoginDataMerge(): Promise<boolean>,
   saveLocalCounterToCloud(existingKeys?: any[], existingCounters?: Record<string, any>): Promise<void>,
 }

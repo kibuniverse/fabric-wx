@@ -168,8 +168,8 @@ Page({
           wx.removeStorageSync('total_zhizhi_time');
           if (app) {
             app.globalData.totalKnittingTime = 0;
-            // 重置本地计数器为默认状态
-            app.resetLocalCountersToDefault();
+            // 重置本地计数器（云端数据仍存在，下次登录会下载）
+            app.resetLocalCountersForLogout();
           }
 
           wx.hideLoading();

@@ -634,7 +634,41 @@ App<IAppOption>({
   },
 
   /**
-   * 重置本地计数器为默认状态（用于退出登录后）
+   * 退出登录时重置本地计数器（云端数据仍存在）
+   * 只清除本地数据，不清除迁移标记，下次登录只需从云端下载
+   */
+  resetLocalCountersForLogout() {
+    // 清除本地计数器数据（云端数据仍存在）
+    const counterKeys = wx.getStorageSync('counter_keys') || [];
+    for (const key of counterKeys) {
+      wx.removeStorageSync(key);
+    }
+    wx.removeStorageSync('counter_keys');
+    wx.removeStorageSync('local_default_counter');
+    
+    // 创建全新的本地默认计数器（使用 local_default_counter 作为 key）
+    const defaultKeys = ["local_default_counter"];
+    const defaultData = {
+      name: "默认计数器",
+      targetCount: 999,
+      currentCount: 0,
+      startTime: 0,
+      history: [],
+      timerState: {
+        startTimestamp: 0,
+        elapsedTime: 0,
+        wasRunning: false,
+      },
+      memo: "",
+      updatedAt: Date.now(), // 初始化时设置时间戳
+    };
+
+    wx.setStorageSync('counter_keys', defaultKeys);
+    wx.setStorageSync('local_default_counter', defaultData);
+  },
+
+  /**
+   * 重置本地计数器为默认状态（用于注销账号后）
    * 使用 local_default_counter 作为 key，与云端数据完全隔离
    */
   resetLocalCountersToDefault() {
