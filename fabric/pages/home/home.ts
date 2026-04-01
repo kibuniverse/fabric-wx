@@ -12,6 +12,7 @@ interface FileItem {
   pdfSourcePath?: string; // PDF源文件路径（如果是从PDF转换来的）
   pdfPageCount?: number; // PDF总页数
   size?: number;         // 文件大小（字节），用于去重
+  cloudFileId?: string;  // 云端PDF文件ID（用于删除时清理云端数据）
 }
 
 // 通用的提示配置
@@ -626,8 +627,11 @@ Page({
       return;
     }
 
-    // 清理该项目关联的计数器和备忘录数据
-    this.cleanupItemData(currentItemId);
+    // 获取要删除的项目信息（用于清理关联数据）
+    const currentItem = this.data.allItems.find(item => item.id === currentItemId);
+
+    // 清理该项目关联的所有数据
+    this.cleanupItemData(currentItemId, currentItem);
 
     // 从两个列表中都尝试删除，确保数据一致
     const updatedImageList = this.data.imageList.filter(item => item.id !== currentItemId);
@@ -651,26 +655,77 @@ Page({
   },
 
   /**
-   * 清理项目关联的数据（计数器、备忘录等）
+   * 清理项目关联的所有数据（计数器、备忘录、页码、本地图片、云端文件）
+   * @param itemId 项目ID
+   * @param item 项目信息（可选，用于清理图片和云端文件）
    */
-  cleanupItemData(itemId: string) {
-    // 清理计数器数据
+  cleanupItemData(itemId: string, item?: FileItem) {
+    // 1. 清理计数器数据
     const countersStorage = wx.getStorageSync('simpleCounters') || {};
     if (countersStorage[itemId] !== undefined) {
       delete countersStorage[itemId];
       wx.setStorageSync('simpleCounters', countersStorage);
     }
 
-    // 清理备忘录数据
+    // 2. 清理备忘录数据
     const memosStorage = wx.getStorageSync('itemMemos') || {};
     if (memosStorage[itemId] !== undefined) {
       delete memosStorage[itemId];
       wx.setStorageSync('itemMemos', memosStorage);
     }
 
-    // 清理备忘录修改时间
+    // 3. 清理备忘录修改时间
     const lastModifiedKey = `memo_${itemId}_lastModified`;
     wx.removeStorageSync(lastModifiedKey);
+
+    // 4. 清理页码记录
+    const lastImageIndexStorage = wx.getStorageSync('lastImageIndex') || {};
+    if (lastImageIndexStorage[itemId] !== undefined) {
+      delete lastImageIndexStorage[itemId];
+      wx.setStorageSync('lastImageIndex', lastImageIndexStorage);
+    }
+
+    // 5. 清理本地图片文件
+    if (item) {
+      if (item.paths && item.paths.length > 0) {
+        // 已转换：清理 paths 中的所有图片文件
+        item.paths.forEach((filePath) => {
+          wx.removeSavedFile({
+            filePath: filePath,
+            success: () => {
+              console.log('删除本地图片成功:', filePath);
+            },
+            fail: (err) => {
+              console.error('删除本地图片失败:', filePath, err);
+            }
+          });
+        });
+      } else if (item.path) {
+        // 未转换：清理临时文件路径（PDF源文件）
+        wx.removeSavedFile({
+          filePath: item.path,
+          success: () => {
+            console.log('删除本地临时文件成功:', item.path);
+          },
+          fail: (err) => {
+            console.error('删除本地临时文件失败:', item.path, err);
+          }
+        });
+      }
+    }
+
+    // 6. 清理云端PDF文件（如果是PDF且有云文件ID）
+    if (item && item.type === 'pdf' && item.cloudFileId) {
+      wx.cloud.deleteFile({
+        fileList: [item.cloudFileId],
+        success: (res) => {
+          console.log('删除云端PDF成功:', res.fileList);
+        },
+        fail: (err) => {
+          console.error('删除云端PDF失败:', err);
+        }
+      });
+    }
   },
 
   /**

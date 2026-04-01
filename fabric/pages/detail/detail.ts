@@ -205,6 +205,13 @@ Page<DetailPageData, WechatMiniprogram.IAnyObject>({
 
       hideLoading();
 
+      // 转换成功后立即删除云端 PDF（图片已下载到本地，云端文件不再需要）
+      wx.cloud.deleteFile({
+        fileList: [result.cloudFileId],
+        success: () => console.log('云端PDF已清理:', result.cloudFileId),
+        fail: (err) => console.error('云端PDF清理失败:', err)
+      });
+
       // 更新fileList中的项目
       const fileList = wx.getStorageSync('fileList') || [];
       const DEFAULT_COVER = '/assets/default_Illustration.png';
@@ -218,7 +225,8 @@ Page<DetailPageData, WechatMiniprogram.IAnyObject>({
             path: result.paths[0], // 兼容旧数据
             pdfPageCount: result.pageCount,
             // 如果是默认封面，则将首图设置为封面
-            cover: isDefaultCover ? result.paths[0] : file.cover
+            cover: isDefaultCover ? result.paths[0] : file.cover,
+            // cloudFileId 不保存（云端文件已删除）
           };
         }
         return file;

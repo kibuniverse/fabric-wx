@@ -141,13 +141,13 @@ export function downloadImage(url: string): Promise<string> {
  * @param localPath PDF本地路径
  * @param fileId 文件唯一标识
  * @param onProgress 进度回调函数
- * @returns 本地图片路径数组
+ * @returns 本地图片路径数组、页数、云文件ID
  */
 export async function convertPdfToImages(
   localPath: string,
   fileId: string,
   onProgress?: (progress: { current: number; total: number }) => void
-): Promise<{ paths: string[]; pageCount: number }> {
+): Promise<{ paths: string[]; pageCount: number; cloudFileId: string }> {
   // 1. 上传PDF到云存储
   console.log('开始上传PDF...');
   const fileID = await uploadPdfToCloud(localPath, fileId);
@@ -202,7 +202,7 @@ export async function convertPdfToImages(
     throw new Error('所有页面转换失败');
   }
 
-  return { paths: imagePaths, pageCount };
+  return { paths: imagePaths, pageCount, cloudFileId: fileID };
 }
 
 /**
