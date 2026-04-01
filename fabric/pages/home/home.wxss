@@ -144,6 +144,7 @@
   height: 240rpx;
   display: block;
   border-radius: 8rpx;
+  border: 1rpx solid #E6E6FA;
 }
 .item-info {
   height: 54rpx;
