@@ -66,6 +66,13 @@ Page({
 
     // 高亮显示
     highlightItemId: '', // 需要高亮显示的项目ID（用于重复文件提示）
+
+    // 登录引导弹窗
+    showLoginPrompt: false,
+    loginButtons: [
+      {text: '取消', value: 0},
+      {text: '去登录', value: 1, type: 'primary'}
+    ],
   },
 
   /**
@@ -95,11 +102,29 @@ Page({
 
   /**
    * 切换导入选项显示状态
+   * 如果用户未登录且已有三个图解，显示登录引导弹窗
    */
   toggleImportOptions() {
+    // 检查登录状态和图解数量
+    const userInfo = wx.getStorageSync('userInfo');
+    const isLoggedIn = userInfo && userInfo.isLoggedIn;
+
+    // 未登录且已有3个图解时，引导登录
+    if (!isLoggedIn && this.data.allItems.length >= 3) {
+      this.setData({ showLoginPrompt: true });
+      return;
+    }
+
     this.setData({
       showImportOptions: !this.data.showImportOptions
     });
+  },
+
+  /**
+   * 关闭导入选项弹出层（点击遮罩层时使用）
+   */
+  closeImportOptions() {
+    this.setData({ showImportOptions: false });
   },
 
   /**
@@ -743,6 +768,14 @@ Page({
   },
 
   /**
+   * 生命周期函数--监听页面隐藏
+   */
+  onHide() {
+    // 关闭导入选项弹出层
+    this.setData({ showImportOptions: false });
+  },
+
+  /**
    * 页面相关事件处理函数--监听用户下拉动作
    */
   onPullDownRefresh() {
@@ -790,5 +823,21 @@ Page({
     wx.navigateTo({
       url: `/pages/edit/edit?id=${currentItemId}`
     });
+  },
+
+  /**
+   * 处理登录引导弹窗按钮点击
+   */
+  handleLoginDialogButtonClick(e: any) {
+    const index = e.detail.index;
+
+    if (index === 0) {
+      // 点击取消按钮
+      this.setData({ showLoginPrompt: false });
+    } else if (index === 1) {
+      // 点击去登录按钮
+      this.setData({ showLoginPrompt: false });
+      wx.switchTab({ url: '/pages/me/me' });
+    }
   },
 })

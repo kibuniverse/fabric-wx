@@ -70,4 +70,8 @@
       <input class="rename-input" type="text" value="{{diagramName}}" bindinput="onNameInput" placeholder="请输入图解名称" />
     </view>
   </mp-dialog>
+  <!-- 登录引导弹窗 -->
+  <mp-dialog title="登录后继续上传" show="{{showLoginPrompt}}" bindbuttontap="handleLoginDialogButtonClick" buttons="{{loginButtons}}">
+    <view class="login-dialog-content">登录后上传更多图解，并同步数据～</view>
+  </mp-dialog>
 </view>
