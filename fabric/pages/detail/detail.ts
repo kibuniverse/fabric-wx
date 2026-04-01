@@ -150,7 +150,8 @@ Page<DetailPageData, WechatMiniprogram.IAnyObject>({
       let newIndex = 0;
       if (preserveIndex) {
         newIndex = Math.min(this.data.currentImageIndex, totalImages - 1);
-      } else if (item.type === 'image') {
+      } else {
+        // 恢复上次浏览的页码（图片和PDF都支持）
         const storage = wx.getStorageSync(LAST_IMAGE_INDEX_KEY) || {};
         const savedIndex = storage[id];
         if (savedIndex !== undefined && savedIndex < totalImages) {
@@ -766,8 +767,8 @@ Page<DetailPageData, WechatMiniprogram.IAnyObject>({
   },
 
   saveLastImageIndex() {
-    const { itemId, currentImageIndex, itemType } = this.data;
-    if (!itemId || itemType !== 'image') return;
+    const { itemId, currentImageIndex } = this.data;
+    if (!itemId) return;
     const storage = wx.getStorageSync(LAST_IMAGE_INDEX_KEY) || {};
     storage[itemId] = currentImageIndex;
     wx.setStorageSync(LAST_IMAGE_INDEX_KEY, storage);
