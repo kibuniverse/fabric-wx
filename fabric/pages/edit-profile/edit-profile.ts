@@ -176,8 +176,16 @@ Page({
         // 直接将临时文件保存到本地持久化存储（不需要等待下载）
         const localPath = this.saveLocalAvatarFromTemp(newAvatarPath, uploadResult.fileID);
 
-        // 更新本地存储
+        // 获取旧头像并删除云存储文件
         const userInfo = wx.getStorageSync('userInfo') || {};
+        const oldAvatarUrl = userInfo.avatarUrl;
+        if (oldAvatarUrl && oldAvatarUrl.startsWith('cloud://') && oldAvatarUrl !== uploadResult.fileID) {
+          wx.cloud.deleteFile({ fileList: [oldAvatarUrl] }).catch(err => {
+            console.warn('删除旧头像云文件失败:', err);
+          });
+        }
+
+        // 更新本地存储
         userInfo.avatarUrl = uploadResult.fileID;
         wx.setStorageSync('userInfo', userInfo);
 
