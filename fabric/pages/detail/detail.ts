@@ -53,6 +53,7 @@ interface DetailPageData {
   swiperEnabled: boolean;    // 是否允许 swiper 滑动
   // PDF转换状态
   isConverting: boolean;     // 是否正在转换PDF
+  isPageHidden: boolean;     // 页面是否已隐藏（用户返回）
 }
 
 // 缩放范围常量
@@ -103,6 +104,7 @@ Page<DetailPageData, WechatMiniprogram.IAnyObject>({
     isAnimating: false,
     swiperEnabled: true,
     isConverting: false,
+    isPageHidden: false,
   },
 
   onLoad(options: Record<string, string>) {
@@ -191,10 +193,13 @@ Page<DetailPageData, WechatMiniprogram.IAnyObject>({
     try {
       // 转换PDF为图片
       const result = await convertPdfToImages(path, id, (progress) => {
-        wx.showLoading({
-          title: `加载中 ${progress.current}/${progress.total}`,
-          mask: true
-        });
+        // 仅在页面可见时更新进度提示
+        if (!this.data.isPageHidden) {
+          wx.showLoading({
+            title: `加载中 ${progress.current}/${progress.total}`,
+            mask: true
+          });
+        }
       });
 
       hideLoading();
@@ -220,35 +225,44 @@ Page<DetailPageData, WechatMiniprogram.IAnyObject>({
 
       wx.setStorageSync('fileList', updatedFileList);
 
-      // 显示转换后的图片
-      const itemPaths = result.paths;
-      const totalImages = itemPaths.length;
+      // 仅在页面可见时更新UI和显示提示
+      if (!this.data.isPageHidden) {
+        // 显示转换后的图片
+        const itemPaths = result.paths;
+        const totalImages = itemPaths.length;
 
-      this.setData({
-        itemType: 'pdf',
-        itemName: name,
-        itemPath: itemPaths[0],
-        itemPaths,
-        currentImageIndex: 0,
-        totalImages,
-        scale: 1,
-        translateX: 0,
-        translateY: 0,
-        swiperEnabled: true,
-        imageSizes: {},
-        isConverting: false,
-      });
+        this.setData({
+          itemType: 'pdf',
+          itemName: name,
+          itemPath: itemPaths[0],
+          itemPaths,
+          currentImageIndex: 0,
+          totalImages,
+          scale: 1,
+          translateX: 0,
+          translateY: 0,
+          swiperEnabled: true,
+          imageSizes: {},
+          isConverting: false,
+        });
 
-      wx.setNavigationBarTitle({ title: name });
-      this.loadMemoContent();
+        wx.setNavigationBarTitle({ title: name });
+        this.loadMemoContent();
 
-      this.showToast(`完成啦！共有${result.pageCount}页`);
+        this.showToast(`完成啦！共有${result.pageCount}页`);
+      } else {
+        // 页面已隐藏，仅更新转换状态
+        this.setData({ isConverting: false });
+      }
     } catch (err) {
       hideLoading();
       console.error('PDF转换失败:', err);
       this.setData({ isConverting: false });
-      this.showToast('加载失败，稍后再试一下吧');
-      setTimeout(() => wx.navigateBack(), 1500);
+      // 仅在页面可见时提示错误并返回
+      if (!this.data.isPageHidden) {
+        this.showToast('加载失败，稍后再试一下吧');
+        setTimeout(() => wx.navigateBack(), 1500);
+      }
     }
   },
 
@@ -699,6 +713,9 @@ Page<DetailPageData, WechatMiniprogram.IAnyObject>({
   },
 
   onShow() {
+    // 标记页面可见
+    this.setData({ isPageHidden: false });
+
     if (this.data.itemId) {
       this.loadItemDetail(this.data.itemId, true);
     }
@@ -715,6 +732,14 @@ Page<DetailPageData, WechatMiniprogram.IAnyObject>({
   },
 
   onHide() {
+    // 标记页面已隐藏
+    this.setData({ isPageHidden: true });
+
+    // 如果正在转换PDF，隐藏loading但让转换继续在后台执行
+    if (this.data.isConverting) {
+      hideLoading();
+    }
+
     this.saveLastImageIndex();
     // 暂停针织总时长计时
     const app = getApp<IAppOption>();
@@ -724,6 +749,14 @@ Page<DetailPageData, WechatMiniprogram.IAnyObject>({
   },
 
   onUnload() {
+    // 标记页面已隐藏
+    this.setData({ isPageHidden: true });
+
+    // 如果正在转换PDF，隐藏loading但让转换继续在后台执行
+    if (this.data.isConverting) {
+      hideLoading();
+    }
+
     this.saveLastImageIndex();
     // 暂停针织总时长计时
     const app = getApp<IAppOption>();
