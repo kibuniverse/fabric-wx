@@ -186,13 +186,13 @@ Page<DetailPageData, WechatMiniprogram.IAnyObject>({
     const { id, path, name } = item;
 
     this.setData({ isConverting: true });
-    showLoading('正在转换PDF...');
+    showLoading('首次加载较慢，请等等我');
 
     try {
       // 转换PDF为图片
       const result = await convertPdfToImages(path, id, (progress) => {
         wx.showLoading({
-          title: `转换中 ${progress.current}/${progress.total}`,
+          title: `加载中 ${progress.current}/${progress.total}`,
           mask: true
         });
       });
@@ -237,12 +237,12 @@ Page<DetailPageData, WechatMiniprogram.IAnyObject>({
       wx.setNavigationBarTitle({ title: name });
       this.loadMemoContent();
 
-      this.showToast(`已转换${result.pageCount}页`);
+      this.showToast(`完成啦！共有${result.pageCount}页`);
     } catch (err) {
       hideLoading();
       console.error('PDF转换失败:', err);
       this.setData({ isConverting: false });
-      this.showToast('PDF转换失败，请稍后重试');
+      this.showToast('加载失败，稍后再试一下吧');
       setTimeout(() => wx.navigateBack(), 1500);
     }
   },
