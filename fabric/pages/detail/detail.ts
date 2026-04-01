@@ -284,13 +284,15 @@ Page<DetailPageData, WechatMiniprogram.IAnyObject>({
         // 页面已隐藏，仅更新转换状态
         this.setData({ isConverting: false });
       }
-    } catch (err) {
+    } catch (err: any) {
       hideLoading();
       console.error('PDF转换失败:', err);
       this.setData({ isConverting: false });
       // 仅在页面可见时提示错误并返回
       if (!this.data.isPageHidden) {
-        this.showToast('加载失败，稍后再试一下吧');
+        // 显示具体的错误信息
+        const errorMsg = err?.message || '加载失败，稍后再试一下吧';
+        this.showToast(errorMsg);
         setTimeout(() => wx.navigateBack(), 1500);
       }
     }
@@ -387,7 +389,7 @@ Page<DetailPageData, WechatMiniprogram.IAnyObject>({
       } else {
         this.setData({ isConverting: false });
       }
-    } catch (err) {
+    } catch (err: any) {
       hideLoading();
       console.error('继续加载PDF失败:', err);
       this.setData({ isConverting: false });
@@ -413,7 +415,9 @@ Page<DetailPageData, WechatMiniprogram.IAnyObject>({
         wx.setNavigationBarTitle({ title: name });
         this.loadMemoContent();
 
-        this.showToast('网络异常，加载中断');
+        // 显示具体的错误信息
+        const errorMsg = err?.message || '网络异常，加载中断';
+        this.showToast(errorMsg);
       }
     }
   },

@@ -121,7 +121,7 @@ export function downloadImage(url: string): Promise<string> {
             },
             fail: (err) => {
               console.error('保存图片失败:', err);
-              reject(new Error('保存图片失败'));
+              reject(new Error('本地存储空间不足'));
             }
           });
         } else {
