@@ -310,7 +310,7 @@ Page({
 
         // 保存到本地存储
         wx.setStorageSync('fileList', updatedFileList);
-        this.showToast('PDF已添加，首次打开时将转换为图片');
+        this.showToast('导入成功');
       }
     });
   },
