@@ -237,16 +237,16 @@
 }
 
 /* 重复文件高亮样式 */
-.item.highlight {
-  animation: highlight-pulse 0.5s ease-in-out 3;
+.default-illustration.highlight {
+  animation: highlight-pulse 1s ease-in-out 2;
 }
 
 @keyframes highlight-pulse {
   0%, 100% {
-    box-shadow: 0 0 0 0 rgba(168, 137, 200, 0);
+    box-shadow: 0 0 2rpx 0 rgba(168, 137, 200, 0);
   }
   50% {
-    box-shadow: 0 0 0 6rpx rgba(168, 137, 200, 0.8);
+    box-shadow: 0 0 2rpx 4rpx rgba(168, 137, 200, 0.5);
   }
 }
 

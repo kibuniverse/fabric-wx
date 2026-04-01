@@ -271,17 +271,21 @@ Page({
         // 检查是否已存在相同文件（文件名 + 文件大小去重）
         const duplicate = this.checkPdfDuplicate(file.name, file.size);
         if (duplicate) {
-          // 高亮显示已存在的项目
-          this.setData({
-            highlightItemId: duplicate.id
-          });
-
-          // 2秒后取消高亮
-          setTimeout(() => {
-            this.setData({ highlightItemId: '' });
-          }, 2000);
-
+          // 先显示 Toast 提示
           this.showToast('该PDF已存在，请勿重复上传');
+
+          // Toast 消失后（1500ms）再开始高亮动画
+          setTimeout(() => {
+            this.setData({
+              highlightItemId: duplicate.id
+            });
+
+            // 动画持续 2s，结束后取消高亮
+            setTimeout(() => {
+              this.setData({ highlightItemId: '' });
+            }, 2000);
+          }, 1500);
+
           return;
         }
 
