@@ -137,6 +137,65 @@ export function downloadImage(url: string): Promise<string> {
 }
 
 /**
+ * 继续加载PDF缺失的页面
+ * 用于部分加载后网络恢复时继续下载
+ * @param cloudFileId 云端PDF文件ID
+ * @param existingPaths 已下载的图片路径
+ * @param totalPageCount PDF总页数
+ * @param fileId 文件唯一标识
+ * @param onProgress 进度回调函数
+ * @returns 更新后的图片路径数组、页数
+ */
+export async function continuePdfConversion(
+  cloudFileId: string,
+  existingPaths: string[],
+  totalPageCount: number,
+  fileId: string,
+  onProgress?: (progress: { current: number; total: number }) => void
+): Promise<{ paths: string[]; pageCount: number; isComplete: boolean }> {
+  console.log(`继续加载PDF，已下载 ${existingPaths.length}/${totalPageCount} 页...`);
+
+  // 获取临时URL用于下载预览图片
+  const tempFileURL = await new Promise<string>((resolve, reject) => {
+    wx.cloud.getTempFileURL({
+      fileList: [cloudFileId],
+      success: (res) => {
+        if (res.fileList && res.fileList.length > 0) {
+          resolve(res.fileList[0].tempFileURL);
+        } else {
+          reject(new Error('获取临时URL失败'));
+        }
+      },
+      fail: reject
+    });
+  });
+
+  const imagePaths = [...existingPaths]; // 复制已有的图片
+  const startIndex = existingPaths.length; // 从缺失的页面开始下载
+
+  for (let i = startIndex; i < totalPageCount; i++) {
+    const previewUrl = `${tempFileURL}&ci-process=doc-preview&dstType=jpg&page=${i}`;
+
+    try {
+      const localImagePath = await downloadImage(previewUrl);
+      imagePaths.push(localImagePath);
+      console.log(`下载第${i + 1}/${totalPageCount}页成功`, previewUrl);
+
+      // 调用进度回调
+      if (onProgress) {
+        onProgress({ current: i + 1, total: totalPageCount });
+      }
+    } catch (err) {
+      console.error(`下载第${i + 1}页失败:`, err);
+      // 继续尝试下载下一页
+    }
+  }
+
+  const isComplete = imagePaths.length === totalPageCount;
+  return { paths: imagePaths, pageCount: imagePaths.length, isComplete };
+}
+
+/**
  * 主函数：转换PDF为图片
  * @param localPath PDF本地路径
  * @param fileId 文件唯一标识
@@ -202,7 +261,15 @@ export async function convertPdfToImages(
     throw new Error('所有页面转换失败');
   }
 
-  return { paths: imagePaths, pageCount, cloudFileId: fileID };
+  // 返回实际下载成功的数量，以及是否为部分成功
+  const isPartialSuccess = imagePaths.length < pageCount;
+  return {
+    paths: imagePaths,
+    pageCount: imagePaths.length, // 实际下载成功的页数
+    totalPageCount: pageCount,    // PDF 真实总页数
+    cloudFileId: fileID,
+    isPartialSuccess
+  };
 }
 
 /**

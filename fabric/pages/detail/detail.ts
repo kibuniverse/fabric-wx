@@ -1,5 +1,5 @@
 // pages/detail/detail.ts
-import { convertPdfToImages, showLoading, hideLoading } from '../../utils/pdf_converter';
+import { convertPdfToImages, continuePdfConversion, showLoading, hideLoading } from '../../utils/pdf_converter';
 
 // 备忘录存储键
 const MEMO_STORAGE_KEY = "itemMemos";
@@ -144,6 +144,14 @@ Page<DetailPageData, WechatMiniprogram.IAnyObject>({
         return;
       }
 
+      // 检查是否为部分加载的PDF（有云端文件ID且图片数量少于总数）
+      if (item.type === 'pdf' && item.cloudFileId && item.totalPdfPageCount &&
+          item.paths && item.paths.length < item.totalPdfPageCount) {
+        // 继续加载缺失的页面
+        await this.continueConvertPdfItem(item);
+        return;
+      }
+
       const itemPaths = item.paths || [item.path];
       const totalImages = itemPaths.length;
 
@@ -205,12 +213,18 @@ Page<DetailPageData, WechatMiniprogram.IAnyObject>({
 
       hideLoading();
 
-      // 转换成功后立即删除云端 PDF（图片已下载到本地，云端文件不再需要）
-      wx.cloud.deleteFile({
-        fileList: [result.cloudFileId],
-        success: () => console.log('云端PDF已清理:', result.cloudFileId),
-        fail: (err) => console.error('云端PDF清理失败:', err)
-      });
+      // 检测是否为部分成功（部分页面下载失败）
+      const isPartialSuccess = result.isPartialSuccess || result.paths.length < result.totalPageCount;
+
+      // 只有完全成功才删除云端 PDF
+      // 部分成功时保留云端文件，下次进入可以继续下载
+      if (!isPartialSuccess) {
+        wx.cloud.deleteFile({
+          fileList: [result.cloudFileId],
+          success: () => console.log('云端PDF已清理:', result.cloudFileId),
+          fail: (err) => console.error('云端PDF清理失败:', err)
+        });
+      }
 
       // 更新fileList中的项目
       const fileList = wx.getStorageSync('fileList') || [];
@@ -223,10 +237,12 @@ Page<DetailPageData, WechatMiniprogram.IAnyObject>({
             ...file,
             paths: result.paths,
             path: result.paths[0], // 兼容旧数据
-            pdfPageCount: result.pageCount,
+            pdfPageCount: result.pageCount, // 实际下载成功的页数
+            totalPdfPageCount: result.totalPageCount, // PDF真实总页数（用于检测部分加载）
             // 如果是默认封面，则将首图设置为封面
             cover: isDefaultCover ? result.paths[0] : file.cover,
-            // cloudFileId 不保存（云端文件已删除）
+            // 部分成功时保留 cloudFileId，下次可以继续下载
+            cloudFileId: isPartialSuccess ? result.cloudFileId : undefined,
           };
         }
         return file;
@@ -258,7 +274,12 @@ Page<DetailPageData, WechatMiniprogram.IAnyObject>({
         wx.setNavigationBarTitle({ title: name });
         this.loadMemoContent();
 
-        this.showToast(`完成啦！共有${result.pageCount}页`);
+        // 根据加载结果显示不同的提示
+        if (isPartialSuccess) {
+          this.showToast(`已加载 ${result.pageCount}/${result.totalPageCount} 页，网络恢复后重新进入可继续加载`);
+        } else {
+          this.showToast(`完成啦！共有${result.pageCount}页`);
+        }
       } else {
         // 页面已隐藏，仅更新转换状态
         this.setData({ isConverting: false });
@@ -271,6 +292,128 @@ Page<DetailPageData, WechatMiniprogram.IAnyObject>({
       if (!this.data.isPageHidden) {
         this.showToast('加载失败，稍后再试一下吧');
         setTimeout(() => wx.navigateBack(), 1500);
+      }
+    }
+  },
+
+  /**
+   * 继续加载部分转换的PDF
+   */
+  async continueConvertPdfItem(item: any) {
+    const { id, name, cloudFileId, paths, totalPdfPageCount } = item;
+
+    this.setData({ isConverting: true });
+    wx.showLoading({
+      title: `继续加载 ${paths.length}/${totalPdfPageCount}`,
+      mask: true
+    });
+
+    try {
+      // 继续下载缺失的页面
+      const result = await continuePdfConversion(
+        cloudFileId,
+        paths,
+        totalPdfPageCount,
+        id,
+        (progress) => {
+          // 仅在页面可见时更新进度提示
+          if (!this.data.isPageHidden) {
+            wx.showLoading({
+              title: `加载中 ${progress.current}/${progress.total}`,
+              mask: true
+            });
+          }
+        }
+      );
+
+      hideLoading();
+
+      // 更新fileList中的项目
+      const fileList = wx.getStorageSync('fileList') || [];
+      const updatedFileList = fileList.map((file: any) => {
+        if (file.id === id) {
+          return {
+            ...file,
+            paths: result.paths,
+            path: result.paths[0],
+            pdfPageCount: result.pageCount,
+            // 如果全部加载完成，清除 cloudFileId 和 totalPdfPageCount
+            cloudFileId: result.isComplete ? undefined : cloudFileId,
+            totalPdfPageCount: result.isComplete ? undefined : totalPdfPageCount,
+          };
+        }
+        return file;
+      });
+
+      wx.setStorageSync('fileList', updatedFileList);
+
+      // 如果全部加载完成，删除云端 PDF
+      if (result.isComplete) {
+        wx.cloud.deleteFile({
+          fileList: [cloudFileId],
+          success: () => console.log('云端PDF已清理:', cloudFileId),
+          fail: (err) => console.error('云端PDF清理失败:', err)
+        });
+      }
+
+      // 仅在页面可见时更新UI和显示提示
+      if (!this.data.isPageHidden) {
+        const itemPaths = result.paths;
+        const totalImages = itemPaths.length;
+
+        this.setData({
+          itemType: 'pdf',
+          itemName: name,
+          itemPath: itemPaths[0],
+          itemPaths,
+          currentImageIndex: 0,
+          totalImages,
+          scale: 1,
+          translateX: 0,
+          translateY: 0,
+          swiperEnabled: true,
+          imageSizes: {},
+          isConverting: false,
+        });
+
+        wx.setNavigationBarTitle({ title: name });
+        this.loadMemoContent();
+
+        if (result.isComplete) {
+          this.showToast(`完成啦！共有${result.pageCount}页`);
+        } else {
+          this.showToast(`已加载 ${result.pageCount}/${totalPdfPageCount} 页`);
+        }
+      } else {
+        this.setData({ isConverting: false });
+      }
+    } catch (err) {
+      hideLoading();
+      console.error('继续加载PDF失败:', err);
+      this.setData({ isConverting: false });
+      if (!this.data.isPageHidden) {
+        // 加载失败时，显示已有的图片
+        const itemPaths = paths;
+        const totalImages = itemPaths.length;
+
+        this.setData({
+          itemType: 'pdf',
+          itemName: name,
+          itemPath: itemPaths[0],
+          itemPaths,
+          currentImageIndex: 0,
+          totalImages,
+          scale: 1,
+          translateX: 0,
+          translateY: 0,
+          swiperEnabled: true,
+          imageSizes: {},
+        });
+
+        wx.setNavigationBarTitle({ title: name });
+        this.loadMemoContent();
+
+        this.showToast('网络异常，加载中断');
       }
     }
   },
