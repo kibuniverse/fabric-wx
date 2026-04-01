@@ -109,8 +109,8 @@ Page({
     const userInfo = wx.getStorageSync('userInfo');
     const isLoggedIn = userInfo && userInfo.isLoggedIn;
 
-    // 未登录且已有3个图解时，引导登录
-    if (!isLoggedIn && this.data.allItems.length >= 3) {
+    // 未登录且已有图解时，引导登录
+    if (!isLoggedIn && this.data.allItems.length >= 1) {
       this.setData({ showLoginPrompt: true });
       return;
     }

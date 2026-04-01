@@ -138,13 +138,29 @@
   right: 12rpx;
   width: 32rpx;
   height: 32rpx;
+  z-index: 2;
+}
+.cover-wrapper {
+  width: 100%;
+  height: 240rpx;
+  position: relative;
+  border-radius: 8rpx;
 }
 .default-illustration {
   width: 100%;
   height: 240rpx;
   display: block;
   border-radius: 8rpx;
-  border: 1rpx solid #E6E6FA;
+}
+.cover-border-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  border-radius: 8rpx;
+  box-shadow: inset 0 0 0 1rpx #E6E6FA;
+  z-index: 3;
 }
 .item-info {
   height: 54rpx;
@@ -152,11 +168,12 @@
   justify-content: center;
   align-items: center;
   position: absolute;
-  bottom: 48rpx;
+  bottom: 0;
   background-color: var(--main-color);
   width: 100%;
   border-bottom-left-radius: 8rpx;
   border-bottom-right-radius: 8rpx;
+  z-index: 2;
 }
 .item-name {
   font-size: 26rpx;
@@ -172,7 +189,7 @@
   justify-content: space-between;
   height: 48rpx;
   align-items: center;
-  padding: 0 12rpx;
+  padding-left: 12rpx;
 }
 .item-type {
   font-size: 20rpx;
@@ -237,16 +254,16 @@
 }
 
 /* 重复文件高亮样式 */
-.default-illustration.highlight {
+.cover-border-overlay.highlight {
   animation: highlight-pulse 1s ease-in-out 2;
 }
 
 @keyframes highlight-pulse {
   0%, 100% {
-    box-shadow: 0 0 2rpx 0 rgba(168, 137, 200, 0);
+    box-shadow: inset 0 0 0 1rpx #E6E6FA, 0 0 2rpx 0 rgba(168, 137, 200, 0);
   }
   50% {
-    box-shadow: 0 0 2rpx 4rpx rgba(168, 137, 200, 0.5);
+    box-shadow: inset 0 0 0 1rpx #E6E6FA, 0 0 2rpx 4rpx rgba(168, 137, 200, 0.5);
   }
 }
 

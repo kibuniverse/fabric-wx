@@ -35,10 +35,13 @@
       <block wx:else>
         <view class="items-grid">
           <view class="item" wx:for="{{allItems}}" wx:key="id" bindtap="navigateToDetail" data-id="{{item.id}}">
-            <image class="default-illustration {{item.id === highlightItemId ? 'highlight' : ''}}" src="{{item.cover || '/assets/default_Illustration.png'}}" mode="aspectFill"></image>
-            <image class="type-logo" src="/assets/{{item.type === 'image' ? 'image' : 'pdf_logo'}}.svg"></image>
-            <view class="item-info">
-              <text class="item-name">{{item.name}}</text>
+            <view class="cover-wrapper">
+              <image class="default-illustration" src="{{item.cover || '/assets/default_Illustration.png'}}" mode="aspectFill"></image>
+              <view class="cover-border-overlay {{item.id === highlightItemId ? 'highlight' : ''}}"></view>
+              <image class="type-logo" src="/assets/{{item.type === 'image' ? 'image' : 'pdf_logo'}}.svg"></image>
+              <view class="item-info">
+                <text class="item-name">{{item.name}}</text>
+              </view>
             </view>
             <view class="item-operate-container" catchtap="showActionSheet" data-id="{{item.id}}" data-type="{{item.type}}">
               <text class="item-date">{{item.createTime ? filters.formatDate(item.createTime) : ''}}</text>
