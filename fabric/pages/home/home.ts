@@ -673,6 +673,8 @@ Page({
    * 生命周期函数--监听页面显示
    */
   onShow() {
+    // 刷新数据，确保从其他页面返回时能看到最新封面
+    this.loadLocalData();
     if (typeof this.getTabBar === 'function' &&
       this.getTabBar()) {
       this.getTabBar().setData({

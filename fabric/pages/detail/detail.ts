@@ -201,13 +201,18 @@ Page<DetailPageData, WechatMiniprogram.IAnyObject>({
 
       // 更新fileList中的项目
       const fileList = wx.getStorageSync('fileList') || [];
+      const DEFAULT_COVER = '/assets/default_Illustration.png';
       const updatedFileList = fileList.map((file: any) => {
         if (file.id === id) {
+          // 判断是否使用默认封面（cover为空或等于默认路径）
+          const isDefaultCover = !file.cover || file.cover === DEFAULT_COVER;
           return {
             ...file,
             paths: result.paths,
             path: result.paths[0], // 兼容旧数据
-            pdfPageCount: result.pageCount
+            pdfPageCount: result.pageCount,
+            // 如果是默认封面，则将首图设置为封面
+            cover: isDefaultCover ? result.paths[0] : file.cover
           };
         }
         return file;
