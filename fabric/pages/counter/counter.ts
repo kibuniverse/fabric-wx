@@ -339,6 +339,11 @@ Page({
     // 刷新所有计数器组件
     eventBus.emit('refreshCounter', { counterKey: 'all' });
 
+    // 重新计算 Tab 布局（修复退出登录后 Indicator 位置错误）
+    wx.nextTick(() => {
+      this.selectComponent("#tabs")?.resize();
+    });
+
     // 检查当前 Tab 是否需要显示恢复计时弹窗
     this.checkResumeTimerDialog();
     // 开始针织总时长计时

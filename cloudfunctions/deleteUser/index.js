@@ -35,6 +35,17 @@ exports.main = async (event, context) => {
 
     // 删除用户数据
     const userId = userResult.data[0]._id
+    const avatarUrl = userResult.data[0].avatarUrl
+
+    // 删除用户的云存储头像
+    if (avatarUrl && avatarUrl.startsWith('cloud://')) {
+      try {
+        await cloud.deleteFile({ fileList: [avatarUrl] })
+      } catch (e) {
+        console.warn('删除用户头像文件失败:', e)
+      }
+    }
+
     await usersCollection.doc(userId).remove()
 
     return {
