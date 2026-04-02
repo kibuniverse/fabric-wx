@@ -78,6 +78,10 @@ Page({
       {text: '取消', value: 0},
       {text: '去登录', value: 1, type: 'primary'}
     ],
+
+    // 同步 Tips 提示
+    showSyncTips: false,
+    firstLocalItemId: '',
   },
 
   /**
@@ -112,12 +116,28 @@ Page({
     // 合并并按创建时间排序
     const allItems = [...imageList, ...fileList].sort((a, b) => b.createTime - a.createTime);
     console.log('All Items:', allItems, imageList, fileList);
+
+    // 检查是否需要显示同步 Tips
+    const hasShownSyncTips = wx.getStorageSync('has_shown_sync_tips');
+    const firstLocalItem = allItems.find(item => item.syncStatus === 'local');
+    const showSyncTips = isLoggedIn && firstLocalItem && !hasShownSyncTips;
+
     this.setData({
       isLoggedIn,
       imageList,
       fileList,
-      allItems
+      allItems,
+      showSyncTips,
+      firstLocalItemId: firstLocalItem?.id || ''
     });
+  },
+
+  /**
+   * 隐藏同步 Tips，记录用户已看过
+   */
+  hideSyncTips() {
+    wx.setStorageSync('has_shown_sync_tips', true);
+    this.setData({ showSyncTips: false });
   },
 
   /**
@@ -1004,6 +1024,29 @@ Page({
 
     if (!item || item.syncStatus !== 'local') {
       this.showToast('该图解已同步或不存在');
+      return;
+    }
+
+    // 检查 PDF 是否已转换（paths 为空表示未转换）
+    if (item.type === 'pdf' && (!item.paths || item.paths.length === 0)) {
+      wx.showModal({
+        title: '提示',
+        content: '请先打开此图解，完成 PDF 转换后再同步',
+        confirmText: '去打开',
+        success: (res) => {
+          if (res.confirm) {
+            wx.navigateTo({
+              url: `/pages/detail/detail?id=${itemId}`
+            });
+          }
+        }
+      });
+      return;
+    }
+
+    // 检查图片类型是否有内容
+    if (item.type === 'image' && (!item.paths || item.paths.length === 0)) {
+      this.showToast('图解内容为空，无法同步');
       return;
     }
 

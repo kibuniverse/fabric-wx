@@ -189,7 +189,8 @@
   justify-content: space-between;
   height: 48rpx;
   align-items: center;
-  padding-left: 12rpx;
+  padding-left: 0;
+  position: relative;
 }
 .item-type {
   font-size: 20rpx;
@@ -270,6 +271,61 @@
 .item-date {
   font-size: 18rpx;
   color: rgba(51, 51, 51, 0.5);
+}
+
+.sync-status-icon {
+  width: 30rpx;
+  height: 30rpx;
+}
+
+.sync-icon-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+/* 同步 Tips 提示样式 */
+.sync-tips {
+  position: absolute;
+  bottom: 40rpx;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 10;
+}
+
+.sync-tips-content {
+  background-color: #333;
+  color: #fff;
+  padding: 12rpx 16rpx;
+  border-radius: 8rpx;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 16rpx;
+  position: relative;
+  white-space: nowrap;
+}
+
+.sync-tips-text {
+  font-size: 22rpx;
+}
+
+.sync-tips-btn {
+  font-size: 22rpx;
+  color: #A889C8;
+  padding: 4rpx 12rpx;
+}
+
+/* 小箭头指向下方 */
+.sync-tips-content::after {
+  content: '';
+  position: absolute;
+  bottom: -10rpx;
+  left: 50%;
+  transform: translateX(-50%);
+  border-left: 6rpx solid transparent;
+  border-right: 6rpx solid transparent;
+  border-top: 10rpx solid #333;
 }
 
 /* 登录引导弹窗内容 */

@@ -6,7 +6,7 @@ var formatDate = function(timestamp) {
   /* 补零 */
   month = month < 10 ? '0' + month : month;
   day = day < 10 ? '0' + day : day;
-  return year + '/' + month + '/' + day;
+  return (year % 100) + '/' + month + '/' + day;
 };
 
 module.exports = {

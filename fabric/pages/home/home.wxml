@@ -45,9 +45,16 @@
             </view>
             <view class="item-operate-container" catchtap="showActionSheet" data-id="{{item.id}}" data-type="{{item.type}}">
               <text class="item-date">{{item.createTime ? filters.formatDate(item.createTime) : ''}}</text>
-              <!-- 同步按钮：仅对已登录且未同步数据显示 -->
-              <view wx:if="{{isLoggedIn && item.syncStatus === 'local'}}" class="sync-btn" catchtap="syncDiagramToCloud" data-id="{{item.id}}">
-                <text>同步</text>
+              <!-- 同步图标：仅对已登录且未同步数据显示 -->
+              <view class="sync-icon-wrapper">
+                <image wx:if="{{isLoggedIn && item.syncStatus === 'local'}}" class="sync-status-icon" src="/assets/sync_status.svg" mode="aspectFit" catchtap="syncDiagramToCloud" data-id="{{item.id}}" />
+                <!-- 同步 Tips 提示：仅显示一次，只在第一个未同步图解上 -->
+                <view wx:if="{{showSyncTips && item.id === firstLocalItemId}}" class="sync-tips">
+                  <view class="sync-tips-content">
+                    <text class="sync-tips-text">点击同步按钮，可以将图解同步到线上</text>
+                    <view class="sync-tips-btn" catchtap="hideSyncTips">我知道了</view>
+                  </view>
+                </view>
               </view>
               <image src="/assets/more_action.svg" class="more-action" mode="aspectFill" />
             </view>
