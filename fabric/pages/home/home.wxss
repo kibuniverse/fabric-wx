@@ -280,3 +280,14 @@
   text-align: center;
   line-height: 1.6;
 }
+
+/* 同步按钮样式 */
+.sync-btn {
+  font-size: 20rpx;
+  color: #A889C8;
+  padding: 4rpx 12rpx;
+  background-color: #f5f1ff;
+  border-radius: 8rpx;
+  margin-left: auto;
+  margin-right: 8rpx;
+}

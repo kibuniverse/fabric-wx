@@ -45,6 +45,10 @@
             </view>
             <view class="item-operate-container" catchtap="showActionSheet" data-id="{{item.id}}" data-type="{{item.type}}">
               <text class="item-date">{{item.createTime ? filters.formatDate(item.createTime) : ''}}</text>
+              <!-- 同步按钮：仅对已登录且未同步数据显示 -->
+              <view wx:if="{{isLoggedIn && item.syncStatus === 'local'}}" class="sync-btn" catchtap="syncDiagramToCloud" data-id="{{item.id}}">
+                <text>同步</text>
+              </view>
               <image src="/assets/more_action.svg" class="more-action" mode="aspectFill" />
             </view>
           </view>

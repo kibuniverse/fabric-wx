@@ -17,6 +17,7 @@
     "gulp": "^5.0.1",
     "gulp-postcss": "^10.0.0",
     "miniprogram-api-typings": "^4.1.0",
-    "postcss-px2units": "^0.2.0"
+    "postcss-px2units": "^0.2.0",
+    "typescript": "^6.0.2"
   }
 }
