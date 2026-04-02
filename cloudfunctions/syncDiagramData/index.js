@@ -43,6 +43,7 @@ exports.main = async (event, context) => {
             createTime: diagram.createTime,
             cover: diagram.cover,
             images: diagram.images || [],
+            size: diagram.size,
             updatedAt: now
           }
         })
@@ -65,6 +66,7 @@ exports.main = async (event, context) => {
             createTime: diagram.createTime,
             cover: diagram.cover,
             images: diagram.images || [],
+            size: diagram.size,
             updatedAt: now
           }
         })

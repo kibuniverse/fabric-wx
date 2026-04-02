@@ -8,6 +8,7 @@ interface FileItem {
   paths: string[];       // 多图片路径数组（本地路径）
   type: 'image' | 'pdf';
   createTime: number;
+  lastAccessTime?: number; // 最后操作时间（重命名、修改封面、打开）
   cover?: string;        // 自定义封面图片路径
   pdfSourcePath?: string; // PDF源文件路径（如果是从PDF转换来的）
   pdfPageCount?: number; // PDF总页数
@@ -26,6 +27,14 @@ const TOAST_CONFIG = {
   icon: "none" as const,
   duration: 1500,
 };
+
+// 排序函数：优先 lastAccessTime，其次 createTime
+const sortItems = (items: FileItem[]) => items.sort((a, b) => {
+  const aTime = a.lastAccessTime || 0;
+  const bTime = b.lastAccessTime || 0;
+  if (aTime !== bTime) return bTime - aTime;  // 最近操作的在前
+  return b.createTime - a.createTime;  // 其次按创建时间
+});
 
 Page({
   /**
@@ -49,6 +58,7 @@ Page({
     
     // 弹窗状态
     showRenameModal: false, // 是否显示重命名弹窗
+    renameInputFocus: false, // 重命名输入框是否聚焦
     showDeleteModal: false, // 是否显示删除确认弹窗
     newItemName: '', // 重命名输入框中的新名称
     
@@ -64,6 +74,7 @@ Page({
 
     // 命名对话框（导入多图时使用）
     showNameModal: false,
+    nameInputFocus: false, // 命名输入框是否聚焦
     pendingImages: [] as string[], // 待命名的图片路径
     diagramName: '', // 输入的名称
     nameButtons: [
@@ -115,8 +126,8 @@ Page({
       syncStatus: item.syncStatus || 'local'  // 旧数据默认为 local
     }));
 
-    // 合并并按创建时间排序
-    const allItems = [...imageList, ...fileList].sort((a, b) => b.createTime - a.createTime);
+    // 合并并排序
+    const allItems = sortItems([...imageList, ...fileList]);
     console.log('All Items:', allItems, imageList, fileList);
 
     // 检查是否需要显示同步 Tips
@@ -145,23 +156,22 @@ Page({
   /**
    * 切换导入选项显示状态
    * 如果用户未登录且已有1个图解，显示登录引导弹窗
-   * 如果用户已登录且云端已有5个图解，提示限制
+   * 如果用户已登录且本地已有5个图解，提示限制
    */
-  async toggleImportOptions() {
+  toggleImportOptions() {
     const isLoggedIn = this.data.isLoggedIn;
+    const localCount = this.data.allItems.length;
 
     if (!isLoggedIn) {
-      // 未登录：检查本地图解数量（syncStatus='local' 的数量）
-      const localCount = this.data.allItems.filter(item => item.syncStatus === 'local').length;
+      // 未登录：检查本地图解数量，超过1个则引导登录
       if (localCount >= 1) {
         this.setData({ showLoginPrompt: true });
         return;
       }
     } else {
-      // 已登录：检查云端数量
-      const cloudCount = await this.getCloudDiagramCount();
-      if (cloudCount >= 5) {
-        wx.showToast({ title: '目前最多支持上传五个图解', icon: 'none' });
+      // 已登录：只检查本地图解数量
+      if (localCount >= 5) {
+        wx.showToast({ title: '目前最多只能创建5个图解', icon: 'none' });
         return;
       }
     }
@@ -263,7 +273,8 @@ Page({
         this.setData({
           pendingImages: savedPaths,
           diagramName: defaultName,
-          showNameModal: true
+          showNameModal: true,
+          nameInputFocus: true  // 自动聚焦
         });
       }
     })
@@ -288,6 +299,7 @@ Page({
       // 点击取消按钮
       this.setData({
         showNameModal: false,
+        nameInputFocus: false,
         pendingImages: [],
         diagramName: ''
       });
@@ -342,12 +354,13 @@ Page({
 
     // 更新图片列表
     const updatedImageList = [...this.data.imageList, newItem];
-    const allItems = [...updatedImageList, ...this.data.fileList].sort((a, b) => b.createTime - a.createTime);
+    const allItems = sortItems([...updatedImageList, ...this.data.fileList]);
 
     this.setData({
       imageList: updatedImageList,
       allItems,
       showNameModal: false,
+      nameInputFocus: false,
       pendingImages: [],
       diagramName: ''
     });
@@ -389,7 +402,8 @@ Page({
             type: item.type,
             createTime: item.createTime,
             cover: cloudImages[0] || '',
-            images: cloudImages
+            images: cloudImages,
+            size: item.size
           }
         }
       }) as any;
@@ -466,11 +480,18 @@ Page({
 
         // 更新文件列表
         const updatedFileList = [...this.data.fileList, newItem];
-        const allItems = [...this.data.imageList, ...updatedFileList].sort((a, b) => b.createTime - a.createTime);
+        const allItems = sortItems([...this.data.imageList, ...updatedFileList]);
+
+        // 检查是否需要显示同步 Tips（已登录、未显示过、且有 local 项目）
+        const hasShownSyncTips = wx.getStorageSync('has_shown_sync_tips');
+        const firstLocalItem = allItems.find(item => item.syncStatus === 'local');
+        const showSyncTips = this.data.isLoggedIn && firstLocalItem && !hasShownSyncTips;
 
         this.setData({
           fileList: updatedFileList,
-          allItems
+          allItems,
+          showSyncTips,
+          firstLocalItemId: firstLocalItem?.id || ''
         });
 
         // 保存到本地存储
@@ -579,7 +600,8 @@ Page({
   showRenameModal() {
     this.setData({
       showRenameModal: true,
-      newItemName: this.data.currentItemName
+      newItemName: this.data.currentItemName,
+      renameInputFocus: true  // 自动聚焦
     });
   },
 
@@ -631,15 +653,16 @@ Page({
    * 更新封面图片
    */
   updateCover(itemId: string, itemType: string, coverPath: string) {
+    const now = Date.now();
     if (itemType === 'image') {
       const updatedList = this.data.imageList.map(item => {
         if (item.id === itemId) {
-          return { ...item, cover: coverPath };
+          return { ...item, cover: coverPath, lastAccessTime: now };
         }
         return item;
       });
 
-      const allItems = [...updatedList, ...this.data.fileList].sort((a, b) => b.createTime - a.createTime);
+      const allItems = sortItems([...updatedList, ...this.data.fileList]);
 
       this.setData({
         imageList: updatedList,
@@ -650,12 +673,12 @@ Page({
     } else {
       const updatedList = this.data.fileList.map(item => {
         if (item.id === itemId) {
-          return { ...item, cover: coverPath };
+          return { ...item, cover: coverPath, lastAccessTime: now };
         }
         return item;
       });
 
-      const allItems = [...this.data.imageList, ...updatedList].sort((a, b) => b.createTime - a.createTime);
+      const allItems = sortItems([...this.data.imageList, ...updatedList]);
 
       this.setData({
         fileList: updatedList,
@@ -686,7 +709,8 @@ Page({
     if (index === 0) {
       // 点击取消按钮
       this.setData({
-        showRenameModal: false
+        showRenameModal: false,
+        renameInputFocus: false
       });
     } else if (index === 1) {
       // 点击确认按钮
@@ -699,53 +723,56 @@ Page({
    */
   confirmRename() {
     const { currentItemId, currentItemType, newItemName } = this.data;
-    
+
     if (!newItemName.trim()) {
       this.showToast('名称不能为空');
       return;
     }
-    
+
+    const now = Date.now();
     // 更新对应列表中的项目名称
     if (currentItemType === 'image') {
       const updatedList = this.data.imageList.map(item => {
         if (item.id === currentItemId) {
-          return { ...item, name: newItemName };
+          return { ...item, name: newItemName, lastAccessTime: now };
         }
         return item;
       });
-      
+
       // 重新计算合并列表
-      const allItems = [...updatedList, ...this.data.fileList].sort((a, b) => b.createTime - a.createTime);
-      
+      const allItems = sortItems([...updatedList, ...this.data.fileList]);
+
       this.setData({
         imageList: updatedList,
         allItems,
-        showRenameModal: false
+        showRenameModal: false,
+        renameInputFocus: false
       });
-      
+
       // 更新本地存储
       wx.setStorageSync('imageList', updatedList);
     } else {
       const updatedList = this.data.fileList.map(item => {
         if (item.id === currentItemId) {
-          return { ...item, name: newItemName };
+          return { ...item, name: newItemName, lastAccessTime: now };
         }
         return item;
       });
-      
+
       // 重新计算合并列表
-      const allItems = [...this.data.imageList, ...updatedList].sort((a, b) => b.createTime - a.createTime);
-      
+      const allItems = sortItems([...this.data.imageList, ...updatedList]);
+
       this.setData({
         fileList: updatedList,
         allItems,
-        showRenameModal: false
+        showRenameModal: false,
+        renameInputFocus: false
       });
-      
+
       // 更新本地存储
       wx.setStorageSync('fileList', updatedList);
     }
-    
+
     this.showToast('重命名成功');
   },
   
@@ -798,7 +825,7 @@ Page({
     const updatedFileList = this.data.fileList.filter(item => item.id !== currentItemId);
 
     // 重新计算合并列表
-    const allItems = [...updatedImageList, ...updatedFileList].sort((a, b) => b.createTime - a.createTime);
+    const allItems = sortItems([...updatedImageList, ...updatedFileList]);
 
     this.setData({
       imageList: updatedImageList,
@@ -925,6 +952,9 @@ Page({
     if (!wasLoggedIn && isLoggedIn) {
       console.log('[Home] 检测到登录状态变化，开始合并云端数据...');
       this.handleLoginDataMergeForDiagrams();
+    } else if (isLoggedIn) {
+      // 已登录用户重新打开小程序，检查云端图解封面是否需要下载到本地
+      this.checkAndDownloadCloudCovers();
     }
 
     if (typeof this.getTabBar === 'function' &&
@@ -938,6 +968,7 @@ Page({
   /**
    * 登录时合并云端和本地图解数据
    * 使用预加载数据（如果已缓存）加速加载
+   * 同时下载云端图解的封面到本地（异步执行）
    */
   async handleLoginDataMergeForDiagrams() {
     console.log('[Home] 开始合并云端和本地图解数据...');
@@ -963,17 +994,17 @@ Page({
       const localFileList = this.data.fileList;
       const allLocalDiagrams = [...localImageList, ...localFileList];
 
-      // 3. 合并：云端数据优先，但保留本地已有的 paths
+      // 3. 合并：云端数据优先，但保留本地已有的 paths 和 cover
       const mergedItems = cloudDiagrams.map(cloudItem => {
         // 查找本地是否有该图解
         const localItem = allLocalDiagrams.find(local => local.id === cloudItem.id);
         if (localItem && localItem.paths && localItem.paths.length > 0) {
-          // 本地有 paths，保留本地数据
+          // 本地有 paths，保留本地数据（包括封面）
           return {
             ...cloudItem,
             paths: localItem.paths,
             path: localItem.path || localItem.paths[0],
-            cover: localItem.cover || cloudItem.cover,
+            cover: localItem.cover || cloudItem.cover,  // 优先使用本地封面
           };
         }
         // 本地没有该图解或没有 paths，使用云端数据
@@ -988,8 +1019,8 @@ Page({
 
       console.log('[Home] 合并后图解数量:', mergedItems.length);
 
-      // 5. 按创建时间排序
-      mergedItems.sort((a, b) => b.createTime - a.createTime);
+      // 5. 排序
+      sortItems(mergedItems);
 
       // 6. 更新列表
       const finalImageList = mergedItems.filter(i => i.type === 'image');
@@ -1006,8 +1037,91 @@ Page({
       // 7. 保存到本地存储
       wx.setStorageSync('imageList', finalImageList);
       wx.setStorageSync('fileList', finalFileList);
+
+      // 8. 异步下载云端图解的封面到本地（不影响首屏加载）
+      this.downloadCloudCovers(mergedItems);
     } catch (error) {
       console.error('[Home] 合并图解数据失败:', error);
+    }
+  },
+
+  /**
+   * 异步下载云端图解的封面到本地
+   * 下载完成后更新 Storage 和页面数据
+   * @param diagrams 图解列表
+   */
+  async downloadCloudCovers(diagrams: FileItem[]) {
+    // 只处理云端图解（syncStatus='synced' 且有 cloudCover）
+    const cloudDiagrams = diagrams.filter(d => d.syncStatus === 'synced' && d.cloudCover);
+
+    for (const diagram of cloudDiagrams) {
+      // 检查是否已有本地封面（本地路径以 wxfile:// 开头）
+      if (diagram.cover && diagram.cover.startsWith('wxfile://')) {
+        console.log('[Home] 封面已存在本地:', diagram.id);
+        continue;
+      }
+
+      try {
+        // 下载封面到本地
+        const localCoverPath = await this.downloadCloudImage(diagram.cloudCover!);
+        console.log('[Home] 下载封面成功:', diagram.id, localCoverPath);
+
+        // 更新本地 Storage
+        const imageList = wx.getStorageSync('imageList') || [];
+        const fileList = wx.getStorageSync('fileList') || [];
+
+        const updatedImageList = imageList.map(item => {
+          if (item.id === diagram.id) {
+            return { ...item, cover: localCoverPath };
+          }
+          return item;
+        });
+        const updatedFileList = fileList.map(item => {
+          if (item.id === diagram.id) {
+            return { ...item, cover: localCoverPath };
+          }
+          return item;
+        });
+
+        wx.setStorageSync('imageList', updatedImageList);
+        wx.setStorageSync('fileList', updatedFileList);
+
+        // 更新页面数据（如果还在当前页面）
+        const allItems = this.data.allItems.map(item => {
+          if (item.id === diagram.id) {
+            return { ...item, cover: localCoverPath };
+          }
+          return item;
+        });
+
+        this.setData({
+          imageList: updatedImageList,
+          fileList: updatedFileList,
+          allItems
+        });
+      } catch (error) {
+        console.error('[Home] 下载封面失败:', diagram.id, error);
+      }
+    }
+  },
+
+  /**
+   * 已登录用户重新打开小程序时，检查云端图解封面是否需要下载到本地
+   * 封面使用临时 URL（http/https 开头）的图解需要下载
+   */
+  checkAndDownloadCloudCovers() {
+    const cloudDiagrams = this.data.allItems.filter(
+      item => item.syncStatus === 'synced' && item.cloudCover
+    );
+
+    // 检查是否有封面是临时 URL（http/https 开头，不是本地路径）
+    const needsDownload = cloudDiagrams.filter(
+      item => item.cover && (item.cover.startsWith('http://') || item.cover.startsWith('https://'))
+    );
+
+    if (needsDownload.length > 0) {
+      console.log('[Home] 发现需要下载封面的云端图解:', needsDownload.length);
+      this.downloadCloudCovers(needsDownload);
     }
   },
 
@@ -1054,6 +1168,26 @@ Page({
    */
   navigateToDetail(e: any) {
     const id = e.currentTarget.dataset.id;
+
+    // 更新最后操作时间
+    const now = Date.now();
+    const imageList = this.data.imageList.map(item => {
+      if (item.id === id) {
+        return { ...item, lastAccessTime: now };
+      }
+      return item;
+    });
+    const fileList = this.data.fileList.map(item => {
+      if (item.id === id) {
+        return { ...item, lastAccessTime: now };
+      }
+      return item;
+    });
+
+    // 更新 Storage
+    wx.setStorageSync('imageList', imageList);
+    wx.setStorageSync('fileList', fileList);
+
     wx.navigateTo({
       url: `/pages/detail/detail?id=${id}`
     });
@@ -1152,7 +1286,7 @@ Page({
         return i;
       });
 
-      const allItems = [...updatedImageList, ...updatedFileList].sort((a, b) => b.createTime - a.createTime);
+      const allItems = sortItems([...updatedImageList, ...updatedFileList]);
 
       this.setData({
         imageList: updatedImageList,
@@ -1224,6 +1358,7 @@ Page({
             type: cloudItem.type,
             createTime: cloudItem.createTime,
             cover: tempCoverUrl,  // 使用临时 URL 显示封面
+            size: cloudItem.size,  // 文件大小，用于去重
             syncStatus: 'synced',
             cloudId: cloudItem._id,
             cloudImages: cloudItem.images || [],  // 保留云端图片 ID，用于详情页下载

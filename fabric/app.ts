@@ -111,6 +111,7 @@ App<IAppOption>({
           type: cloudItem.type,
           createTime: cloudItem.createTime,
           cover: tempCoverUrl,
+          size: cloudItem.size,  // 文件大小，用于去重
           syncStatus: 'synced',
           cloudId: cloudItem._id,
           cloudImages: cloudItem.images || [],
@@ -779,13 +780,23 @@ App<IAppOption>({
   /**
    * 检测是否需要执行计数器迁移
    * 迁移是一次性操作，迁移后设置标记，不再重复执行
+   *
+   * 排除场景：只有 local_default_counter 的情况
+   * - 注销账号后重新登录：counter_keys 只有 local_default_counter，不应触发迁移
+   * - 退出登录后重新登录：counter_migrated 标记存在，不会触发迁移
    */
   isOldUserMigration(): boolean {
     // 已迁移过，不再执行
     if (wx.getStorageSync('counter_migrated')) return false;
 
     const keys = wx.getStorageSync('counter_keys') || [];
-    // 有计数器数据就需要迁移（无论是老用户升级还是新用户退出登录后的情况）
+
+    // 只有 local_default_counter，不触发迁移（可能是注销后的新状态）
+    if (keys.length === 1 && keys[0] === 'local_default_counter') {
+      return false;
+    }
+
+    // 有计数器数据（且不是只有 local_default_counter）需要迁移
     // 迁移后设置标记，下次不再执行
     return keys.length > 0;
   },

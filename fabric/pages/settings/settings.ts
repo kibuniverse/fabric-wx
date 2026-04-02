@@ -55,7 +55,7 @@ Page({
   onDeleteAccount() {
     wx.showModal({
       title: '请你确认是否注销账户',
-      content: '注销将删除所有线上数据，不可恢复',
+      content: '注销将删除所有云端数据，本地未同步的图解将保留',
       confirmText: '确认注销',
       cancelText: '我再想想',
       confirmColor: '#B22222',
@@ -63,8 +63,8 @@ Page({
         if (res.confirm) {
           wx.showLoading({ title: '正在注销...', mask: true });
           try {
-            // 清理所有本地图解数据（注销前先清理本地文件）
-            this.cleanupAllDiagrams();
+            // 清理已同步的本地图解数据（保留未同步数据）
+            this.cleanupSyncedDiagramsForAccountDeletion();
 
             // 调用云函数删除用户数据（包括云端图解数据）
             const result = await wx.cloud.callFunction({
@@ -113,22 +113,36 @@ Page({
   },
 
   /**
-   * 注销账号时清理所有图解数据
-   * 删除本地所有图解记录和文件
+   * 注销账号时清理已同步的图解数据
+   * 保留未同步数据（syncStatus='local'），并重置其 syncStatus
+   * 因为云端数据已删除，未同步的图解不再有云端关联
    */
-  cleanupAllDiagrams() {
+  cleanupSyncedDiagramsForAccountDeletion() {
     const imageList = wx.getStorageSync('imageList') || [];
     const fileList = wx.getStorageSync('fileList') || [];
-    const allItems = [...imageList, ...fileList];
 
-    // 删除所有图解的本地文件
-    for (const item of allItems) {
-      this.removeDiagramFiles(item);
+    // 删除已同步的本地文件
+    for (const item of imageList) {
+      if (item.syncStatus === 'synced') {
+        this.removeDiagramFiles(item);
+      }
+    }
+    for (const item of fileList) {
+      if (item.syncStatus === 'synced') {
+        this.removeDiagramFiles(item);
+      }
     }
 
-    // 清空本地存储
-    wx.removeStorageSync('imageList');
-    wx.removeStorageSync('fileList');
+    // 保留未同步数据，重置 syncStatus 为 'local'
+    const remainingImages = imageList
+      .filter((i: any) => i.syncStatus === 'local')
+      .map((i: any) => ({ ...i, syncStatus: 'local' }));
+    const remainingFiles = fileList
+      .filter((i: any) => i.syncStatus === 'local')
+      .map((i: any) => ({ ...i, syncStatus: 'local' }));
+
+    wx.setStorageSync('imageList', remainingImages);
+    wx.setStorageSync('fileList', remainingFiles);
   },
 
   /**

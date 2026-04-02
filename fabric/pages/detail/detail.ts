@@ -1089,7 +1089,6 @@ Page<DetailPageData, WechatMiniprogram.IAnyObject>({
 
       wx.setNavigationBarTitle({ title: name });
       this.loadMemoContent();
-      this.showToast(`已加载 ${localPaths.length} 张图片`);
 
     } catch (err: any) {
       wx.hideLoading();
