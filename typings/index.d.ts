@@ -17,6 +17,8 @@ interface IAppOption {
     // 账号状态相关
     accountInvalidatedShown: boolean, // 账号失效弹窗是否已显示
     needRefreshMePage: boolean, // 是否需要刷新"我的"页面
+    // 图解预加载
+    preloadedDiagrams: any[], // 预加载的图解数据
   }
   userInfoReadyCallback?: WechatMiniprogram.GetUserInfoSuccessCallback,
   addKnittingTime(elapsedMs: number): void,
@@ -47,4 +49,6 @@ interface IAppOption {
   resetLocalCountersForLogout(): void,
   handleLoginDataMerge(): Promise<boolean>,
   saveLocalCounterToCloud(existingKeys?: any[], existingCounters?: Record<string, any>): Promise<void>,
+  // 图解预加载方法
+  preloadDiagrams(): Promise<void>,
 }

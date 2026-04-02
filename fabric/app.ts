@@ -21,6 +21,8 @@ App<IAppOption>({
     // 账号状态相关
     accountInvalidatedShown: false, // 账号失效弹窗是否已显示（防止重复弹窗）
     needRefreshMePage: false, // 是否需要刷新"我的"页面（账号失效后跳转时使用）
+    // 图解预加载数据（登录时预加载，首页直接使用）
+    preloadedDiagrams: [] as any[], // 预加载的图解数据
   },
 
   onLaunch() {
@@ -49,6 +51,76 @@ App<IAppOption>({
       this.syncFromCloud().catch(err => {
         console.error('[App] 冷启动同步云端数据失败:', err)
       })
+    }
+  },
+
+  /**
+   * 预加载图解数据（登录时调用，加速首页显示）
+   * 获取云端图解列表并缓存到 globalData
+   */
+  async preloadDiagrams(): Promise<void> {
+    const userInfo = wx.getStorageSync('userInfo');
+    if (!userInfo || !userInfo.isLoggedIn) {
+      return;
+    }
+
+    try {
+      // 1. 调用云函数获取图解列表
+      const res = await wx.cloud.callFunction({
+        name: 'syncDiagramData',
+        data: { action: 'download' }
+      }) as any;
+
+      if (!res.result?.success || !res.result?.data?.diagrams) {
+        return;
+      }
+
+      const cloudDiagrams = res.result.data.diagrams;
+      if (cloudDiagrams.length === 0) {
+        return;
+      }
+
+      // 2. 批量获取所有封面的临时 URL
+      const coverFileIds = cloudDiagrams
+        .filter((item: any) => item.cover)
+        .map((item: any) => item.cover);
+
+      let tempUrlMap: Record<string, string> = {};
+      if (coverFileIds.length > 0) {
+        try {
+          const tempUrlRes = await wx.cloud.getTempFileURL({ fileList: coverFileIds });
+          tempUrlRes.fileList?.forEach((item: any) => {
+            if (item.tempFileURL) {
+              tempUrlMap[item.fileID] = item.tempFileURL;
+            }
+          });
+        } catch (e) {
+          console.error('[App] 获取临时 URL 失败:', e);
+        }
+      }
+
+      // 3. 构建预加载数据
+      this.globalData.preloadedDiagrams = cloudDiagrams.map((cloudItem: any) => {
+        const tempCoverUrl = tempUrlMap[cloudItem.cover] || '';
+        return {
+          id: cloudItem.id,
+          name: cloudItem.name,
+          originalName: cloudItem.originalName,
+          path: tempCoverUrl,
+          paths: [],
+          type: cloudItem.type,
+          createTime: cloudItem.createTime,
+          cover: tempCoverUrl,
+          syncStatus: 'synced',
+          cloudId: cloudItem._id,
+          cloudImages: cloudItem.images || [],
+          cloudCover: cloudItem.cover
+        };
+      });
+
+      console.log('[App] 预加载图解完成:', this.globalData.preloadedDiagrams.length);
+    } catch (error) {
+      console.error('[App] 预加载图解失败:', error);
     }
   },
 

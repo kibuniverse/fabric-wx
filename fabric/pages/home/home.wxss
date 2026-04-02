@@ -12,7 +12,7 @@
   position: relative;
   justify-content: center;
   align-items: center;
-  padding: 16rpx 30rpx;
+  padding: 12rpx 30rpx;
   background-color: #FFFFFF;
   justify-content: center;
 }
@@ -27,10 +27,11 @@
   line-height: 1; /* 重置行高，避免行高干扰间距 */
 }
 .tab.active text {
-  font-weight: 600; /* semibold（半粗体）对应CSS的600 */
-  font-size: 32rpx; /* 字号32rpx */
-  line-height: 44rpx; /* 行高44rpx */
-  color: #A889C8CC; /* 80%透明度A889C8 */
+  font-weight: 500;
+  font-size: 32rpx;
+  line-height: 44rpx;
+  letter-spacing: -0.43px;
+  color: #A889C8CC;
 }
 .tab-line {
   position: absolute;
@@ -122,7 +123,7 @@
   row-gap: 52rpx;
   column-gap: 48rpx;
   flex-wrap: wrap;
-  padding: 44rpx;
+  padding: 40rpx;
   padding-bottom: calc(96rpx + env(safe-area-inset-bottom) + 44rpx);
 }
 .item {
@@ -163,7 +164,7 @@
   z-index: 3;
 }
 .item-info {
-  height: 54rpx;
+  height: 50rpx;
   display: flex;
   justify-content: center;
   align-items: center;

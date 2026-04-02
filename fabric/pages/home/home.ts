@@ -5,7 +5,7 @@ interface FileItem {
   name: string;
   originalName: string;
   path: string;          // 保留兼容旧数据，取 paths[0]
-  paths: string[];       // 多图片路径数组
+  paths: string[];       // 多图片路径数组（本地路径）
   type: 'image' | 'pdf';
   createTime: number;
   cover?: string;        // 自定义封面图片路径
@@ -17,6 +17,8 @@ interface FileItem {
   // 云同步相关字段
   syncStatus?: 'local' | 'synced';  // 同步状态：local=本地未同步，synced=已同步云端
   cloudId?: string;  // 云端记录ID（synced 时有值）
+  cloudImages?: string[];  // 云端图片文件ID数组（synced 时有值，用于详情页下载）
+  cloudCover?: string;     // 云端封面文件ID（用于详情页下载）
 }
 
 // 通用的提示配置
@@ -159,7 +161,7 @@ Page({
       // 已登录：检查云端数量
       const cloudCount = await this.getCloudDiagramCount();
       if (cloudCount >= 5) {
-        wx.showToast({ title: '最多只能上传五个图解', icon: 'none' });
+        wx.showToast({ title: '目前最多支持上传五个图解', icon: 'none' });
         return;
       }
     }
@@ -884,6 +886,25 @@ Page({
         }
       });
     }
+
+    // 7. 清理云端图解记录（如果已同步到云端）
+    if (item && item.syncStatus === 'synced') {
+      wx.cloud.callFunction({
+        name: 'syncDiagramData',
+        data: {
+          action: 'delete',
+          diagramId: item.id
+        }
+      }).then((res: any) => {
+        if (res.result && res.result.success) {
+          console.log('删除云端图解成功:', item.id);
+        } else {
+          console.error('删除云端图解失败:', res.result?.error);
+        }
+      }).catch((err) => {
+        console.error('调用云函数删除图解失败:', err);
+      });
+    }
   },
 
   /**
@@ -895,11 +916,14 @@ Page({
     const isLoggedIn = userInfo && userInfo.isLoggedIn;
     const wasLoggedIn = this.data.isLoggedIn;
 
+    console.log('[Home] onShow - wasLoggedIn:', wasLoggedIn, 'isLoggedIn:', isLoggedIn);
+
     // 刷新数据，确保从其他页面返回时能看到最新封面
     this.loadLocalData();
 
     // 如果登录状态从"未登录"变为"已登录"，需要合并数据
     if (!wasLoggedIn && isLoggedIn) {
+      console.log('[Home] 检测到登录状态变化，开始合并云端数据...');
       this.handleLoginDataMergeForDiagrams();
     }
 
@@ -913,30 +937,77 @@ Page({
 
   /**
    * 登录时合并云端和本地图解数据
+   * 使用预加载数据（如果已缓存）加速加载
    */
   async handleLoginDataMergeForDiagrams() {
+    console.log('[Home] 开始合并云端和本地图解数据...');
     try {
-      // 1. 从云端拉取数据
-      const cloudDiagrams = await this.fetchCloudDiagrams();
+      // 优先使用预加载缓存的数据
+      const app = getApp<IAppOption>();
+      let cloudDiagrams: FileItem[] = [];
 
-      // 2. 获取本地图解（syncStatus='local'）
-      const localDiagrams = this.data.allItems.filter(i => i.syncStatus === 'local');
+      if (app?.globalData?.preloadedDiagrams && app.globalData.preloadedDiagrams.length > 0) {
+        // 使用预加载数据，无需调用云函数
+        cloudDiagrams = app.globalData.preloadedDiagrams;
+        console.log('[Home] 使用预加载数据:', cloudDiagrams.length);
+        // 清除预加载缓存
+        app.globalData.preloadedDiagrams = [];
+      } else {
+        // 无预加载数据，从云端获取
+        cloudDiagrams = await this.fetchCloudDiagrams();
+        console.log('[Home] 从云端获取数据:', cloudDiagrams.length);
+      }
 
-      // 3. 合并：云端数据 + 本地未同步数据
-      const mergedItems = [...cloudDiagrams, ...localDiagrams].sort((a, b) => b.createTime - a.createTime);
+      // 2. 获取本地图解（包括已同步和未同步）
+      const localImageList = this.data.imageList;
+      const localFileList = this.data.fileList;
+      const allLocalDiagrams = [...localImageList, ...localFileList];
 
-      // 4. 更新列表
+      // 3. 合并：云端数据优先，但保留本地已有的 paths
+      const mergedItems = cloudDiagrams.map(cloudItem => {
+        // 查找本地是否有该图解
+        const localItem = allLocalDiagrams.find(local => local.id === cloudItem.id);
+        if (localItem && localItem.paths && localItem.paths.length > 0) {
+          // 本地有 paths，保留本地数据
+          return {
+            ...cloudItem,
+            paths: localItem.paths,
+            path: localItem.path || localItem.paths[0],
+            cover: localItem.cover || cloudItem.cover,
+          };
+        }
+        // 本地没有该图解或没有 paths，使用云端数据
+        return cloudItem;
+      });
+
+      // 4. 添加本地独有的未同步图解
+      const localOnlyDiagrams = allLocalDiagrams.filter(
+        local => !cloudDiagrams.find(cloud => cloud.id === local.id) && local.syncStatus === 'local'
+      );
+      mergedItems.push(...localOnlyDiagrams);
+
+      console.log('[Home] 合并后图解数量:', mergedItems.length);
+
+      // 5. 按创建时间排序
+      mergedItems.sort((a, b) => b.createTime - a.createTime);
+
+      // 6. 更新列表
+      const finalImageList = mergedItems.filter(i => i.type === 'image');
+      const finalFileList = mergedItems.filter(i => i.type === 'pdf');
+      console.log('[Home] 最终图片列表:', finalImageList.length);
+      console.log('[Home] 最终文件列表:', finalFileList.length);
+
       this.setData({
-        imageList: mergedItems.filter(i => i.type === 'image'),
-        fileList: mergedItems.filter(i => i.type === 'pdf'),
+        imageList: finalImageList,
+        fileList: finalFileList,
         allItems: mergedItems
       });
 
-      // 5. 保存到本地存储
-      wx.setStorageSync('imageList', this.data.imageList);
-      wx.setStorageSync('fileList', this.data.fileList);
+      // 7. 保存到本地存储
+      wx.setStorageSync('imageList', finalImageList);
+      wx.setStorageSync('fileList', finalFileList);
     } catch (error) {
-      console.error('合并图解数据失败:', error);
+      console.error('[Home] 合并图解数据失败:', error);
     }
   },
 
@@ -1016,7 +1087,8 @@ Page({
 
   /**
    * 同步图解到云端
-   * 将本地图解上传到云端，然后删除本地记录和文件
+   * 将本地图解上传到云端，保留本地文件供用户继续使用
+   * 退出登录时会清理已同步的本地文件
    */
   async syncDiagramToCloud(e: any) {
     const itemId = e.currentTarget.dataset.id;
@@ -1031,7 +1103,7 @@ Page({
     if (item.type === 'pdf' && (!item.paths || item.paths.length === 0)) {
       wx.showModal({
         title: '提示',
-        content: '请先打开此图解，完成 PDF 转换后再同步',
+        content: '请先打开此图解，加载完成后再同步',
         confirmText: '去打开',
         success: (res) => {
           if (res.confirm) {
@@ -1053,42 +1125,47 @@ Page({
     // 校验数量限制（云端已同步数 + 待同步数）
     const cloudCount = await this.getCloudDiagramCount();
     if (cloudCount >= 5) {
-      wx.showToast({ title: '最多只能上传五个图解', icon: 'none' });
+      wx.showToast({ title: '目前最多支持上传五个图解', icon: 'none' });
       return;
     }
 
     wx.showLoading({ title: '同步中...', mask: true });
 
     try {
-      // 上传到云端
-      await this.uploadDiagramToCloud(item);
+      // 上传到云端，获取云端记录ID
+      const cloudId = await this.uploadDiagramToCloud(item);
 
-      // 删除本地文件
-      this.removeDiagramFiles(item);
+      // 不删除本地文件，保留供用户继续使用
+      // 退出登录时会清理已同步的本地文件
 
-      // 从本地列表中删除
-      const updatedImageList = this.data.imageList.filter(i => i.id !== itemId);
-      const updatedFileList = this.data.fileList.filter(i => i.id !== itemId);
+      // 更新本地项的 syncStatus 为 synced，保留原有 paths
+      const updatedImageList = this.data.imageList.map(i => {
+        if (i.id === itemId) {
+          return { ...i, syncStatus: 'synced', cloudId };
+        }
+        return i;
+      });
+      const updatedFileList = this.data.fileList.map(i => {
+        if (i.id === itemId) {
+          return { ...i, syncStatus: 'synced', cloudId };
+        }
+        return i;
+      });
 
-      // 从云端重新拉取数据
-      const cloudDiagrams = await this.fetchCloudDiagrams();
-
-      // 合并：云端数据 + 本地未同步数据
-      const localDiagrams = [...updatedImageList, ...updatedFileList].filter(i => i.syncStatus === 'local');
-      const mergedItems = [...cloudDiagrams, ...localDiagrams].sort((a, b) => b.createTime - a.createTime);
+      const allItems = [...updatedImageList, ...updatedFileList].sort((a, b) => b.createTime - a.createTime);
 
       this.setData({
-        imageList: mergedItems.filter(i => i.type === 'image'),
-        fileList: mergedItems.filter(i => i.type === 'pdf'),
-        allItems: mergedItems
+        imageList: updatedImageList,
+        fileList: updatedFileList,
+        allItems
       });
 
       // 更新本地存储
-      wx.setStorageSync('imageList', this.data.imageList);
-      wx.setStorageSync('fileList', this.data.fileList);
+      wx.setStorageSync('imageList', updatedImageList);
+      wx.setStorageSync('fileList', updatedFileList);
 
       wx.hideLoading();
-      wx.showToast({ title: '已经同步完成', icon: 'success' });
+      wx.showToast({ title: '已经同步完成', icon: 'success', duration: 1000 });
     } catch (error) {
       wx.hideLoading();
       console.error('同步失败:', error);
@@ -1098,46 +1175,69 @@ Page({
 
   /**
    * 从云端获取图解列表
+   * 使用临时 URL 显示封面，不下载文件（优化加载速度）
+   * 保留云端的 images 字段（云文件ID数组），用于详情页下载
    */
   async fetchCloudDiagrams(): Promise<FileItem[]> {
+    console.log('[Home] 开始从云端获取图解列表...');
     try {
       const res = await wx.cloud.callFunction({
         name: 'syncDiagramData',
         data: { action: 'download' }
       }) as any;
 
-      if (res.result && res.result.success && res.result.data.diagrams) {
-        // 转换云端数据为本地格式
-        const diagrams: FileItem[] = [];
-        for (const cloudItem of res.result.data.diagrams) {
-          // 下载封面图片到本地
-          let localCover = '';
-          if (cloudItem.cover) {
-            try {
-              localCover = await this.downloadCloudImage(cloudItem.cover);
-            } catch (e) {
-              console.error('下载封面失败:', e);
-            }
-          }
+      console.log('[Home] 云函数返回结果:', res.result);
 
-          diagrams.push({
+      if (res.result && res.result.success && res.result.data.diagrams) {
+        const cloudDiagrams = res.result.data.diagrams;
+        console.log('[Home] 云端原始图解数量:', cloudDiagrams.length);
+
+        // 批量获取所有封面的临时 URL（并行，大幅提升速度）
+        const coverFileIds = cloudDiagrams
+          .filter(item => item.cover)
+          .map(item => item.cover);
+
+        let tempUrlMap: Record<string, string> = {};
+        if (coverFileIds.length > 0) {
+          try {
+            const tempUrlRes = await wx.cloud.getTempFileURL({ fileList: coverFileIds });
+            tempUrlRes.fileList?.forEach((item: any) => {
+              if (item.tempFileURL) {
+                tempUrlMap[item.fileID] = item.tempFileURL;
+              }
+            });
+            console.log('[Home] 获取临时 URL 成功:', Object.keys(tempUrlMap).length);
+          } catch (e) {
+            console.error('[Home] 获取临时 URL 失败:', e);
+          }
+        }
+
+        // 构建图解列表
+        const diagrams: FileItem[] = cloudDiagrams.map(cloudItem => {
+          const tempCoverUrl = tempUrlMap[cloudItem.cover] || '';
+          return {
             id: cloudItem.id,
             name: cloudItem.name,
             originalName: cloudItem.originalName,
-            path: localCover,
-            paths: [],  // 云端图片不下载到本地，详情页需要时再下载
+            path: tempCoverUrl,  // 使用临时 URL，不下载
+            paths: [],  // 图片不立即下载，详情页需要时再下载
             type: cloudItem.type,
             createTime: cloudItem.createTime,
-            cover: localCover,
+            cover: tempCoverUrl,  // 使用临时 URL 显示封面
             syncStatus: 'synced',
-            cloudId: cloudItem._id
-          });
-        }
+            cloudId: cloudItem._id,
+            cloudImages: cloudItem.images || [],  // 保留云端图片 ID，用于详情页下载
+            cloudCover: cloudItem.cover  // 保留云端封面 ID，用于详情页下载
+          };
+        });
+
+        console.log('[Home] 处理后图解数量:', diagrams.length);
         return diagrams;
       }
+      console.log('[Home] 云端没有图解数据');
       return [];
     } catch (error) {
-      console.error('获取云端图解失败:', error);
+      console.error('[Home] 获取云端图解失败:', error);
       return [];
     }
   },

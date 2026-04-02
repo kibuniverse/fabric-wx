@@ -137,6 +137,25 @@ Page<DetailPageData, WechatMiniprogram.IAnyObject>({
 
     if (item) {
       console.log('item', item)
+
+      // 兜底逻辑：已同步图解但本地文件不存在，从云端下载
+      if (item.syncStatus === 'synced') {
+        const paths = item.paths || [];
+        const hasValidPaths = paths.length > 0 && this.checkLocalFilesExist(paths);
+        if (!hasValidPaths) {
+          // 检查是否有云端图片数据
+          if (item.cloudImages && item.cloudImages.length > 0) {
+            await this.downloadCloudDiagramImages(item);
+            return;
+          } else {
+            // 没有云端图片数据，显示错误
+            this.showToast('图解数据丢失');
+            setTimeout(() => wx.navigateBack(), 1500);
+            return;
+          }
+        }
+      }
+
       // 检查是否为PDF且尚未转换
       if (item.type === 'pdf' && (!item.paths || item.paths.length === 0)) {
         // 需要进行PDF转换
@@ -965,5 +984,138 @@ Page<DetailPageData, WechatMiniprogram.IAnyObject>({
       path: '/pages/home/home',
       imageUrl: '/assets/share.png'
     }
+  },
+
+  /**
+   * 检查本地文件是否存在
+   * @param paths 文件路径数组
+   * @returns 是否所有文件都存在
+   */
+  checkLocalFilesExist(paths: string[]): boolean {
+    if (!paths || paths.length === 0) {
+      return false;
+    }
+    const fs = wx.getFileSystemManager();
+    try {
+      // 检查第一个文件是否存在（如果第一个存在，通常其他也存在）
+      fs.accessSync(paths[0]);
+      return true;
+    } catch {
+      console.log('本地文件不存在:', paths[0]);
+      return false;
+    }
+  },
+
+  /**
+   * 从云端下载图解图片（兜底逻辑）
+   * 当本地文件不存在时，从云端下载到本地
+   * 优先使用传入的 cloudImages 字段，避免重复调用云函数
+   */
+  async downloadCloudDiagramImages(item: any) {
+    const { id, name, cloudImages } = item;
+
+    this.setData({ isConverting: true });
+    wx.showLoading({ title: '加载中...', mask: true });
+
+    try {
+      // 1. 获取云端图片ID列表
+      let cloudImageIds: string[] = [];
+
+      if (cloudImages && cloudImages.length > 0) {
+        // 优先使用传入的 cloudImages 字段
+        cloudImageIds = cloudImages;
+      } else {
+        // 兜底：调用云函数获取数据
+        const res = await wx.cloud.callFunction({
+          name: 'syncDiagramData',
+          data: { action: 'download' }
+        }) as any;
+
+        if (!res.result?.success) {
+          throw new Error('获取云端数据失败');
+        }
+
+        const cloudItem = res.result.data.diagrams.find((d: any) => d.id === id);
+        if (!cloudItem || !cloudItem.images || cloudItem.images.length === 0) {
+          throw new Error('图解数据不存在');
+        }
+        cloudImageIds = cloudItem.images;
+      }
+
+      // 2. 下载所有图片到本地
+      const localPaths: string[] = [];
+      for (let i = 0; i < cloudImageIds.length; i++) {
+        const cloudImageId = cloudImageIds[i];
+        wx.showLoading({ title: `下载中 ${i + 1}/${cloudImageIds.length}`, mask: true });
+        const localPath = await this.downloadCloudImage(cloudImageId);
+        localPaths.push(localPath);
+      }
+
+      wx.hideLoading();
+
+      // 3. 更新本地存储
+      const imageList = wx.getStorageSync('imageList') || [];
+      const fileList = wx.getStorageSync('fileList') || [];
+      const updatedImageList = imageList.map((img: any) => {
+        if (img.id === id) {
+          return { ...img, paths: localPaths, path: localPaths[0] };
+        }
+        return img;
+      });
+      const updatedFileList = fileList.map((file: any) => {
+        if (file.id === id) {
+          return { ...file, paths: localPaths, path: localPaths[0] };
+        }
+        return file;
+      });
+      wx.setStorageSync('imageList', updatedImageList);
+      wx.setStorageSync('fileList', updatedFileList);
+
+      // 4. 显示图片
+      this.setData({
+        itemType: item.type,
+        itemName: name,
+        itemPath: localPaths[0],
+        itemPaths: localPaths,
+        currentImageIndex: 0,
+        totalImages: localPaths.length,
+        scale: 1,
+        translateX: 0,
+        translateY: 0,
+        swiperEnabled: true,
+        imageSizes: {},
+        isConverting: false,
+      });
+
+      wx.setNavigationBarTitle({ title: name });
+      this.loadMemoContent();
+      this.showToast(`已加载 ${localPaths.length} 张图片`);
+
+    } catch (err: any) {
+      wx.hideLoading();
+      console.error('下载云端图片失败:', err);
+      this.setData({ isConverting: false });
+      this.showToast(err?.message || '加载失败');
+      setTimeout(() => wx.navigateBack(), 1500);
+    }
+  },
+
+  /**
+   * 下载云存储图片到本地
+   */
+  async downloadCloudImage(fileId: string): Promise<string> {
+    return new Promise((resolve, reject) => {
+      wx.cloud.downloadFile({
+        fileID: fileId,
+        success: (res) => {
+          wx.saveFile({
+            tempFilePath: res.tempFilePath,
+            success: (saveRes) => resolve(saveRes.savedFilePath),
+            fail: reject
+          });
+        },
+        fail: reject
+      });
+    });
   },
 });
