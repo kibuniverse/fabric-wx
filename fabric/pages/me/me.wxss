@@ -379,8 +379,8 @@
 .user-text {
   display: flex;
   flex-direction: column;
-  margin-left: 24rpx;
-  max-width: 478rpx; /* 750rpx - 44rpx(左侧padding) - 160rpx(头像) - 24rpx(间距) - 44rpx(右侧距离) = 478rpx */
+  margin-left: 44rpx; /* 22dp = 44rpx */
+  max-width: 458rpx; /* 750rpx - 44rpx(左侧padding) - 160rpx(头像) - 44rpx(间距) - 44rpx(右侧距离) = 458rpx */
 }
 
 .nickname-large {
@@ -401,7 +401,7 @@
 .zhizhi-id-wrapper {
   display: flex;
   align-items: center;
-  padding: 8rpx 12rpx;
+  padding: 8rpx 12rpx 8rpx 0;
   border-radius: 8rpx;
   background: transparent;
 }

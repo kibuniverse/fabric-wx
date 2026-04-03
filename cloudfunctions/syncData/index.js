@@ -13,7 +13,7 @@ exports.main = async (event, context) => {
   const wxContext = cloud.getWXContext()
   const openid = wxContext.OPENID
 
-  const { totalKnittingTime, nickName, avatarUrl, zhizhiId, zhizhiIdModified } = event
+  const { totalKnittingTime, nickName, avatarUrl, zhizhiId, zhizhiIdModified, checkOnly } = event
 
   console.log('syncData 接收参数:', { totalKnittingTime, nickName, avatarUrl, zhizhiId, zhizhiIdModified })
 
@@ -87,6 +87,14 @@ exports.main = async (event, context) => {
         return {
           success: false,
           error: '该知织ID已被使用'
+        }
+      }
+
+      // 如果只是检查模式，直接返回成功，不执行更新
+      if (checkOnly) {
+        return {
+          success: true,
+          data: { checkPassed: true }
         }
       }
 

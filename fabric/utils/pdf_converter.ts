@@ -143,7 +143,7 @@ export function downloadImage(url: string): Promise<string> {
  * @param existingPaths 已下载的图片路径
  * @param totalPageCount PDF总页数
  * @param fileId 文件唯一标识
- * @param onProgress 进度回调函数
+ * @param onProgress 进度回调函数（包含当前已下载的路径数组）
  * @returns 更新后的图片路径数组、页数
  */
 export async function continuePdfConversion(
@@ -151,7 +151,7 @@ export async function continuePdfConversion(
   existingPaths: string[],
   totalPageCount: number,
   fileId: string,
-  onProgress?: (progress: { current: number; total: number }) => void
+  onProgress?: (progress: { current: number; total: number; paths: string[] }) => void
 ): Promise<{ paths: string[]; pageCount: number; isComplete: boolean }> {
   console.log(`继续加载PDF，已下载 ${existingPaths.length}/${totalPageCount} 页...`);
 
@@ -181,9 +181,9 @@ export async function continuePdfConversion(
       imagePaths.push(localImagePath);
       console.log(`下载第${i + 1}/${totalPageCount}页成功`, previewUrl);
 
-      // 调用进度回调
+      // 调用进度回调，传入当前已下载的路径数组
       if (onProgress) {
-        onProgress({ current: i + 1, total: totalPageCount });
+        onProgress({ current: i + 1, total: totalPageCount, paths: imagePaths });
       }
     } catch (err) {
       console.error(`下载第${i + 1}页失败:`, err);
@@ -199,13 +199,13 @@ export async function continuePdfConversion(
  * 主函数：转换PDF为图片
  * @param localPath PDF本地路径
  * @param fileId 文件唯一标识
- * @param onProgress 进度回调函数
+ * @param onProgress 进度回调函数（包含当前已下载的路径数组）
  * @returns 本地图片路径数组、页数、云文件ID
  */
 export async function convertPdfToImages(
   localPath: string,
   fileId: string,
-  onProgress?: (progress: { current: number; total: number }) => void
+  onProgress?: (progress: { current: number; total: number; paths: string[] }) => void
 ): Promise<{ paths: string[]; pageCount: number; cloudFileId: string }> {
   // 1. 上传PDF到云存储
   console.log('开始上传PDF...');
@@ -247,9 +247,9 @@ export async function convertPdfToImages(
       imagePaths.push(localImagePath);
       console.log(`下载第${i + 1}/${pageCount}页成功`, previewUrl);
 
-      // 调用进度回调
+      // 调用进度回调，传入当前已下载的路径数组
       if (onProgress) {
-        onProgress({ current: i + 1, total: pageCount });
+        onProgress({ current: i + 1, total: pageCount, paths: imagePaths });
       }
     } catch (err) {
       console.error(`下载第${i + 1}页失败:`, err);

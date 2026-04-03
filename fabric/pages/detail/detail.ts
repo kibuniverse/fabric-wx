@@ -67,7 +67,7 @@ const DOUBLE_TAP_THRESHOLD = 300;
 // 通用的提示配置
 const DETAIL_TOAST_CONFIG = {
   icon: "none" as const,
-  duration: 1500,
+  duration: 1000,
 };
 
 Page<DetailPageData, WechatMiniprogram.IAnyObject>({
@@ -221,8 +221,28 @@ Page<DetailPageData, WechatMiniprogram.IAnyObject>({
     try {
       // 转换PDF为图片
       const result = await convertPdfToImages(path, id, (progress) => {
-        // 仅在页面可见时更新进度提示
+        // 仅在页面可见时更新
         if (!this.data.isPageHidden) {
+          // 第一页下载完成后立即显示图片，让用户能边加载边看
+          if (progress.current === 1) {
+            this.setData({
+              itemType: 'pdf',
+              itemName: name,
+              itemPath: progress.paths[0],
+              itemPaths: progress.paths,
+              currentImageIndex: 0,
+              totalImages: progress.total,
+              scale: 1,
+              translateX: 0,
+              translateY: 0,
+              swiperEnabled: true,
+              imageSizes: {},
+            });
+            wx.setNavigationBarTitle({ title: name });
+            this.loadMemoContent();
+          }
+
+          // 继续显示进度（用户已能看到第一页内容）
           wx.showLoading({
             title: `加载中 ${progress.current}/${progress.total}`,
             mask: true
@@ -324,6 +344,26 @@ Page<DetailPageData, WechatMiniprogram.IAnyObject>({
     const { id, name, cloudFileId, paths, totalPdfPageCount } = item;
 
     this.setData({ isConverting: true });
+
+    // 先显示已有的图片
+    const itemPaths = paths;
+    const totalImages = itemPaths.length;
+    this.setData({
+      itemType: 'pdf',
+      itemName: name,
+      itemPath: itemPaths[0],
+      itemPaths,
+      currentImageIndex: 0,
+      totalImages,
+      scale: 1,
+      translateX: 0,
+      translateY: 0,
+      swiperEnabled: true,
+      imageSizes: {},
+    });
+    wx.setNavigationBarTitle({ title: name });
+    this.loadMemoContent();
+
     wx.showLoading({
       title: `继续加载 ${paths.length}/${totalPdfPageCount}`,
       mask: true
@@ -337,8 +377,14 @@ Page<DetailPageData, WechatMiniprogram.IAnyObject>({
         totalPdfPageCount,
         id,
         (progress) => {
-          // 仅在页面可见时更新进度提示
+          // 仅在页面可见时更新进度和图片
           if (!this.data.isPageHidden) {
+            // 每下载一页后更新图片列表
+            this.setData({
+              itemPaths: progress.paths,
+              totalImages: progress.paths.length,
+            });
+
             wx.showLoading({
               title: `加载中 ${progress.current}/${progress.total}`,
               mask: true
@@ -903,6 +949,13 @@ Page<DetailPageData, WechatMiniprogram.IAnyObject>({
         console.error('[Detail] 同步云端数据失败:', err)
       })
       app.startKnittingSession();
+
+      // 已登录时启动图解心跳同步
+      const userInfo = wx.getStorageSync('userInfo');
+      if (userInfo && userInfo.isLoggedIn && this.data.itemId) {
+        app.globalData.activeDiagramIds = [this.data.itemId];
+        app.startDiagramHeartbeat();
+      }
     }
   },
 
@@ -920,6 +973,15 @@ Page<DetailPageData, WechatMiniprogram.IAnyObject>({
     const app = getApp<IAppOption>();
     if (app) {
       app.pauseKnittingSession(true);
+      // 停止心跳并同步图解数据
+      app.stopDiagramHeartbeat();
+      const userInfo = wx.getStorageSync('userInfo');
+      if (userInfo && userInfo.isLoggedIn && this.data.itemId) {
+        app.forceSyncDiagramCounterData(this.data.itemId).catch(err => {
+          console.error('[Detail] 同步图解数据失败:', err);
+        });
+      }
+      app.globalData.activeDiagramIds = [];
     }
   },
 
@@ -937,6 +999,15 @@ Page<DetailPageData, WechatMiniprogram.IAnyObject>({
     const app = getApp<IAppOption>();
     if (app) {
       app.pauseKnittingSession(true);
+      // 停止心跳并同步图解数据
+      app.stopDiagramHeartbeat();
+      const userInfo = wx.getStorageSync('userInfo');
+      if (userInfo && userInfo.isLoggedIn && this.data.itemId) {
+        app.forceSyncDiagramCounterData(this.data.itemId).catch(err => {
+          console.error('[Detail] 同步图解数据失败:', err);
+        });
+      }
+      app.globalData.activeDiagramIds = [];
     }
   },
 
@@ -976,6 +1047,10 @@ Page<DetailPageData, WechatMiniprogram.IAnyObject>({
     const memos = wx.getStorageSync(MEMO_STORAGE_KEY) || {};
     memos[itemId] = content;
     wx.setStorageSync(MEMO_STORAGE_KEY, memos);
+
+    // 重置心跳计时器（用户有操作）
+    const app = getApp<IAppOption>();
+    if (app) app.resetDiagramHeartbeat();
   },
 
   onShareAppMessage() {

@@ -45,9 +45,11 @@
             </view>
             <view class="item-operate-container" catchtap="showActionSheet" data-id="{{item.id}}" data-type="{{item.type}}">
               <text class="item-date">{{item.createTime ? filters.formatDate(item.createTime) : ''}}</text>
-              <!-- 同步图标：仅对已登录且未同步数据显示 -->
+              <!-- 同步图标：已登录且未同步且不在同步中 -->
               <view class="sync-icon-wrapper">
-                <image wx:if="{{isLoggedIn && item.syncStatus === 'local'}}" class="sync-status-icon" src="/assets/sync_status.svg" mode="aspectFit" catchtap="syncDiagramToCloud" data-id="{{item.id}}" />
+                <image wx:if="{{isLoggedIn && item.syncStatus === 'local' && !syncingStatus[item.id]}}" class="sync-status-icon" src="/assets/sync_status.svg" mode="aspectFit" catchtap="syncDiagramToCloud" data-id="{{item.id}}" />
+                <!-- 同步中旋转动画 -->
+                <image wx:if="{{syncingStatus[item.id]}}" class="sync-loading-icon" src="/assets/sync_loading.svg" mode="aspectFit" />
                 <!-- 同步 Tips 提示：仅显示一次，只在第一个未同步图解上 -->
                 <view wx:if="{{showSyncTips && item.id === firstLocalItemId}}" class="sync-tips">
                   <view class="sync-tips-content">

@@ -85,18 +85,42 @@ Page({
       return;
     }
 
-    // 弹窗确认
-    wx.showModal({
-      title: '确认修改',
-      content: `是否确认要将知织ID修改为「${newId}」？\n\n知织ID只能修改一次，请谨慎操作。`,
-      confirmText: '确认修改',
-      confirmColor: '#333333',
-      success: (res) => {
-        if (res.confirm) {
-          this.doSave(newId);
+    // 新增：云端校验知织ID是否重复
+    wx.showLoading({ title: '检查中...', mask: true });
+    try {
+      const res = await wx.cloud.callFunction({
+        name: 'syncData',
+        data: {
+          zhizhiId: newId,
+          checkOnly: true  // 只检查不更新
         }
-      },
-    });
+      }) as any;
+
+      wx.hideLoading();
+
+      if (!res.result.success) {
+        // 检查失败（ID重复）
+        wx.showToast({ title: res.result.error || '该知织ID已被使用', icon: 'none' });
+        return;
+      }
+
+      // 检查通过，弹窗确认
+      wx.showModal({
+        title: '确认修改',
+        content: `是否确认要将知织ID修改为「${newId}」？\n\n知织ID只能修改一次，请谨慎操作。`,
+        confirmText: '确认修改',
+        confirmColor: '#333333',
+        success: (res) => {
+          if (res.confirm) {
+            this.doSave(newId);
+          }
+        },
+      });
+    } catch (error) {
+      wx.hideLoading();
+      console.error('检查知织ID失败:', error);
+      wx.showToast({ title: '网络异常，请重试', icon: 'none' });
+    }
   },
 
   async doSave(newId: string) {

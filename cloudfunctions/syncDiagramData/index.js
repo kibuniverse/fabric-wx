@@ -44,6 +44,9 @@ exports.main = async (event, context) => {
             cover: diagram.cover,
             images: diagram.images || [],
             size: diagram.size,
+            // 新增：计数器和备忘录数据同步
+            counterData: diagram.counterData || { count: 0, updatedAt: now },
+            memoContent: diagram.memoContent || '',
             updatedAt: now
           }
         })
@@ -67,6 +70,9 @@ exports.main = async (event, context) => {
             cover: diagram.cover,
             images: diagram.images || [],
             size: diagram.size,
+            // 新增：计数器和备忘录数据同步
+            counterData: diagram.counterData || { count: 0, updatedAt: now },
+            memoContent: diagram.memoContent || '',
             updatedAt: now
           }
         })
@@ -162,6 +168,49 @@ exports.main = async (event, context) => {
         data: {
           count: result.total
         }
+      }
+    }
+
+    // 更新图解部分信息（名称、封面、计数器、备忘录）
+    if (action === 'updateInfo') {
+      const { diagramId, name, cover, counterData, memoContent } = event
+
+      if (!diagramId) {
+        return {
+          success: false,
+          error: '图解ID不能为空'
+        }
+      }
+
+      // 查询图解
+      const diagramResult = await diagramsCollection.where({
+        openid: openid,
+        id: diagramId
+      }).get()
+
+      if (diagramResult.data.length === 0) {
+        return {
+          success: false,
+          error: '图解不存在'
+        }
+      }
+
+      // 构建更新对象（只更新传入的字段）
+      const updateData = {
+        updatedAt: now
+      }
+      if (name !== undefined) updateData.name = name
+      if (cover !== undefined) updateData.cover = cover
+      if (counterData !== undefined) updateData.counterData = counterData
+      if (memoContent !== undefined) updateData.memoContent = memoContent
+
+      await diagramsCollection.doc(diagramResult.data[0]._id).update({
+        data: updateData
+      })
+
+      return {
+        success: true,
+        message: '图解信息已更新'
       }
     }
 

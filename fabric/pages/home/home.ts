@@ -95,6 +95,9 @@ Page({
     // 同步 Tips 提示
     showSyncTips: false,
     firstLocalItemId: '',
+
+    // 正在同步的图解（用于显示旋转动画）{ [id]: true }
+    syncingStatus: {} as Record<string, boolean>,
   },
 
   /**
@@ -328,6 +331,7 @@ Page({
     wx.showLoading({ title: '创建中...', mask: true });
 
     // 创建单个图解项目，包含多张图片
+    const now = Date.now();
     const newItem: FileItem = {
       id: this.generateUniqueId(),
       name: diagramName,
@@ -335,7 +339,8 @@ Page({
       path: pendingImages[0], // 兼容旧数据
       paths: pendingImages,
       type: 'image',
-      createTime: Date.now(),
+      createTime: now,
+      lastAccessTime: now, // 新导入的图解排在第一个
       cover: pendingImages[0], // 第一张图片作为默认封面
       syncStatus: isLoggedIn ? 'synced' : 'local'  // 根据登录状态设置
     };
@@ -390,7 +395,13 @@ Page({
         }
       }
 
-      // 2. 调用云函数保存记录
+      // 2. 获取计数器和备忘录数据
+      const countersStorage = wx.getStorageSync('simpleCounters') || {};
+      const memosStorage = wx.getStorageSync('itemMemos') || {};
+      const counterCount = countersStorage[item.id] || 0;
+      const memoContent = memosStorage[item.id] || '';
+
+      // 3. 调用云函数保存记录（包含计数器和备忘录）
       const res = await wx.cloud.callFunction({
         name: 'syncDiagramData',
         data: {
@@ -403,7 +414,13 @@ Page({
             createTime: item.createTime,
             cover: cloudImages[0] || '',
             images: cloudImages,
-            size: item.size
+            size: item.size,
+            // 新增：计数器和备忘录数据
+            counterData: {
+              count: counterCount,
+              updatedAt: new Date()
+            },
+            memoContent: memoContent
           }
         }
       }) as any;
@@ -463,6 +480,7 @@ Page({
         }
 
         const fileName = file.name.length > 10 ? file.name.substring(0, 7) + '...' : file.name;
+        const now = Date.now();
 
         // 创建PDF项目，保存到fileList，转换将在detail页面首次打开时进行
         // PDF 导入时暂时保存为 local，转换完成后再同步到云端
@@ -474,7 +492,8 @@ Page({
           paths: [], // 初始为空，转换后填充
           type: 'pdf',
           size: file.size, // 保存文件大小用于去重
-          createTime: Date.now(),
+          createTime: now,
+          lastAccessTime: now, // 新导入的图解排在第一个
           syncStatus: 'local'  // PDF 转换后再同步
         };
 
@@ -652,8 +671,11 @@ Page({
   /**
    * 更新封面图片
    */
-  updateCover(itemId: string, itemType: string, coverPath: string) {
+  async updateCover(itemId: string, itemType: string, coverPath: string) {
     const now = Date.now();
+    // 获取当前项（用于检查同步状态）
+    const currentItem = this.data.allItems.find(item => item.id === itemId);
+
     if (itemType === 'image') {
       const updatedList = this.data.imageList.map(item => {
         if (item.id === itemId) {
@@ -686,6 +708,29 @@ Page({
       });
 
       wx.setStorageSync('fileList', updatedList);
+    }
+
+    // 如果已同步到云端，上传新封面并更新云端记录
+    if (currentItem && currentItem.syncStatus === 'synced') {
+      try {
+        // 上传封面到云存储
+        const cloudPath = `diagrams/${itemId}/cover_${Date.now()}.jpg`;
+        const uploadRes = await wx.cloud.uploadFile({
+          cloudPath,
+          filePath: coverPath
+        });
+
+        if (uploadRes.fileID) {
+          // 更新云端记录
+          await wx.cloud.callFunction({
+            name: 'syncDiagramData',
+            data: { action: 'updateInfo', diagramId: itemId, cover: uploadRes.fileID }
+          });
+          console.log('[Home] 更新云端封面成功:', itemId);
+        }
+      } catch (err) {
+        console.error('[Home] 更新云端封面失败:', err);
+      }
     }
 
     this.showToast('封面已更新');
@@ -730,6 +775,9 @@ Page({
     }
 
     const now = Date.now();
+    // 获取当前项（用于检查同步状态）
+    const currentItem = this.data.allItems.find(item => item.id === currentItemId);
+
     // 更新对应列表中的项目名称
     if (currentItemType === 'image') {
       const updatedList = this.data.imageList.map(item => {
@@ -771,6 +819,18 @@ Page({
 
       // 更新本地存储
       wx.setStorageSync('fileList', updatedList);
+    }
+
+    // 如果已同步到云端，更新云端名称
+    if (currentItem && currentItem.syncStatus === 'synced') {
+      wx.cloud.callFunction({
+        name: 'syncDiagramData',
+        data: { action: 'updateInfo', diagramId: currentItemId, name: newItemName }
+      }).then(() => {
+        console.log('[Home] 更新云端名称成功:', currentItemId, newItemName);
+      }).catch(err => {
+        console.error('[Home] 更新云端名称失败:', err);
+      });
     }
 
     this.showToast('重命名成功');
@@ -1256,14 +1316,20 @@ Page({
       return;
     }
 
+    // 添加到正在同步状态，显示旋转动画
+    this.setData({
+      syncingStatus: { ...this.data.syncingStatus, [itemId]: true }
+    });
+
     // 校验数量限制（云端已同步数 + 待同步数）
     const cloudCount = await this.getCloudDiagramCount();
     if (cloudCount >= 10) {
-      wx.showToast({ title: '暂时最多支持上传10个图解', icon: 'none' });
+      const newStatus = { ...this.data.syncingStatus };
+      delete newStatus[itemId];
+      this.setData({ syncingStatus: newStatus });
+      wx.showToast({ title: '暂时最多支持同步10个图解', icon: 'none' });
       return;
     }
-
-    wx.showLoading({ title: '同步中...', mask: true });
 
     try {
       // 上传到云端，获取云端记录ID
@@ -1288,20 +1354,28 @@ Page({
 
       const allItems = sortItems([...updatedImageList, ...updatedFileList]);
 
+      // 移除同步状态
+      const newStatus = { ...this.data.syncingStatus };
+      delete newStatus[itemId];
+
       this.setData({
         imageList: updatedImageList,
         fileList: updatedFileList,
-        allItems
+        allItems,
+        syncingStatus: newStatus
       });
 
       // 更新本地存储
       wx.setStorageSync('imageList', updatedImageList);
       wx.setStorageSync('fileList', updatedFileList);
 
-      wx.hideLoading();
       wx.showToast({ title: '已经同步完成', icon: 'success', duration: 1000 });
     } catch (error) {
-      wx.hideLoading();
+      // 移除同步状态
+      const newStatus = { ...this.data.syncingStatus };
+      delete newStatus[itemId];
+      this.setData({ syncingStatus: newStatus });
+
       console.error('同步失败:', error);
       this.showToast('同步失败，请重试');
     }
@@ -1365,6 +1439,29 @@ Page({
             cloudCover: cloudItem.cover  // 保留云端封面 ID，用于详情页下载
           };
         });
+
+        // 恢复计数器和备忘录数据到本地 Storage
+        const countersStorage = wx.getStorageSync('simpleCounters') || {};
+        const memosStorage = wx.getStorageSync('itemMemos') || {};
+        cloudDiagrams.forEach(cloudItem => {
+          // 恢复计数器数据（如果云端有数据）
+          if (cloudItem.counterData && cloudItem.counterData.count !== undefined) {
+            // 只在本地没有数据时才恢复，避免覆盖本地更新
+            if (countersStorage[cloudItem.id] === undefined) {
+              countersStorage[cloudItem.id] = cloudItem.counterData.count;
+            }
+          }
+          // 恢复备忘录数据（如果云端有数据）
+          if (cloudItem.memoContent) {
+            // 只在本地没有数据时才恢复
+            if (memosStorage[cloudItem.id] === undefined) {
+              memosStorage[cloudItem.id] = cloudItem.memoContent;
+            }
+          }
+        });
+        wx.setStorageSync('simpleCounters', countersStorage);
+        wx.setStorageSync('itemMemos', memosStorage);
+        console.log('[Home] 已恢复云端计数器和备忘录数据');
 
         console.log('[Home] 处理后图解数量:', diagrams.length);
         return diagrams;
