@@ -2,6 +2,7 @@
 page {
   background-color: #ffffff;
   height: 100vh;
+  overflow: hidden;
   /* 覆盖 Vant tabs 默认尺寸，使用 rpx 确保所有设备响应式一致 */
   --tab-font-size: 32rpx;
   --tabs-line-height: 88rpx;
@@ -12,6 +13,7 @@ page {
   display: flex;
   flex-direction: column;
   height: 100%;
+  overflow: hidden;
 }
 
 .title-container {
@@ -65,6 +67,7 @@ page {
 
 .tab-container {
   height: calc(100% - 140rpx);
+  overflow: hidden;
 }
 
 .nav-class {
@@ -182,8 +185,8 @@ page {
 /* 微信小程序 scroll-view 隐藏滚动条 */
 scroll-view {
   -webkit-overflow-scrolling: touch;
-  scrollbar-width: none;
-  -ms-overflow-style: none;
+  scrollbar-width: none !important;
+  -ms-overflow-style: none !important;
 }
 
 scroll-view::-webkit-scrollbar {
