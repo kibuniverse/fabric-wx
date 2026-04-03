@@ -77,6 +77,19 @@ exports.main = async (event, context) => {
     })
 
     if (zhizhiId && !user.zhizhiIdModified && zhizhiId !== user.zhizhiId) {
+      // 检查知织号是否被其他用户占用
+      const existingUser = await usersCollection.where({
+        zhizhiId: zhizhiId
+      }).get()
+
+      if (existingUser.data.length > 0) {
+        console.log('知织ID已被占用:', zhizhiId)
+        return {
+          success: false,
+          error: '该知织ID已被使用'
+        }
+      }
+
       updateData.zhizhiId = zhizhiId
       updateData.zhizhiIdModified = true
       console.log('将更新知织ID:', zhizhiId, '(原ID:', user.zhizhiId, ')')

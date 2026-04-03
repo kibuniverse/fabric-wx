@@ -24,7 +24,7 @@ interface IAppOption {
   addKnittingTime(elapsedMs: number): void,
   getTotalKnittingTime(): number,
   syncFromCloud(): Promise<{ totalKnittingTime: number; zhizhiId: string; zhizhiIdModified: boolean; nickName: string; avatarUrl: string } | null>,
-  syncToCloud(elapsedMs?: number): Promise<boolean>,
+  syncToCloud(elapsedMs?: number): Promise<{ success: boolean; error?: string }>,
   forceSyncTotalKnittingTime(): Promise<boolean>,
   // 针织总时长计时器方法
   startKnittingSession(): void,

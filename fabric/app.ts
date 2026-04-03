@@ -377,13 +377,14 @@ App<IAppOption>({
   /**
    * 将本地数据同步到云端
    * @param elapsedMs 要累加的时长（毫秒）
+   * @returns 同步结果，包含 success 和可能的 error 信息
    */
-  async syncToCloud(elapsedMs: number = 0): Promise<boolean> {
-    if (this.globalData.isSyncing) return false
+  async syncToCloud(elapsedMs: number = 0): Promise<{ success: boolean; error?: string }> {
+    if (this.globalData.isSyncing) return { success: false }
 
     // 检查是否已登录
     const userInfo = wx.getStorageSync('userInfo')
-    if (!userInfo || !userInfo.isLoggedIn) return false
+    if (!userInfo || !userInfo.isLoggedIn) return { success: false }
 
     this.globalData.isSyncing = true
 
@@ -404,7 +405,7 @@ App<IAppOption>({
       // 检查账号是否失效（在其他设备被注销）
       if (res.result && !res.result.success && this.isAccountInvalidated(res.result)) {
         this.handleAccountInvalidated();
-        return false;
+        return { success: false };
       }
 
       if (res.result && res.result.success) {
@@ -419,13 +420,15 @@ App<IAppOption>({
             wx.setStorageSync('total_zhizhi_time', cloudTime)
           }
         }
-        return true
+        return { success: true }
       }
-      return false
+
+      // 返回云函数的错误信息
+      return { success: false, error: res.result?.error }
     } catch (error) {
       this.globalData.isSyncing = false
       console.error('同步数据到云端失败:', error)
-      return false
+      return { success: false }
     }
   },
 

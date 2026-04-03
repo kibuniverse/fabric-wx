@@ -116,14 +116,20 @@ Page({
       // 同步到云端
       const app = getApp<IAppOption>();
       if (app) {
-        const syncSuccess = await app.syncToCloud(0);
-        if (!syncSuccess) {
+        const syncResult = await app.syncToCloud(0);
+        if (!syncResult.success) {
           // 云端同步失败，回滚本地
           userInfo.zhizhiId = oldZhizhiId;
           userInfo.zhizhiIdModified = oldZhizhiIdModified;
           wx.setStorageSync('userInfo', userInfo);
           wx.hideLoading();
-          wx.showToast({ title: '网络异常，保存失败', icon: 'none' });
+
+          // 判断是否是知织号重复错误
+          if (syncResult.error === '该知织ID已被使用') {
+            wx.showToast({ title: '该知织ID已被使用', icon: 'none', duration: 2000 });
+          } else {
+            wx.showToast({ title: '网络异常，保存失败', icon: 'none' });
+          }
           return;
         }
       }

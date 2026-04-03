@@ -156,7 +156,7 @@ Page({
   /**
    * 切换导入选项显示状态
    * 如果用户未登录且已有1个图解，显示登录引导弹窗
-   * 如果用户已登录且本地已有5个图解，提示限制
+   * 如果用户已登录且本地已有10个图解，提示限制
    */
   toggleImportOptions() {
     const isLoggedIn = this.data.isLoggedIn;
@@ -170,8 +170,8 @@ Page({
       }
     } else {
       // 已登录：只检查本地图解数量
-      if (localCount >= 5) {
-        wx.showToast({ title: '目前最多只能创建5个图解', icon: 'none' });
+      if (localCount >= 10) {
+        wx.showToast({ title: '暂时最多只能创建10个图解', icon: 'none' });
         return;
       }
     }
@@ -1258,8 +1258,8 @@ Page({
 
     // 校验数量限制（云端已同步数 + 待同步数）
     const cloudCount = await this.getCloudDiagramCount();
-    if (cloudCount >= 5) {
-      wx.showToast({ title: '目前最多支持上传五个图解', icon: 'none' });
+    if (cloudCount >= 10) {
+      wx.showToast({ title: '暂时最多支持上传10个图解', icon: 'none' });
       return;
     }
 
