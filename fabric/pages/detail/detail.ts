@@ -138,13 +138,26 @@ Page<DetailPageData, WechatMiniprogram.IAnyObject>({
     if (item) {
       console.log('item', item)
 
-      // 兜底逻辑：已同步图解但本地文件不存在，从云端下载
+      // 兜底逻辑：已同步图解但本地文件不存在，或云端有新图片需要下载
       if (item.syncStatus === 'synced') {
         const paths = item.paths || [];
+        const cloudImages = item.cloudImages || [];
         const hasValidPaths = paths.length > 0 && this.checkLocalFilesExist(paths);
-        if (!hasValidPaths) {
+
+        // 检查是否有新图片需要下载（云端图片数 > 本地图片数）
+        const hasNewImages = cloudImages.length > paths.filter(p => p).length;
+        console.log('[Detail] 检查图片同步状态:', {
+          name: item.name,
+          localPaths: paths.length,
+          cloudImages: cloudImages.length,
+          hasValidPaths,
+          hasNewImages
+        });
+
+        if (!hasValidPaths || hasNewImages) {
           // 检查是否有云端图片数据
-          if (item.cloudImages && item.cloudImages.length > 0) {
+          if (cloudImages.length > 0) {
+            console.log('[Detail] 开始下载云端图片...');
             await this.downloadCloudDiagramImages(item);
             return;
           } else {
@@ -1117,29 +1130,59 @@ Page<DetailPageData, WechatMiniprogram.IAnyObject>({
         cloudImageIds = cloudItem.images;
       }
 
-      // 2. 下载所有图片到本地
+      // 2. 构建本地已有图片的映射（cloudId -> localPath）
+      const existingPaths = item.paths || [];
+      const existingCloudImages = item.cloudImages || [];
+      const cloudIdToLocalPath: Record<string, string> = {};
+
+      console.log('[Detail] 本地已有图片:', existingPaths.length, '云端图片:', cloudImageIds.length);
+
+      // 建立映射：只映射本地存在的图片
+      const fs = wx.getFileSystemManager();
+      for (let i = 0; i < existingCloudImages.length && i < existingPaths.length; i++) {
+        if (existingCloudImages[i] && existingPaths[i]) {
+          try {
+            fs.accessSync(existingPaths[i]);
+            cloudIdToLocalPath[existingCloudImages[i]] = existingPaths[i];
+          } catch {
+            // 本地文件不存在，忽略
+          }
+        }
+      }
+
+      // 3. 按云端顺序生成本地路径，只下载缺失的
       const localPaths: string[] = [];
       for (let i = 0; i < cloudImageIds.length; i++) {
         const cloudImageId = cloudImageIds[i];
-        wx.showLoading({ title: `下载中 ${i + 1}/${cloudImageIds.length}`, mask: true });
-        const localPath = await this.downloadCloudImage(cloudImageId);
-        localPaths.push(localPath);
+        const existingLocalPath = cloudIdToLocalPath[cloudImageId];
+
+        if (existingLocalPath) {
+          // 本地已有，直接使用
+          localPaths.push(existingLocalPath);
+          console.log('[Detail] 使用已有图片:', i + 1, cloudImageId.split('/').pop());
+        } else {
+          // 需要下载
+          wx.showLoading({ title: `下载中 ${i + 1}/${cloudImageIds.length}`, mask: true });
+          console.log('[Detail] 下载新图片:', i + 1, cloudImageId.split('/').pop());
+          const localPath = await this.downloadCloudImage(cloudImageId);
+          localPaths.push(localPath);
+        }
       }
 
       wx.hideLoading();
 
-      // 3. 更新本地存储
+      // 3. 更新本地存储（关键：同时保存 cloudImages 保持顺序对应）
       const imageList = wx.getStorageSync('imageList') || [];
       const fileList = wx.getStorageSync('fileList') || [];
       const updatedImageList = imageList.map((img: any) => {
         if (img.id === id) {
-          return { ...img, paths: localPaths, path: localPaths[0] };
+          return { ...img, paths: localPaths, path: localPaths[0], cloudImages: cloudImageIds };
         }
         return img;
       });
       const updatedFileList = fileList.map((file: any) => {
         if (file.id === id) {
-          return { ...file, paths: localPaths, path: localPaths[0] };
+          return { ...file, paths: localPaths, path: localPaths[0], cloudImages: cloudImageIds };
         }
         return file;
       });

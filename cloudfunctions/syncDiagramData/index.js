@@ -35,8 +35,7 @@ exports.main = async (event, context) => {
 
       if (existingResult.data.length > 0) {
         // 更新已有记录
-        await diagramsCollection.doc(existingResult.data[0]._id).update({
-          data: {
+        const updateData = {
             name: diagram.name,
             originalName: diagram.originalName,
             type: diagram.type,
@@ -48,7 +47,12 @@ exports.main = async (event, context) => {
             counterData: diagram.counterData || { count: 0, updatedAt: now },
             memoContent: diagram.memoContent || '',
             updatedAt: now
-          }
+        }
+        if (diagram.lastAccessTime !== undefined) {
+          updateData.lastAccessTime = diagram.lastAccessTime
+        }
+        await diagramsCollection.doc(existingResult.data[0]._id).update({
+          data: updateData
         })
 
         return {
@@ -59,8 +63,7 @@ exports.main = async (event, context) => {
         }
       } else {
         // 创建新记录
-        const result = await diagramsCollection.add({
-          data: {
+        const addData = {
             openid: openid,
             id: diagram.id,
             name: diagram.name,
@@ -74,7 +77,12 @@ exports.main = async (event, context) => {
             counterData: diagram.counterData || { count: 0, updatedAt: now },
             memoContent: diagram.memoContent || '',
             updatedAt: now
-          }
+        }
+        if (diagram.lastAccessTime !== undefined) {
+          addData.lastAccessTime = diagram.lastAccessTime
+        }
+        const result = await diagramsCollection.add({
+          data: addData
         })
 
         return {
@@ -171,9 +179,77 @@ exports.main = async (event, context) => {
       }
     }
 
-    // 更新图解部分信息（名称、封面、计数器、备忘录）
+    // 检查云端是否有更新（用于跨设备同步）
+    if (action === 'checkUpdate') {
+      const { lastSyncTime, localDiagramCount } = event
+
+      // 并行获取最新更新时间和图解数量
+      const [latestResult, countResult] = await Promise.all([
+        diagramsCollection.where({
+          openid: openid
+        }).orderBy('updatedAt', 'desc').limit(1).get(),
+        diagramsCollection.where({
+          openid: openid
+        }).count()
+      ])
+
+      const diagramCount = countResult.total
+
+      if (latestResult.data.length === 0) {
+        // 云端无图解，但本地可能有已同步的图解（被其他设备删除了）
+        const hasUpdate = localDiagramCount !== undefined && localDiagramCount > 0
+        return {
+          success: true,
+          data: {
+            hasUpdate,
+            cloudUpdateTime: 0,
+            diagramCount: 0
+          }
+        }
+      }
+
+      const cloudUpdateTime = latestResult.data[0].updatedAt ? new Date(latestResult.data[0].updatedAt).getTime() : 0
+      const localSyncTime = lastSyncTime || 0
+
+      // 通过时间戳或数量变化检测更新（数量变化可检测删除操作）
+      const hasTimeUpdate = cloudUpdateTime > localSyncTime
+      const hasCountChange = localDiagramCount !== undefined && localDiagramCount !== diagramCount
+
+      return {
+        success: true,
+        data: {
+          hasUpdate: hasTimeUpdate || hasCountChange,
+          cloudUpdateTime,
+          diagramCount
+        }
+      }
+    }
+
+    // 同步模式：基于 updatedAt 时间戳合并本地和云端数据
+    if (action === 'sync') {
+      // 1. 获取云端所有图解
+      const cloudResult = await diagramsCollection.where({
+        openid: openid
+      }).get()
+
+      const cloudDiagrams = cloudResult.data
+      const cloudUpdateTime = cloudDiagrams.length > 0
+        ? Math.max(...cloudDiagrams.map(d => d.updatedAt ? new Date(d.updatedAt).getTime() : 0))
+        : 0
+
+      return {
+        success: true,
+        data: {
+          diagrams: cloudDiagrams,
+          cloudUpdateTime,
+          hasUpdate: true  // sync 调用时总是返回数据
+        }
+      }
+    }
+
+    // 更新图解部分信息（名称、封面、计数器、备忘录、图片顺序）
     if (action === 'updateInfo') {
-      const { diagramId, name, cover, counterData, memoContent } = event
+      const { diagramId, name, cover, counterData, memoContent, images, lastAccessTime } = event
 
       if (!diagramId) {
         return {
@@ -203,14 +279,39 @@ exports.main = async (event, context) => {
       if (cover !== undefined) updateData.cover = cover
       if (counterData !== undefined) updateData.counterData = counterData
       if (memoContent !== undefined) updateData.memoContent = memoContent
+      if (lastAccessTime !== undefined) updateData.lastAccessTime = lastAccessTime
 
+      // 新增：支持更新图片顺序
+      if (images !== undefined) {
+        updateData.images = images
+        // 如果没有显式传 cover 且有图片，使用第一张图作为封面
+        if (cover === undefined && images.length > 0) {
+          updateData.cover = images[0]
+        }
+      }
+
+      // 先执行更新
       await diagramsCollection.doc(diagramResult.data[0]._id).update({
         data: updateData
       })
 
+      // 重新查询获取数据库实际写入的 updatedAt（db.serverDate() 的真实值）
+      const updatedResult = await diagramsCollection.where({
+        openid: openid,
+        id: diagramId
+      }).get()
+
+      let serverUpdateTime = Date.now()
+      if (updatedResult.data.length > 0 && updatedResult.data[0].updatedAt) {
+        serverUpdateTime = new Date(updatedResult.data[0].updatedAt).getTime()
+      }
+
+      console.log('[updateInfo] 更新后的 updatedAt:', serverUpdateTime)
+
       return {
         success: true,
-        message: '图解信息已更新'
+        message: '图解信息已更新',
+        updatedAt: serverUpdateTime
       }
     }
 

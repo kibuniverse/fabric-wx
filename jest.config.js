@@ -3,6 +3,7 @@ module.exports = {
   testMatch: [
     '**/__tests__/**/*.test.ts',
     '**/__tests__/**/*.test.js',
+    'fabric/__tests__/**/*.test.ts',
   ],
   moduleFileExtensions: ['ts', 'js', 'json'],
   coverageDirectory: 'coverage',

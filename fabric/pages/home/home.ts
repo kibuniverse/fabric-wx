@@ -20,12 +20,35 @@ interface FileItem {
   cloudId?: string;  // 云端记录ID（synced 时有值）
   cloudImages?: string[];  // 云端图片文件ID数组（synced 时有值，用于详情页下载）
   cloudCover?: string;     // 云端封面文件ID（用于详情页下载）
+  needsCoverDownload?: boolean;  // 是否需要下载封面（优化封面闪动）
+}
+
+/**
+ * 判断是否是本地封面路径
+ * 本地路径包括：wxfile://、/tmp/、非云端路径
+ */
+function isLocalCoverPath(coverPath: string | undefined): boolean {
+  if (!coverPath) return false;
+  // wxfile:// 是小程序本地保存文件路径
+  // /tmp/ 是临时文件路径
+  // http://tmp/ 是微信临时文件路径
+  // 非 cloud:// 且非 http/https 开头（可能是相对路径或本地路径）
+  return coverPath.startsWith('wxfile://') ||
+         coverPath.startsWith('/tmp/') ||
+         coverPath.startsWith('http://tmp/') ||
+         (!coverPath.startsWith('cloud://') && !coverPath.startsWith('http'));
 }
 
 // 通用的提示配置
 const TOAST_CONFIG = {
   icon: "none" as const,
   duration: 1500,
+};
+
+// 存储键常量
+const STORAGE_KEYS = {
+  LAST_SYNC_TIME: "lastDiagramSyncTime",  // 最后同步时间戳
+  SYNCED_DIAGRAM_COUNT: "syncedDiagramCount",  // 上次同步时云端图解数量
 };
 
 // 排序函数：优先 lastAccessTime，其次 createTime
@@ -348,7 +371,11 @@ Page({
     // 已登录时，上传到云端
     if (isLoggedIn) {
       try {
-        await this.uploadDiagramToCloud(newItem);
+        const uploadResult = await this.uploadDiagramToCloud(newItem);
+        if (uploadResult) {
+          newItem.cloudId = uploadResult.cloudId;
+          newItem.cloudImages = uploadResult.cloudImages;  // 关键：保存云端图片 ID
+        }
       } catch (error) {
         console.error('上传图解到云端失败:', error);
         // 上传失败时，改为本地存储
@@ -372,6 +399,14 @@ Page({
 
     // 保存到本地存储
     wx.setStorageSync('imageList', updatedImageList);
+
+    // 如果已同步到云端，更新同步时间戳和数量
+    if (isLoggedIn && newItem.syncStatus === 'synced') {
+      wx.setStorageSync(STORAGE_KEYS.LAST_SYNC_TIME, Date.now());
+      const prevCount = wx.getStorageSync(STORAGE_KEYS.SYNCED_DIAGRAM_COUNT);
+      wx.setStorageSync(STORAGE_KEYS.SYNCED_DIAGRAM_COUNT, (prevCount || 0) + 1);
+    }
+
     wx.hideLoading();
     this.showToast(`已创建图解，包含${pendingImages.length}张图片`);
   },
@@ -420,13 +455,14 @@ Page({
               count: counterCount,
               updatedAt: new Date()
             },
-            memoContent: memoContent
+            memoContent: memoContent,
+            lastAccessTime: item.lastAccessTime || item.createTime
           }
         }
       }) as any;
 
       if (res.result && res.result.success) {
-        return res.result.data.cloudId;
+        return { cloudId: res.result.data.cloudId, cloudImages };
       }
       return null;
     } catch (error) {
@@ -572,7 +608,7 @@ Page({
         actions,
         currentItemId: id,
         currentItemType: type,
-        currentItemName: currentItem.originalName || currentItem.name
+        currentItemName: currentItem.name || currentItem.originalName
       });
     }
   },
@@ -724,9 +760,21 @@ Page({
           // 更新云端记录
           await wx.cloud.callFunction({
             name: 'syncDiagramData',
-            data: { action: 'updateInfo', diagramId: itemId, cover: uploadRes.fileID }
+            data: { action: 'updateInfo', diagramId: itemId, cover: uploadRes.fileID, lastAccessTime: now }
           });
           console.log('[Home] 更新云端封面成功:', itemId);
+          // 更新本地 cloudCover（避免下次同步时误判为云端封面变化导致重新下载）
+          const coverListKey = itemType === 'image' ? 'imageList' : 'fileList';
+          const coverList = wx.getStorageSync(coverListKey) || [];
+          const updatedCoverList = coverList.map((item: any) => {
+            if (item.id === itemId) {
+              return { ...item, cloudCover: uploadRes.fileID };
+            }
+            return item;
+          });
+          wx.setStorageSync(coverListKey, updatedCoverList);
+          // 更新本地同步时间戳（跨设备同步）
+          wx.setStorageSync(STORAGE_KEYS.LAST_SYNC_TIME, Date.now());
         }
       } catch (err) {
         console.error('[Home] 更新云端封面失败:', err);
@@ -825,9 +873,11 @@ Page({
     if (currentItem && currentItem.syncStatus === 'synced') {
       wx.cloud.callFunction({
         name: 'syncDiagramData',
-        data: { action: 'updateInfo', diagramId: currentItemId, name: newItemName }
+        data: { action: 'updateInfo', diagramId: currentItemId, name: newItemName, lastAccessTime: now }
       }).then(() => {
         console.log('[Home] 更新云端名称成功:', currentItemId, newItemName);
+        // 更新本地同步时间戳（跨设备同步）
+        wx.setStorageSync(STORAGE_KEYS.LAST_SYNC_TIME, Date.now());
       }).catch(err => {
         console.error('[Home] 更新云端名称失败:', err);
       });
@@ -897,6 +947,15 @@ Page({
     // 更新本地存储
     wx.setStorageSync('imageList', updatedImageList);
     wx.setStorageSync('fileList', updatedFileList);
+
+    // 如果删除的是已同步图解，更新同步时间戳和数量
+    if (currentItem && currentItem.syncStatus === 'synced') {
+      wx.setStorageSync(STORAGE_KEYS.LAST_SYNC_TIME, Date.now());
+      const prevCount = wx.getStorageSync(STORAGE_KEYS.SYNCED_DIAGRAM_COUNT);
+      if (prevCount !== '' && prevCount > 0) {
+        wx.setStorageSync(STORAGE_KEYS.SYNCED_DIAGRAM_COUNT, prevCount - 1);
+      }
+    }
 
     this.showToast('删除成功');
   },
@@ -1005,24 +1064,328 @@ Page({
 
     console.log('[Home] onShow - wasLoggedIn:', wasLoggedIn, 'isLoggedIn:', isLoggedIn);
 
-    // 刷新数据，确保从其他页面返回时能看到最新封面
-    this.loadLocalData();
-
-    // 如果登录状态从"未登录"变为"已登录"，需要合并数据
-    if (!wasLoggedIn && isLoggedIn) {
-      console.log('[Home] 检测到登录状态变化，开始合并云端数据...');
-      this.handleLoginDataMergeForDiagrams();
-    } else if (isLoggedIn) {
-      // 已登录用户重新打开小程序，检查云端图解封面是否需要下载到本地
-      this.checkAndDownloadCloudCovers();
-    }
-
     if (typeof this.getTabBar === 'function' &&
       this.getTabBar()) {
       this.getTabBar().setData({
         selected: 0  // 首页对应tabBar第一个选项，索引为0
       })
     }
+
+    // 如果登录状态从"未登录"变为"已登录"，需要合并数据
+    if (!wasLoggedIn && isLoggedIn) {
+      console.log('[Home] 检测到登录状态变化，开始合并云端数据...');
+      this.setData({ isLoggedIn: true });
+      this.handleLoginDataMergeForDiagrams();
+    } else if (isLoggedIn) {
+      // 已登录用户：检查云端是否有更新（跨设备同步）
+      this.checkCloudUpdateAndSync();
+    } else {
+      // 未登录用户：只加载本地数据
+      this.loadLocalData();
+    }
+  },
+
+  /**
+   * 检查云端是否有更新并同步（跨设备同步）
+   * 使用轻量级检查，只在有更新时才拉取数据
+   */
+  async checkCloudUpdateAndSync() {
+    try {
+      const lastSyncTime = wx.getStorageSync(STORAGE_KEYS.LAST_SYNC_TIME) || 0;
+      const localDiagramCount = wx.getStorageSync(STORAGE_KEYS.SYNCED_DIAGRAM_COUNT);
+      console.log('[Home] checkUpdate - 本地 lastSyncTime:', lastSyncTime, new Date(lastSyncTime).toISOString());
+      console.log('[Home] checkUpdate - 本地 syncedDiagramCount:', localDiagramCount);
+
+      // 如果 SYNCED_DIAGRAM_COUNT 未初始化（旧版本升级或首次使用），强制全量同步
+      // 否则删除检测无法通过数量对比发现跨设备删除
+      if (localDiagramCount === '' || localDiagramCount === undefined || localDiagramCount === null) {
+        console.log('[Home] SYNCED_DIAGRAM_COUNT 未初始化，强制全量同步');
+        await this.syncDiagramDataFromCloud();
+        return;
+      }
+
+      // 调用云函数检查是否有更新
+      const res = await wx.cloud.callFunction({
+        name: 'syncDiagramData',
+        data: {
+          action: 'checkUpdate',
+          lastSyncTime,
+          localDiagramCount
+        }
+      }) as any;
+
+      console.log('[Home] checkUpdate - 云端返回:', JSON.stringify(res.result));
+
+      if (res.result && res.result.success) {
+        const { hasUpdate, cloudUpdateTime } = res.result.data;
+        console.log('[Home] checkUpdate - cloudUpdateTime:', cloudUpdateTime, new Date(cloudUpdateTime).toISOString());
+        console.log('[Home] checkUpdate - 比较结果: cloudUpdateTime > lastSyncTime =', cloudUpdateTime > lastSyncTime);
+
+        if (hasUpdate) {
+          console.log('[Home] 云端有更新，开始同步数据...');
+          await this.syncDiagramDataFromCloud();
+        } else {
+          console.log('[Home] 云端无更新，使用本地数据');
+          this.loadLocalData();
+        }
+      } else {
+        // 检查失败时，降级使用本地数据
+        console.log('[Home] checkUpdate - 返回失败，使用本地数据');
+        this.loadLocalData();
+      }
+    } catch (error) {
+      console.error('[Home] 检查云端更新失败:', error);
+      this.loadLocalData();
+    }
+  },
+
+  /**
+   * 从云端同步图解数据（跨设备同步）
+   * 合并云端和本地数据，保留本地独有的未同步图解
+   */
+  async syncDiagramDataFromCloud() {
+    try {
+      // 调用云函数获取云端数据
+      const res = await wx.cloud.callFunction({
+        name: 'syncDiagramData',
+        data: { action: 'sync' }
+      }) as any;
+
+      if (!res.result || !res.result.success) {
+        console.error('[Home] 同步失败:', res.result?.error);
+        this.loadLocalData();
+        return;
+      }
+
+      const cloudDiagrams = res.result.data.diagrams || [];
+      const cloudUpdateTime = res.result.data.cloudUpdateTime || 0;
+      console.log('[Home] 云端图解数量:', cloudDiagrams.length);
+
+      // 获取本地图解
+      const localImageList = wx.getStorageSync('imageList') || [];
+      const localFileList = wx.getStorageSync('fileList') || [];
+      const allLocalDiagrams = [...localImageList, ...localFileList];
+
+      // 合并：云端数据优先，但保留本地已有的 paths 和 cover
+      const mergedItems = cloudDiagrams.map(cloudItem => {
+        const localItem = allLocalDiagrams.find(local => local.id === cloudItem.id);
+
+        console.log('[Home] 合并图解:', cloudItem.name, 'id:', cloudItem.id);
+        console.log('[Home] 云端 images:', cloudItem.images?.map(id => id?.split('/').pop()));
+        console.log('[Home] 本地 paths:', localItem?.paths?.map(p => p?.split('/').pop()));
+        console.log('[Home] 本地 cloudImages:', localItem?.cloudImages?.map(id => id?.split('/').pop()));
+
+        if (localItem && localItem.paths && localItem.paths.length > 0) {
+          const localCloudImages = localItem.cloudImages || [];
+          const cloudImages = cloudItem.images || [];
+
+          // 用云端顺序重排本地 paths（关键：保持图片顺序同步）
+          let reorderedPaths: string[] = [];
+          let reorderedCloudImages: string[] = [];
+
+          if (cloudImages.length > 0 && localCloudImages.length > 0 && localItem.paths.length > 0) {
+            // 构建映射：cloudId -> localPath
+            const cloudIdToLocalPath: Record<string, string> = {};
+            for (let i = 0; i < localCloudImages.length && i < localItem.paths.length; i++) {
+              if (localCloudImages[i] && localItem.paths[i]) {
+                cloudIdToLocalPath[localCloudImages[i]] = localItem.paths[i];
+              }
+            }
+
+            // 按云端顺序提取本地路径
+            // 注意：云端新图片（本地无映射）会返回空字符串，需要标记下载
+            const missingCloudIds: string[] = [];
+            reorderedPaths = cloudImages
+              .map(cloudId => {
+                const localPath = cloudIdToLocalPath[cloudId];
+                if (!localPath && cloudId) {
+                  missingCloudIds.push(cloudId);
+                  console.log('[Home] 发现新图片需要下载:', cloudId.split('/').pop());
+                }
+                return localPath || '';
+              });
+
+            // 同步云端顺序
+            reorderedCloudImages = cloudImages;
+
+            console.log('[Home] 合并后 paths:', reorderedPaths.map(p => p.split('/').pop()));
+            console.log('[Home] 需要下载的新图片数:', missingCloudIds.length);
+
+            // 删除本地多余的图片文件（云端已删除的）
+            const deletedCloudIds = localCloudImages.filter(id => id && !cloudImages.includes(id));
+            if (deletedCloudIds.length > 0) {
+              console.log('[Home] 需删除的本地图片:', deletedCloudIds.map(id => id.split('/').pop()));
+              deletedCloudIds.forEach(cloudId => {
+                const localPath = cloudIdToLocalPath[cloudId];
+                if (localPath) {
+                  wx.removeSavedFile({
+                    filePath: localPath,
+                    success: () => console.log('删除多余图片:', localPath),
+                    fail: (err) => console.warn('删除图片失败:', localPath, err)
+                  });
+                }
+              });
+            }
+
+            // 如果有新图片需要下载，标记该图解需要同步
+            if (missingCloudIds.length > 0) {
+              console.log('[Home] 图解', cloudItem.name, '有', missingCloudIds.length, '张新图片需要下载');
+            }
+          } else if (cloudImages.length > 0) {
+            // 本地没有 cloudImages 映射，无法重排，清空 paths 等待详情页下载
+            console.log('[Home] 本地无 cloudImages 映射，需要下载所有图片');
+            reorderedPaths = [];
+            reorderedCloudImages = cloudImages;
+          } else {
+            // 云端也没有图片，保留本地
+            reorderedPaths = localItem.paths;
+            reorderedCloudImages = localCloudImages;
+          }
+
+          return {
+            id: cloudItem.id,
+            name: cloudItem.name,
+            originalName: cloudItem.originalName,
+            path: reorderedPaths.find(p => p) || '',
+            paths: reorderedPaths,
+            type: cloudItem.type,
+            createTime: cloudItem.createTime,
+            lastAccessTime: localItem.lastAccessTime || cloudItem.lastAccessTime || cloudItem.createTime,
+            cover: localItem.cloudCover !== cloudItem.cover ? '' : (localItem.cover || ''),
+            size: cloudItem.size,
+            syncStatus: 'synced',
+            cloudId: cloudItem._id,
+            cloudImages: reorderedCloudImages,
+            cloudCover: cloudItem.cover,
+            needsCoverDownload: localItem.cloudCover !== cloudItem.cover
+          };
+        }
+        // 本地没有该图解或没有 paths，使用云端数据（使用临时 URL）
+        const tempCoverUrl = '';  // 将在 fetchCloudDiagrams 中处理
+        return {
+          id: cloudItem.id,
+          name: cloudItem.name,
+          originalName: cloudItem.originalName,
+          path: tempCoverUrl,
+          paths: [],
+          type: cloudItem.type,
+          createTime: cloudItem.createTime,
+          lastAccessTime: cloudItem.lastAccessTime || cloudItem.createTime,
+          cover: tempCoverUrl,
+          size: cloudItem.size,
+          syncStatus: 'synced',
+          cloudId: cloudItem._id,
+          cloudImages: cloudItem.images || [],
+          cloudCover: cloudItem.cover,
+          needsCoverDownload: true  // 需要下载封面
+        };
+      });
+
+      // 添加本地独有的未同步图解
+      const localOnlyDiagrams = allLocalDiagrams.filter(
+        local => !cloudDiagrams.find(cloud => cloud.id === local.id) && local.syncStatus === 'local'
+      );
+      mergedItems.push(...localOnlyDiagrams);
+
+      // 排序
+      sortItems(mergedItems);
+
+      // 获取临时 URL 用于显示封面（只处理需要下载的项）
+      const coverFileIds = mergedItems
+        .filter(item => item.needsCoverDownload && item.cloudCover)
+        .map(item => item.cloudCover);
+
+      let tempUrlMap: Record<string, string> = {};
+      if (coverFileIds.length > 0) {
+        try {
+          const tempUrlRes = await wx.cloud.getTempFileURL({ fileList: coverFileIds });
+          tempUrlRes.fileList?.forEach((item: any) => {
+            if (item.tempFileURL) {
+              tempUrlMap[item.fileID] = item.tempFileURL;
+            }
+          });
+        } catch (e) {
+          console.error('[Home] 获取临时 URL 失败:', e);
+        }
+      }
+
+      // 更新封面 URL
+      mergedItems.forEach(item => {
+        if (item.cloudCover && !item.cover) {
+          item.cover = tempUrlMap[item.cloudCover] || '';
+        }
+      });
+
+      // 更新列表
+      const finalImageList = mergedItems.filter(i => i.type === 'image');
+      const finalFileList = mergedItems.filter(i => i.type === 'pdf');
+
+      this.setData({
+        isLoggedIn: true,
+        imageList: finalImageList,
+        fileList: finalFileList,
+        allItems: mergedItems
+      });
+
+      // 保存到本地存储
+      wx.setStorageSync('imageList', finalImageList);
+      wx.setStorageSync('fileList', finalFileList);
+
+      // 恢复云端计数器和备忘录数据到本地 Storage（跨设备同步关键）
+      const countersStorage = wx.getStorageSync('simpleCounters') || {};
+      const memosStorage = wx.getStorageSync('itemMemos') || {};
+      cloudDiagrams.forEach((cloudItem: any) => {
+        // 恢复计数器数据（如果云端有数据且本地没有，或云端数据更新）
+        if (cloudItem.counterData && cloudItem.counterData.count !== undefined) {
+          const localCount = countersStorage[cloudItem.id];
+          const cloudUpdateTime = cloudItem.counterData.updatedAt ? new Date(cloudItem.counterData.updatedAt).getTime() : 0;
+          // 本地无数据，或云端更新时间更晚，使用云端数据
+          if (localCount === undefined || cloudUpdateTime > 0) {
+            countersStorage[cloudItem.id] = cloudItem.counterData.count;
+          }
+        }
+        // 恢复备忘录数据（如果云端有数据且本地没有，或云端数据更新）
+        if (cloudItem.memoContent) {
+          const localMemo = memosStorage[cloudItem.id];
+          const cloudMemoUpdateTime = cloudItem.updatedAt ? new Date(cloudItem.updatedAt).getTime() : 0;
+          // 本地无数据，或云端更新时间更晚，使用云端数据
+          if (!localMemo || cloudMemoUpdateTime > 0) {
+            memosStorage[cloudItem.id] = cloudItem.memoContent;
+          }
+        }
+      });
+      wx.setStorageSync('simpleCounters', countersStorage);
+      wx.setStorageSync('itemMemos', memosStorage);
+      console.log('[Home] 已恢复云端计数器和备忘录数据');
+
+      // 更新同步时间戳和云端数量
+      wx.setStorageSync(STORAGE_KEYS.LAST_SYNC_TIME, cloudUpdateTime);
+      wx.setStorageSync(STORAGE_KEYS.SYNCED_DIAGRAM_COUNT, cloudDiagrams.length);
+      console.log('[Home] 同步完成，更新时间戳:', cloudUpdateTime, '云端数量:', cloudDiagrams.length);
+
+      // 异步下载封面到本地
+      this.downloadCloudCovers(mergedItems);
+
+      // 检查是否需要显示同步 Tips
+      this.checkSyncTips(mergedItems);
+    } catch (error) {
+      console.error('[Home] 同步图解数据失败:', error);
+      this.loadLocalData();
+    }
+  },
+
+  /**
+   * 检查是否需要显示同步 Tips
+   */
+  checkSyncTips(allItems: FileItem[]) {
+    const hasShownSyncTips = wx.getStorageSync('has_shown_sync_tips');
+    const firstLocalItem = allItems.find(item => item.syncStatus === 'local');
+    const showSyncTips = this.data.isLoggedIn && firstLocalItem && !hasShownSyncTips;
+
+    this.setData({
+      showSyncTips,
+      firstLocalItemId: firstLocalItem?.id || ''
+    });
   },
 
   /**
@@ -1098,7 +1461,11 @@ Page({
       wx.setStorageSync('imageList', finalImageList);
       wx.setStorageSync('fileList', finalFileList);
 
-      // 8. 异步下载云端图解的封面到本地（不影响首屏加载）
+      // 8. 更新同步时间戳和云端数量（跨设备同步）
+      wx.setStorageSync(STORAGE_KEYS.LAST_SYNC_TIME, Date.now());
+      wx.setStorageSync(STORAGE_KEYS.SYNCED_DIAGRAM_COUNT, cloudDiagrams.length);
+
+      // 9. 异步下载云端图解的封面到本地（不影响首屏加载）
       this.downloadCloudCovers(mergedItems);
     } catch (error) {
       console.error('[Home] 合并图解数据失败:', error);
@@ -1107,20 +1474,18 @@ Page({
 
   /**
    * 异步下载云端图解的封面到本地
-   * 下载完成后更新 Storage 和页面数据
+   * 优化：使用路径更新语法，避免全量 setData 触发二次渲染
    * @param diagrams 图解列表
    */
   async downloadCloudCovers(diagrams: FileItem[]) {
-    // 只处理云端图解（syncStatus='synced' 且有 cloudCover）
-    const cloudDiagrams = diagrams.filter(d => d.syncStatus === 'synced' && d.cloudCover);
+    // 只处理需要下载封面的项（标记了 needsCoverDownload 或无本地封面）
+    const needDownload = diagrams.filter(d =>
+      d.syncStatus === 'synced' &&
+      d.cloudCover &&
+      !isLocalCoverPath(d.cover)  // 非本地路径
+    );
 
-    for (const diagram of cloudDiagrams) {
-      // 检查是否已有本地封面（本地路径以 wxfile:// 开头）
-      if (diagram.cover && diagram.cover.startsWith('wxfile://')) {
-        console.log('[Home] 封面已存在本地:', diagram.id);
-        continue;
-      }
-
+    for (const diagram of needDownload) {
       try {
         // 下载封面到本地
         const localCoverPath = await this.downloadCloudImage(diagram.cloudCover!);
@@ -1146,42 +1511,16 @@ Page({
         wx.setStorageSync('imageList', updatedImageList);
         wx.setStorageSync('fileList', updatedFileList);
 
-        // 更新页面数据（如果还在当前页面）
-        const allItems = this.data.allItems.map(item => {
-          if (item.id === diagram.id) {
-            return { ...item, cover: localCoverPath };
-          }
-          return item;
-        });
-
-        this.setData({
-          imageList: updatedImageList,
-          fileList: updatedFileList,
-          allItems
-        });
+        // 使用路径更新，只更新这一个封面，避免全量 setData
+        const index = this.data.allItems.findIndex(item => item.id === diagram.id);
+        if (index >= 0) {
+          this.setData({
+            [`allItems[${index}].cover`]: localCoverPath
+          });
+        }
       } catch (error) {
         console.error('[Home] 下载封面失败:', diagram.id, error);
       }
-    }
-  },
-
-  /**
-   * 已登录用户重新打开小程序时，检查云端图解封面是否需要下载到本地
-   * 封面使用临时 URL（http/https 开头）的图解需要下载
-   */
-  checkAndDownloadCloudCovers() {
-    const cloudDiagrams = this.data.allItems.filter(
-      item => item.syncStatus === 'synced' && item.cloudCover
-    );
-
-    // 检查是否有封面是临时 URL（http/https 开头，不是本地路径）
-    const needsDownload = cloudDiagrams.filter(
-      item => item.cover && (item.cover.startsWith('http://') || item.cover.startsWith('https://'))
-    );
-
-    if (needsDownload.length > 0) {
-      console.log('[Home] 发现需要下载封面的云端图解:', needsDownload.length);
-      this.downloadCloudCovers(needsDownload);
     }
   },
 
@@ -1197,9 +1536,19 @@ Page({
    * 页面相关事件处理函数--监听用户下拉动作
    */
   onPullDownRefresh() {
-    // 刷新数据
-    this.loadLocalData();
-    wx.stopPullDownRefresh();
+    const userInfo = wx.getStorageSync('userInfo');
+    const isLoggedIn = userInfo && userInfo.isLoggedIn;
+
+    if (isLoggedIn) {
+      // 已登录用户：刷新时触发云端同步
+      this.checkCloudUpdateAndSync().then(() => {
+        wx.stopPullDownRefresh();
+      });
+    } else {
+      // 未登录用户：只刷新本地数据
+      this.loadLocalData();
+      wx.stopPullDownRefresh();
+    }
   },
 
   /**
@@ -1247,6 +1596,19 @@ Page({
     // 更新 Storage
     wx.setStorageSync('imageList', imageList);
     wx.setStorageSync('fileList', fileList);
+
+    // 同步 lastAccessTime 到云端（异步，不阻塞导航）
+    const currentItem = this.data.allItems.find(item => item.id === id);
+    if (this.data.isLoggedIn && currentItem?.syncStatus === 'synced') {
+      wx.cloud.callFunction({
+        name: 'syncDiagramData',
+        data: {
+          action: 'updateInfo',
+          diagramId: id,
+          lastAccessTime: now
+        }
+      }).catch(err => console.warn('[Home] 同步 lastAccessTime 失败:', err));
+    }
 
     wx.navigateTo({
       url: `/pages/detail/detail?id=${id}`
@@ -1332,22 +1694,22 @@ Page({
     }
 
     try {
-      // 上传到云端，获取云端记录ID
-      const cloudId = await this.uploadDiagramToCloud(item);
+      // 上传到云端，获取云端记录ID和cloudImages
+      const uploadResult = await this.uploadDiagramToCloud(item);
 
       // 不删除本地文件，保留供用户继续使用
       // 退出登录时会清理已同步的本地文件
 
-      // 更新本地项的 syncStatus 为 synced，保留原有 paths
+      // 更新本地项的 syncStatus 为 synced，保留原有 paths，保存 cloudImages
       const updatedImageList = this.data.imageList.map(i => {
         if (i.id === itemId) {
-          return { ...i, syncStatus: 'synced', cloudId };
+          return { ...i, syncStatus: 'synced', cloudId: uploadResult?.cloudId, cloudImages: uploadResult?.cloudImages };
         }
         return i;
       });
       const updatedFileList = this.data.fileList.map(i => {
         if (i.id === itemId) {
-          return { ...i, syncStatus: 'synced', cloudId };
+          return { ...i, syncStatus: 'synced', cloudId: uploadResult?.cloudId, cloudImages: uploadResult?.cloudImages };
         }
         return i;
       });
@@ -1368,6 +1730,11 @@ Page({
       // 更新本地存储
       wx.setStorageSync('imageList', updatedImageList);
       wx.setStorageSync('fileList', updatedFileList);
+
+      // 更新同步时间戳和数量（跨设备同步）
+      wx.setStorageSync(STORAGE_KEYS.LAST_SYNC_TIME, Date.now());
+      const prevCount = wx.getStorageSync(STORAGE_KEYS.SYNCED_DIAGRAM_COUNT);
+      wx.setStorageSync(STORAGE_KEYS.SYNCED_DIAGRAM_COUNT, (prevCount || 0) + 1);
 
       wx.showToast({ title: '已经同步完成', icon: 'success', duration: 1000 });
     } catch (error) {
