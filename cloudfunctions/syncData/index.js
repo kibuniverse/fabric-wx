@@ -13,7 +13,7 @@ exports.main = async (event, context) => {
   const wxContext = cloud.getWXContext()
   const openid = wxContext.OPENID
 
-  const { totalKnittingTime, nickName, avatarUrl, zhizhiId, zhizhiIdModified } = event
+  const { totalKnittingTime, nickName, avatarUrl, zhizhiId, zhizhiIdModified, checkOnly } = event
 
   console.log('syncData 接收参数:', { totalKnittingTime, nickName, avatarUrl, zhizhiId, zhizhiIdModified })
 
@@ -77,6 +77,27 @@ exports.main = async (event, context) => {
     })
 
     if (zhizhiId && !user.zhizhiIdModified && zhizhiId !== user.zhizhiId) {
+      // 检查知织号是否被其他用户占用
+      const existingUser = await usersCollection.where({
+        zhizhiId: zhizhiId
+      }).get()
+
+      if (existingUser.data.length > 0) {
+        console.log('知织ID已被占用:', zhizhiId)
+        return {
+          success: false,
+          error: '该知织ID已被使用'
+        }
+      }
+
+      // 如果只是检查模式，直接返回成功，不执行更新
+      if (checkOnly) {
+        return {
+          success: true,
+          data: { checkPassed: true }
+        }
+      }
+
       updateData.zhizhiId = zhizhiId
       updateData.zhizhiIdModified = true
       console.log('将更新知织ID:', zhizhiId, '(原ID:', user.zhizhiId, ')')

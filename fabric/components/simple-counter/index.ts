@@ -163,6 +163,10 @@ Component({
           id: counterId,
           count: this.data.count,
         });
+
+        // 重置图解心跳计时器（用户有操作）
+        const app = getApp<IAppOption>();
+        if (app) app.resetDiagramHeartbeat();
       } catch (error) {
         console.error("Failed to save counter value:", error);
       }

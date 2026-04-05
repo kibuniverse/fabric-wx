@@ -55,7 +55,7 @@ Page({
   onDeleteAccount() {
     wx.showModal({
       title: '请你确认是否注销账户',
-      content: '注销将删除所有线上数据，不可恢复',
+      content: '注销将删除所有云端数据，本地未同步的图解将保留',
       confirmText: '确认注销',
       cancelText: '我再想想',
       confirmColor: '#B22222',
@@ -63,7 +63,10 @@ Page({
         if (res.confirm) {
           wx.showLoading({ title: '正在注销...', mask: true });
           try {
-            // 调用云函数删除用户数据
+            // 清理已同步的本地图解数据（保留未同步数据）
+            this.cleanupSyncedDiagramsForAccountDeletion();
+
+            // 调用云函数删除用户数据（包括云端图解数据）
             const result = await wx.cloud.callFunction({
               name: 'deleteUser',
             }) as any;
@@ -107,6 +110,39 @@ Page({
         }
       }
     });
+  },
+
+  /**
+   * 注销账号时清理已同步的图解数据
+   * 保留未同步数据（syncStatus='local'），并重置其 syncStatus
+   * 因为云端数据已删除，未同步的图解不再有云端关联
+   */
+  cleanupSyncedDiagramsForAccountDeletion() {
+    const imageList = wx.getStorageSync('imageList') || [];
+    const fileList = wx.getStorageSync('fileList') || [];
+
+    // 删除已同步的本地文件
+    for (const item of imageList) {
+      if (item.syncStatus === 'synced') {
+        this.removeDiagramFiles(item);
+      }
+    }
+    for (const item of fileList) {
+      if (item.syncStatus === 'synced') {
+        this.removeDiagramFiles(item);
+      }
+    }
+
+    // 保留未同步数据，重置 syncStatus 为 'local'
+    const remainingImages = imageList
+      .filter((i: any) => i.syncStatus === 'local')
+      .map((i: any) => ({ ...i, syncStatus: 'local' }));
+    const remainingFiles = fileList
+      .filter((i: any) => i.syncStatus === 'local')
+      .map((i: any) => ({ ...i, syncStatus: 'local' }));
+
+    wx.setStorageSync('imageList', remainingImages);
+    wx.setStorageSync('fileList', remainingFiles);
   },
 
   /**
@@ -159,6 +195,9 @@ Page({
             app.stopCounterHeartbeat();
           }
 
+          // 清理已同步的图解数据（保留未同步数据）
+          this.cleanupSyncedDiagrams();
+
           // 清除登录状态
           const userInfo = wx.getStorageSync('userInfo') || {};
           userInfo.isLoggedIn = false;
@@ -182,6 +221,63 @@ Page({
         }
       }
     });
+  },
+
+  /**
+   * 退出登录时清理已同步的图解数据
+   * 保留未同步数据（syncStatus='local'）
+   */
+  cleanupSyncedDiagrams() {
+    const imageList = wx.getStorageSync('imageList') || [];
+    const fileList = wx.getStorageSync('fileList') || [];
+    const allItems = [...imageList, ...fileList];
+
+    // 遍历所有图解，删除已同步的本地文件
+    for (const item of allItems) {
+      if (item.syncStatus === 'synced') {
+        // 已同步：删除本地文件
+        this.removeDiagramFiles(item);
+      }
+      // 未同步（syncStatus='local'）：保留记录和文件
+    }
+
+    // 更新本地存储：只保留未同步数据
+    const remainingImages = imageList.filter((i: any) => i.syncStatus === 'local');
+    const remainingFiles = fileList.filter((i: any) => i.syncStatus === 'local');
+    wx.setStorageSync('imageList', remainingImages);
+    wx.setStorageSync('fileList', remainingFiles);
+  },
+
+  /**
+   * 删除图解关联的所有本地文件
+   */
+  removeDiagramFiles(item: any) {
+    // 删除图片文件
+    if (item.paths && item.paths.length > 0) {
+      item.paths.forEach((filePath: string) => {
+        wx.removeSavedFile({
+          filePath,
+          success: () => console.log('删除图片成功:', filePath),
+          fail: (err: any) => console.error('删除图片失败:', filePath, err)
+        });
+      });
+    }
+    // 删除封面文件（如果与 paths 不同）
+    if (item.cover && item.cover !== item.paths?.[0]) {
+      wx.removeSavedFile({
+        filePath: item.cover,
+        success: () => console.log('删除封面成功:', item.cover),
+        fail: (err: any) => console.error('删除封面失败:', item.cover, err)
+      });
+    }
+    // 删除 PDF 源文件
+    if (item.pdfSourcePath) {
+      wx.removeSavedFile({
+        filePath: item.pdfSourcePath,
+        success: () => console.log('删除PDF源文件成功:', item.pdfSourcePath),
+        fail: (err: any) => console.error('删除PDF源文件失败:', item.pdfSourcePath, err)
+      });
+    }
   },
 
   onShareAppMessage() {

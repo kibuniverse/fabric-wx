@@ -12,7 +12,7 @@
   position: relative;
   justify-content: center;
   align-items: center;
-  padding: 16rpx 30rpx;
+  padding: 12rpx 30rpx;
   background-color: #FFFFFF;
   justify-content: center;
 }
@@ -27,10 +27,11 @@
   line-height: 1; /* 重置行高，避免行高干扰间距 */
 }
 .tab.active text {
-  font-weight: 600; /* semibold（半粗体）对应CSS的600 */
-  font-size: 32rpx; /* 字号32rpx */
-  line-height: 44rpx; /* 行高44rpx */
-  color: #A889C8CC; /* 80%透明度A889C8 */
+  font-weight: 500;
+  font-size: 32rpx;
+  line-height: 44rpx;
+  letter-spacing: -0.43px;
+  color: #A889C8CC;
 }
 .tab-line {
   position: absolute;
@@ -122,7 +123,7 @@
   row-gap: 52rpx;
   column-gap: 48rpx;
   flex-wrap: wrap;
-  padding: 44rpx;
+  padding: 40rpx;
   padding-bottom: calc(96rpx + env(safe-area-inset-bottom) + 44rpx);
 }
 .item {
@@ -138,6 +139,13 @@
   right: 12rpx;
   width: 32rpx;
   height: 32rpx;
+  z-index: 2;
+}
+.cover-wrapper {
+  width: 100%;
+  height: 240rpx;
+  position: relative;
+  border-radius: 8rpx;
 }
 .default-illustration {
   width: 100%;
@@ -145,17 +153,28 @@
   display: block;
   border-radius: 8rpx;
 }
+.cover-border-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  border-radius: 8rpx;
+  box-shadow: inset 0 0 0 1rpx #E6E6FA;
+  z-index: 3;
+}
 .item-info {
-  height: 54rpx;
+  height: 50rpx;
   display: flex;
   justify-content: center;
   align-items: center;
   position: absolute;
-  bottom: 48rpx;
+  bottom: 0;
   background-color: var(--main-color);
   width: 100%;
   border-bottom-left-radius: 8rpx;
   border-bottom-right-radius: 8rpx;
+  z-index: 2;
 }
 .item-name {
   font-size: 26rpx;
@@ -171,7 +190,8 @@
   justify-content: space-between;
   height: 48rpx;
   align-items: center;
-  padding: 0 12rpx;
+  padding-left: 0;
+  position: relative;
 }
 .item-type {
   font-size: 20rpx;
@@ -236,20 +256,107 @@
 }
 
 /* 重复文件高亮样式 */
-.item.highlight {
-  animation: highlight-pulse 0.5s ease-in-out 3;
+.cover-border-overlay.highlight {
+  animation: highlight-pulse 1s ease-in-out 2;
 }
 
 @keyframes highlight-pulse {
   0%, 100% {
-    box-shadow: 0 0 0 0 rgba(168, 137, 200, 0);
+    box-shadow: inset 0 0 0 1rpx #E6E6FA, 0 0 2rpx 0 rgba(168, 137, 200, 0);
   }
   50% {
-    box-shadow: 0 0 0 6rpx rgba(168, 137, 200, 0.8);
+    box-shadow: inset 0 0 0 1rpx #E6E6FA, 0 0 2rpx 4rpx rgba(168, 137, 200, 0.5);
   }
 }
 
 .item-date {
   font-size: 18rpx;
   color: rgba(51, 51, 51, 0.5);
+}
+
+.sync-status-icon {
+  width: 30rpx;
+  height: 30rpx;
+}
+
+/* 同步中旋转动画 */
+.sync-loading-icon {
+  width: 30rpx;
+  height: 30rpx;
+  animation: sync-spin 1s linear infinite;
+}
+
+@keyframes sync-spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.sync-icon-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+/* 同步 Tips 提示样式 */
+.sync-tips {
+  position: absolute;
+  bottom: 40rpx;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 10;
+}
+
+.sync-tips-content {
+  background-color: #333;
+  color: #fff;
+  padding: 12rpx 16rpx;
+  border-radius: 8rpx;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 16rpx;
+  position: relative;
+  white-space: nowrap;
+}
+
+.sync-tips-text {
+  font-size: 22rpx;
+}
+
+.sync-tips-btn {
+  font-size: 22rpx;
+  color: #A889C8;
+  padding: 4rpx 12rpx;
+}
+
+/* 小箭头指向下方 */
+.sync-tips-content::after {
+  content: '';
+  position: absolute;
+  bottom: -10rpx;
+  left: 50%;
+  transform: translateX(-50%);
+  border-left: 6rpx solid transparent;
+  border-right: 6rpx solid transparent;
+  border-top: 10rpx solid #333;
+}
+
+/* 登录引导弹窗内容 */
+.login-dialog-content {
+  padding: 20rpx 0;
+  font-size: 28rpx;
+  color: #666;
+  text-align: center;
+  line-height: 1.6;
+}
+
+/* 同步按钮样式 */
+.sync-btn {
+  font-size: 20rpx;
+  color: #A889C8;
+  padding: 4rpx 12rpx;
+  background-color: #f5f1ff;
+  border-radius: 8rpx;
+  margin-left: auto;
+  margin-right: 8rpx;
 }

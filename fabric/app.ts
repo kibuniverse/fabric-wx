@@ -18,9 +18,15 @@ App<IAppOption>({
     // 计数器心跳同步相关
     lastCounterSyncTime: 0, // 上次计数器同步时间
     counterHeartbeatTimer: 0, // 心跳定时器
+    // 图解心跳同步相关
+    lastDiagramSyncTime: 0, // 上次图解同步时间
+    diagramHeartbeatTimer: 0, // 图解心跳定时器
+    activeDiagramIds: [] as string[], // 当前打开的图解ID列表
     // 账号状态相关
     accountInvalidatedShown: false, // 账号失效弹窗是否已显示（防止重复弹窗）
     needRefreshMePage: false, // 是否需要刷新"我的"页面（账号失效后跳转时使用）
+    // 图解预加载数据（登录时预加载，首页直接使用）
+    preloadedDiagrams: [] as any[], // 预加载的图解数据
   },
 
   onLaunch() {
@@ -52,6 +58,98 @@ App<IAppOption>({
     }
   },
 
+  /**
+   * 预加载图解数据（登录时调用，加速首页显示）
+   * 获取云端图解列表并缓存到 globalData
+   */
+  async preloadDiagrams(): Promise<void> {
+    const userInfo = wx.getStorageSync('userInfo');
+    if (!userInfo || !userInfo.isLoggedIn) {
+      return;
+    }
+
+    try {
+      // 1. 调用云函数获取图解列表
+      const res = await wx.cloud.callFunction({
+        name: 'syncDiagramData',
+        data: { action: 'download' }
+      }) as any;
+
+      if (!res.result?.success || !res.result?.data?.diagrams) {
+        return;
+      }
+
+      const cloudDiagrams = res.result.data.diagrams;
+      if (cloudDiagrams.length === 0) {
+        return;
+      }
+
+      // 2. 批量获取所有封面的临时 URL
+      const coverFileIds = cloudDiagrams
+        .filter((item: any) => item.cover)
+        .map((item: any) => item.cover);
+
+      let tempUrlMap: Record<string, string> = {};
+      if (coverFileIds.length > 0) {
+        try {
+          const tempUrlRes = await wx.cloud.getTempFileURL({ fileList: coverFileIds });
+          tempUrlRes.fileList?.forEach((item: any) => {
+            if (item.tempFileURL) {
+              tempUrlMap[item.fileID] = item.tempFileURL;
+            }
+          });
+        } catch (e) {
+          console.error('[App] 获取临时 URL 失败:', e);
+        }
+      }
+
+      // 3. 构建预加载数据
+      this.globalData.preloadedDiagrams = cloudDiagrams.map((cloudItem: any) => {
+        const tempCoverUrl = tempUrlMap[cloudItem.cover] || '';
+        return {
+          id: cloudItem.id,
+          name: cloudItem.name,
+          originalName: cloudItem.originalName,
+          path: tempCoverUrl,
+          paths: [],
+          type: cloudItem.type,
+          createTime: cloudItem.createTime,
+          cover: tempCoverUrl,
+          size: cloudItem.size,  // 文件大小，用于去重
+          syncStatus: 'synced',
+          cloudId: cloudItem._id,
+          cloudImages: cloudItem.images || [],
+          cloudCover: cloudItem.cover
+        };
+      });
+
+      // 4. 恢复计数器和备忘录数据到本地 Storage
+      const countersStorage = wx.getStorageSync('simpleCounters') || {};
+      const memosStorage = wx.getStorageSync('itemMemos') || {};
+      cloudDiagrams.forEach((cloudItem: any) => {
+        // 恢复计数器数据（如果云端有数据且本地没有）
+        if (cloudItem.counterData && cloudItem.counterData.count !== undefined) {
+          if (countersStorage[cloudItem.id] === undefined) {
+            countersStorage[cloudItem.id] = cloudItem.counterData.count;
+          }
+        }
+        // 恢复备忘录数据（如果云端有数据且本地没有）
+        if (cloudItem.memoContent) {
+          if (memosStorage[cloudItem.id] === undefined) {
+            memosStorage[cloudItem.id] = cloudItem.memoContent;
+          }
+        }
+      });
+      wx.setStorageSync('simpleCounters', countersStorage);
+      wx.setStorageSync('itemMemos', memosStorage);
+      console.log('[App] 已恢复云端计数器和备忘录数据');
+
+      console.log('[App] 预加载图解完成:', this.globalData.preloadedDiagrams.length);
+    } catch (error) {
+      console.error('[App] 预加载图解失败:', error);
+    }
+  },
+
   // ========== 账号状态管理 ==========
 
   /**
@@ -74,6 +172,9 @@ App<IAppOption>({
     wx.removeStorageSync('total_zhizhi_time');
     this.globalData.totalKnittingTime = 0;
     this.resetLocalCountersToDefault();
+
+    // 清除首页云端图解数据（保留未同步的本地图解）
+    this.cleanupSyncedDiagramsForAccountInvalidation();
 
     // 清除本地头像存储
     const localAvatarPath = wx.getStorageSync('local_avatar_path');
@@ -304,13 +405,14 @@ App<IAppOption>({
   /**
    * 将本地数据同步到云端
    * @param elapsedMs 要累加的时长（毫秒）
+   * @returns 同步结果，包含 success 和可能的 error 信息
    */
-  async syncToCloud(elapsedMs: number = 0): Promise<boolean> {
-    if (this.globalData.isSyncing) return false
+  async syncToCloud(elapsedMs: number = 0): Promise<{ success: boolean; error?: string }> {
+    if (this.globalData.isSyncing) return { success: false }
 
     // 检查是否已登录
     const userInfo = wx.getStorageSync('userInfo')
-    if (!userInfo || !userInfo.isLoggedIn) return false
+    if (!userInfo || !userInfo.isLoggedIn) return { success: false }
 
     this.globalData.isSyncing = true
 
@@ -331,7 +433,7 @@ App<IAppOption>({
       // 检查账号是否失效（在其他设备被注销）
       if (res.result && !res.result.success && this.isAccountInvalidated(res.result)) {
         this.handleAccountInvalidated();
-        return false;
+        return { success: false };
       }
 
       if (res.result && res.result.success) {
@@ -346,13 +448,15 @@ App<IAppOption>({
             wx.setStorageSync('total_zhizhi_time', cloudTime)
           }
         }
-        return true
+        return { success: true }
       }
-      return false
+
+      // 返回云函数的错误信息
+      return { success: false, error: res.result?.error }
     } catch (error) {
       this.globalData.isSyncing = false
       console.error('同步数据到云端失败:', error)
-      return false
+      return { success: false }
     }
   },
 
@@ -705,15 +809,86 @@ App<IAppOption>({
   },
 
   /**
+   * 账号失效时清理已同步的图解数据
+   * 保留未同步数据（syncStatus='local'），删除已同步数据
+   * 因为云端数据已删除，已同步的图解无法再打开
+   */
+  cleanupSyncedDiagramsForAccountInvalidation() {
+    const imageList = wx.getStorageSync('imageList') || [];
+    const fileList = wx.getStorageSync('fileList') || [];
+
+    // 删除已同步的本地文件
+    for (const item of imageList) {
+      if (item.syncStatus === 'synced') {
+        this.removeDiagramFiles(item);
+      }
+    }
+    for (const item of fileList) {
+      if (item.syncStatus === 'synced') {
+        this.removeDiagramFiles(item);
+      }
+    }
+
+    // 保留未同步数据
+    const remainingImages = imageList.filter((i: any) => i.syncStatus === 'local');
+    const remainingFiles = fileList.filter((i: any) => i.syncStatus === 'local');
+
+    wx.setStorageSync('imageList', remainingImages);
+    wx.setStorageSync('fileList', remainingFiles);
+  },
+
+  /**
+   * 删除图解关联的所有本地文件
+   */
+  removeDiagramFiles(item: any) {
+    // 删除图片文件
+    if (item.paths && item.paths.length > 0) {
+      item.paths.forEach((filePath: string) => {
+        wx.removeSavedFile({
+          filePath,
+          success: () => console.log('删除图片成功:', filePath),
+          fail: (err: any) => console.error('删除图片失败:', filePath, err)
+        });
+      });
+    }
+    // 删除封面文件（如果与 paths 不同）
+    if (item.cover && item.cover !== item.paths?.[0]) {
+      wx.removeSavedFile({
+        filePath: item.cover,
+        success: () => console.log('删除封面成功:', item.cover),
+        fail: (err: any) => console.error('删除封面失败:', item.cover, err)
+      });
+    }
+    // 删除 PDF 源文件
+    if (item.pdfSourcePath) {
+      wx.removeSavedFile({
+        filePath: item.pdfSourcePath,
+        success: () => console.log('删除PDF源文件成功:', item.pdfSourcePath),
+        fail: (err: any) => console.error('删除PDF源文件失败:', item.pdfSourcePath, err)
+      });
+    }
+  },
+
+  /**
    * 检测是否需要执行计数器迁移
    * 迁移是一次性操作，迁移后设置标记，不再重复执行
+   *
+   * 排除场景：只有 local_default_counter 的情况
+   * - 注销账号后重新登录：counter_keys 只有 local_default_counter，不应触发迁移
+   * - 退出登录后重新登录：counter_migrated 标记存在，不会触发迁移
    */
   isOldUserMigration(): boolean {
     // 已迁移过，不再执行
     if (wx.getStorageSync('counter_migrated')) return false;
 
     const keys = wx.getStorageSync('counter_keys') || [];
-    // 有计数器数据就需要迁移（无论是老用户升级还是新用户退出登录后的情况）
+
+    // 只有 local_default_counter，不触发迁移（可能是注销后的新状态）
+    if (keys.length === 1 && keys[0] === 'local_default_counter') {
+      return false;
+    }
+
+    // 有计数器数据（且不是只有 local_default_counter）需要迁移
     // 迁移后设置标记，下次不再执行
     return keys.length > 0;
   },
@@ -924,5 +1099,121 @@ App<IAppOption>({
 
     // 清除本地临时计数器
     wx.removeStorageSync('local_default_counter');
+  },
+
+  // ========== 图解心跳同步 ==========
+
+  /**
+   * 启动图解心跳同步
+   */
+  startDiagramHeartbeat() {
+    this.stopDiagramHeartbeat();
+    this.globalData.lastDiagramSyncTime = Date.now();
+
+    this.globalData.diagramHeartbeatTimer = setInterval(() => {
+      const now = Date.now();
+      const elapsed = now - this.globalData.lastDiagramSyncTime;
+
+      if (elapsed >= HEARTBEAT_SYNC_INTERVAL) {
+        this.syncDiagramCounterData();
+      }
+    }, 60000) as unknown as number; // 每分钟检查一次
+  },
+
+  /**
+   * 停止图解心跳同步
+   */
+  stopDiagramHeartbeat() {
+    if (this.globalData.diagramHeartbeatTimer) {
+      clearInterval(this.globalData.diagramHeartbeatTimer);
+      this.globalData.diagramHeartbeatTimer = 0;
+    }
+  },
+
+  /**
+   * 重置图解心跳计时器（用户有操作时调用）
+   */
+  resetDiagramHeartbeat() {
+    this.globalData.lastDiagramSyncTime = Date.now();
+  },
+
+  /**
+   * 强制同步图解数据到云端（等待当前同步完成后再执行）
+   * 用于确保用户离开页面时数据不会丢失
+   * @param diagramId 图解ID，不传则同步所有活跃图解
+   */
+  async forceSyncDiagramCounterData(diagramId?: string): Promise<boolean> {
+    // 检查是否已登录
+    const userInfo = wx.getStorageSync('userInfo');
+    if (!userInfo || !userInfo.isLoggedIn) {
+      return false;
+    }
+
+    // 等待当前同步完成（最多等待5秒）
+    const maxWaitTime = 5000;
+    const startTime = Date.now();
+    while (this.globalData.isSyncing && (Date.now() - startTime) < maxWaitTime) {
+      await new Promise(resolve => setTimeout(resolve, 100));
+    }
+
+    // 执行同步
+    return this.syncDiagramCounterData(diagramId);
+  },
+
+  /**
+   * 同步图解的计数器和备忘录数据
+   * @param diagramId 图解ID，不传则同步所有活跃图解
+   */
+  async syncDiagramCounterData(diagramId?: string): Promise<boolean> {
+    // 检查是否已登录
+    const userInfo = wx.getStorageSync('userInfo');
+    if (!userInfo || !userInfo.isLoggedIn) {
+      return false;
+    }
+
+    if (this.globalData.isSyncing) {
+      return false;
+    }
+    this.globalData.isSyncing = true;
+
+    try {
+      // 获取要同步的图解ID列表
+      const diagramIds = diagramId ? [diagramId] : this.globalData.activeDiagramIds || [];
+
+      if (diagramIds.length === 0) {
+        this.globalData.isSyncing = false;
+        return true;
+      }
+
+      const countersStorage = wx.getStorageSync('simpleCounters') || {};
+      const memosStorage = wx.getStorageSync('itemMemos') || {};
+
+      for (const id of diagramIds) {
+        const counterData = {
+          count: countersStorage[id] || 0,
+          updatedAt: Date.now()
+        };
+        const memoContent = memosStorage[id] || '';
+
+        await wx.cloud.callFunction({
+          name: 'syncDiagramData',
+          data: {
+            action: 'updateInfo',
+            diagramId: id,
+            counterData,
+            memoContent
+          }
+        });
+      }
+
+      this.globalData.isSyncing = false;
+      this.globalData.lastDiagramSyncTime = Date.now();
+      console.log('[Diagram] 同步图解计数器数据成功');
+      return true;
+    } catch (error) {
+      this.globalData.isSyncing = false;
+      console.error('[Diagram] 同步图解计数器数据失败:', error);
+      return false;
+    }
   },
 })

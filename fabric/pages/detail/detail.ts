@@ -1,5 +1,5 @@
 // pages/detail/detail.ts
-import { convertPdfToImages, showLoading, hideLoading } from '../../utils/pdf_converter';
+import { convertPdfToImages, continuePdfConversion, showLoading, hideLoading } from '../../utils/pdf_converter';
 
 // 备忘录存储键
 const MEMO_STORAGE_KEY = "itemMemos";
@@ -53,6 +53,7 @@ interface DetailPageData {
   swiperEnabled: boolean;    // 是否允许 swiper 滑动
   // PDF转换状态
   isConverting: boolean;     // 是否正在转换PDF
+  isPageHidden: boolean;     // 页面是否已隐藏（用户返回）
 }
 
 // 缩放范围常量
@@ -66,7 +67,7 @@ const DOUBLE_TAP_THRESHOLD = 300;
 // 通用的提示配置
 const DETAIL_TOAST_CONFIG = {
   icon: "none" as const,
-  duration: 1500,
+  duration: 1000,
 };
 
 Page<DetailPageData, WechatMiniprogram.IAnyObject>({
@@ -103,6 +104,7 @@ Page<DetailPageData, WechatMiniprogram.IAnyObject>({
     isAnimating: false,
     swiperEnabled: true,
     isConverting: false,
+    isPageHidden: false,
   },
 
   onLoad(options: Record<string, string>) {
@@ -135,10 +137,50 @@ Page<DetailPageData, WechatMiniprogram.IAnyObject>({
 
     if (item) {
       console.log('item', item)
+
+      // 兜底逻辑：已同步图解但本地文件不存在，或云端有新图片需要下载
+      if (item.syncStatus === 'synced') {
+        const paths = item.paths || [];
+        const cloudImages = item.cloudImages || [];
+        const hasValidPaths = paths.length > 0 && this.checkLocalFilesExist(paths);
+
+        // 检查是否有新图片需要下载（云端图片数 > 本地图片数）
+        const hasNewImages = cloudImages.length > paths.filter(p => p).length;
+        console.log('[Detail] 检查图片同步状态:', {
+          name: item.name,
+          localPaths: paths.length,
+          cloudImages: cloudImages.length,
+          hasValidPaths,
+          hasNewImages
+        });
+
+        if (!hasValidPaths || hasNewImages) {
+          // 检查是否有云端图片数据
+          if (cloudImages.length > 0) {
+            console.log('[Detail] 开始下载云端图片...');
+            await this.downloadCloudDiagramImages(item);
+            return;
+          } else {
+            // 没有云端图片数据，显示错误
+            this.showToast('图解数据丢失');
+            setTimeout(() => wx.navigateBack(), 1500);
+            return;
+          }
+        }
+      }
+
       // 检查是否为PDF且尚未转换
       if (item.type === 'pdf' && (!item.paths || item.paths.length === 0)) {
         // 需要进行PDF转换
         await this.convertPdfItem(item);
+        return;
+      }
+
+      // 检查是否为部分加载的PDF（有云端文件ID且图片数量少于总数）
+      if (item.type === 'pdf' && item.cloudFileId && item.totalPdfPageCount &&
+          item.paths && item.paths.length < item.totalPdfPageCount) {
+        // 继续加载缺失的页面
+        await this.continueConvertPdfItem(item);
         return;
       }
 
@@ -148,7 +190,8 @@ Page<DetailPageData, WechatMiniprogram.IAnyObject>({
       let newIndex = 0;
       if (preserveIndex) {
         newIndex = Math.min(this.data.currentImageIndex, totalImages - 1);
-      } else if (item.type === 'image') {
+      } else {
+        // 恢复上次浏览的页码（图片和PDF都支持）
         const storage = wx.getStorageSync(LAST_IMAGE_INDEX_KEY) || {};
         const savedIndex = storage[id];
         if (savedIndex !== undefined && savedIndex < totalImages) {
@@ -186,16 +229,182 @@ Page<DetailPageData, WechatMiniprogram.IAnyObject>({
     const { id, path, name } = item;
 
     this.setData({ isConverting: true });
-    showLoading('正在转换PDF...');
+    showLoading('首次加载较慢，请等等我');
 
     try {
       // 转换PDF为图片
       const result = await convertPdfToImages(path, id, (progress) => {
-        wx.showLoading({
-          title: `转换中 ${progress.current}/${progress.total}`,
-          mask: true
-        });
+        // 仅在页面可见时更新
+        if (!this.data.isPageHidden) {
+          // 第一页下载完成后立即显示图片，让用户能边加载边看
+          if (progress.current === 1) {
+            this.setData({
+              itemType: 'pdf',
+              itemName: name,
+              itemPath: progress.paths[0],
+              itemPaths: progress.paths,
+              currentImageIndex: 0,
+              totalImages: progress.total,
+              scale: 1,
+              translateX: 0,
+              translateY: 0,
+              swiperEnabled: true,
+              imageSizes: {},
+            });
+            wx.setNavigationBarTitle({ title: name });
+            this.loadMemoContent();
+          }
+
+          // 继续显示进度（用户已能看到第一页内容）
+          wx.showLoading({
+            title: `加载中 ${progress.current}/${progress.total}`,
+            mask: true
+          });
+        }
       });
+
+      hideLoading();
+
+      // 检测是否为部分成功（部分页面下载失败）
+      const isPartialSuccess = result.isPartialSuccess || result.paths.length < result.totalPageCount;
+
+      // 只有完全成功才删除云端 PDF
+      // 部分成功时保留云端文件，下次进入可以继续下载
+      if (!isPartialSuccess) {
+        wx.cloud.deleteFile({
+          fileList: [result.cloudFileId],
+          success: () => console.log('云端PDF已清理:', result.cloudFileId),
+          fail: (err) => console.error('云端PDF清理失败:', err)
+        });
+      }
+
+      // 更新fileList中的项目
+      const fileList = wx.getStorageSync('fileList') || [];
+      const DEFAULT_COVER = '/assets/default_Illustration.png';
+      const updatedFileList = fileList.map((file: any) => {
+        if (file.id === id) {
+          // 判断是否使用默认封面（cover为空或等于默认路径）
+          const isDefaultCover = !file.cover || file.cover === DEFAULT_COVER;
+          return {
+            ...file,
+            paths: result.paths,
+            path: result.paths[0], // 兼容旧数据
+            pdfPageCount: result.pageCount, // 实际下载成功的页数
+            totalPdfPageCount: result.totalPageCount, // PDF真实总页数（用于检测部分加载）
+            // 如果是默认封面，则将首图设置为封面
+            cover: isDefaultCover ? result.paths[0] : file.cover,
+            // 部分成功时保留 cloudFileId，下次可以继续下载
+            cloudFileId: isPartialSuccess ? result.cloudFileId : undefined,
+          };
+        }
+        return file;
+      });
+
+      wx.setStorageSync('fileList', updatedFileList);
+
+      // 仅在页面可见时更新UI和显示提示
+      if (!this.data.isPageHidden) {
+        // 显示转换后的图片
+        const itemPaths = result.paths;
+        const totalImages = itemPaths.length;
+
+        this.setData({
+          itemType: 'pdf',
+          itemName: name,
+          itemPath: itemPaths[0],
+          itemPaths,
+          currentImageIndex: 0,
+          totalImages,
+          scale: 1,
+          translateX: 0,
+          translateY: 0,
+          swiperEnabled: true,
+          imageSizes: {},
+          isConverting: false,
+        });
+
+        wx.setNavigationBarTitle({ title: name });
+        this.loadMemoContent();
+
+        // 根据加载结果显示不同的提示
+        if (isPartialSuccess) {
+          this.showToast(`已加载 ${result.pageCount}/${result.totalPageCount} 页，网络恢复后重新进入可继续加载`);
+        } else {
+          this.showToast(`完成啦！共有${result.pageCount}页`);
+        }
+      } else {
+        // 页面已隐藏，仅更新转换状态
+        this.setData({ isConverting: false });
+      }
+    } catch (err: any) {
+      hideLoading();
+      console.error('PDF转换失败:', err);
+      this.setData({ isConverting: false });
+      // 仅在页面可见时提示错误并返回
+      if (!this.data.isPageHidden) {
+        // 显示具体的错误信息
+        const errorMsg = err?.message || '加载失败，稍后再试一下吧';
+        this.showToast(errorMsg);
+        setTimeout(() => wx.navigateBack(), 1500);
+      }
+    }
+  },
+
+  /**
+   * 继续加载部分转换的PDF
+   */
+  async continueConvertPdfItem(item: any) {
+    const { id, name, cloudFileId, paths, totalPdfPageCount } = item;
+
+    this.setData({ isConverting: true });
+
+    // 先显示已有的图片
+    const itemPaths = paths;
+    const totalImages = itemPaths.length;
+    this.setData({
+      itemType: 'pdf',
+      itemName: name,
+      itemPath: itemPaths[0],
+      itemPaths,
+      currentImageIndex: 0,
+      totalImages,
+      scale: 1,
+      translateX: 0,
+      translateY: 0,
+      swiperEnabled: true,
+      imageSizes: {},
+    });
+    wx.setNavigationBarTitle({ title: name });
+    this.loadMemoContent();
+
+    wx.showLoading({
+      title: `继续加载 ${paths.length}/${totalPdfPageCount}`,
+      mask: true
+    });
+
+    try {
+      // 继续下载缺失的页面
+      const result = await continuePdfConversion(
+        cloudFileId,
+        paths,
+        totalPdfPageCount,
+        id,
+        (progress) => {
+          // 仅在页面可见时更新进度和图片
+          if (!this.data.isPageHidden) {
+            // 每下载一页后更新图片列表
+            this.setData({
+              itemPaths: progress.paths,
+              totalImages: progress.paths.length,
+            });
+
+            wx.showLoading({
+              title: `加载中 ${progress.current}/${progress.total}`,
+              mask: true
+            });
+          }
+        }
+      );
 
       hideLoading();
 
@@ -206,8 +415,11 @@ Page<DetailPageData, WechatMiniprogram.IAnyObject>({
           return {
             ...file,
             paths: result.paths,
-            path: result.paths[0], // 兼容旧数据
-            pdfPageCount: result.pageCount
+            path: result.paths[0],
+            pdfPageCount: result.pageCount,
+            // 如果全部加载完成，清除 cloudFileId 和 totalPdfPageCount
+            cloudFileId: result.isComplete ? undefined : cloudFileId,
+            totalPdfPageCount: result.isComplete ? undefined : totalPdfPageCount,
           };
         }
         return file;
@@ -215,35 +427,76 @@ Page<DetailPageData, WechatMiniprogram.IAnyObject>({
 
       wx.setStorageSync('fileList', updatedFileList);
 
-      // 显示转换后的图片
-      const itemPaths = result.paths;
-      const totalImages = itemPaths.length;
+      // 如果全部加载完成，删除云端 PDF
+      if (result.isComplete) {
+        wx.cloud.deleteFile({
+          fileList: [cloudFileId],
+          success: () => console.log('云端PDF已清理:', cloudFileId),
+          fail: (err) => console.error('云端PDF清理失败:', err)
+        });
+      }
 
-      this.setData({
-        itemType: 'pdf',
-        itemName: name,
-        itemPath: itemPaths[0],
-        itemPaths,
-        currentImageIndex: 0,
-        totalImages,
-        scale: 1,
-        translateX: 0,
-        translateY: 0,
-        swiperEnabled: true,
-        imageSizes: {},
-        isConverting: false,
-      });
+      // 仅在页面可见时更新UI和显示提示
+      if (!this.data.isPageHidden) {
+        const itemPaths = result.paths;
+        const totalImages = itemPaths.length;
 
-      wx.setNavigationBarTitle({ title: name });
-      this.loadMemoContent();
+        this.setData({
+          itemType: 'pdf',
+          itemName: name,
+          itemPath: itemPaths[0],
+          itemPaths,
+          currentImageIndex: 0,
+          totalImages,
+          scale: 1,
+          translateX: 0,
+          translateY: 0,
+          swiperEnabled: true,
+          imageSizes: {},
+          isConverting: false,
+        });
 
-      this.showToast(`已转换${result.pageCount}页`);
-    } catch (err) {
+        wx.setNavigationBarTitle({ title: name });
+        this.loadMemoContent();
+
+        if (result.isComplete) {
+          this.showToast(`完成啦！共有${result.pageCount}页`);
+        } else {
+          this.showToast(`已加载 ${result.pageCount}/${totalPdfPageCount} 页`);
+        }
+      } else {
+        this.setData({ isConverting: false });
+      }
+    } catch (err: any) {
       hideLoading();
-      console.error('PDF转换失败:', err);
+      console.error('继续加载PDF失败:', err);
       this.setData({ isConverting: false });
-      this.showToast('PDF转换失败，请稍后重试');
-      setTimeout(() => wx.navigateBack(), 1500);
+      if (!this.data.isPageHidden) {
+        // 加载失败时，显示已有的图片
+        const itemPaths = paths;
+        const totalImages = itemPaths.length;
+
+        this.setData({
+          itemType: 'pdf',
+          itemName: name,
+          itemPath: itemPaths[0],
+          itemPaths,
+          currentImageIndex: 0,
+          totalImages,
+          scale: 1,
+          translateX: 0,
+          translateY: 0,
+          swiperEnabled: true,
+          imageSizes: {},
+        });
+
+        wx.setNavigationBarTitle({ title: name });
+        this.loadMemoContent();
+
+        // 显示具体的错误信息
+        const errorMsg = err?.message || '网络异常，加载中断';
+        this.showToast(errorMsg);
+      }
     }
   },
 
@@ -694,6 +947,9 @@ Page<DetailPageData, WechatMiniprogram.IAnyObject>({
   },
 
   onShow() {
+    // 标记页面可见
+    this.setData({ isPageHidden: false });
+
     if (this.data.itemId) {
       this.loadItemDetail(this.data.itemId, true);
     }
@@ -706,30 +962,71 @@ Page<DetailPageData, WechatMiniprogram.IAnyObject>({
         console.error('[Detail] 同步云端数据失败:', err)
       })
       app.startKnittingSession();
+
+      // 已登录时启动图解心跳同步
+      const userInfo = wx.getStorageSync('userInfo');
+      if (userInfo && userInfo.isLoggedIn && this.data.itemId) {
+        app.globalData.activeDiagramIds = [this.data.itemId];
+        app.startDiagramHeartbeat();
+      }
     }
   },
 
   onHide() {
+    // 标记页面已隐藏
+    this.setData({ isPageHidden: true });
+
+    // 如果正在转换PDF，隐藏loading但让转换继续在后台执行
+    if (this.data.isConverting) {
+      hideLoading();
+    }
+
     this.saveLastImageIndex();
     // 暂停针织总时长计时
     const app = getApp<IAppOption>();
     if (app) {
       app.pauseKnittingSession(true);
+      // 停止心跳并同步图解数据
+      app.stopDiagramHeartbeat();
+      const userInfo = wx.getStorageSync('userInfo');
+      if (userInfo && userInfo.isLoggedIn && this.data.itemId) {
+        app.forceSyncDiagramCounterData(this.data.itemId).catch(err => {
+          console.error('[Detail] 同步图解数据失败:', err);
+        });
+      }
+      app.globalData.activeDiagramIds = [];
     }
   },
 
   onUnload() {
+    // 标记页面已隐藏
+    this.setData({ isPageHidden: true });
+
+    // 如果正在转换PDF，隐藏loading但让转换继续在后台执行
+    if (this.data.isConverting) {
+      hideLoading();
+    }
+
     this.saveLastImageIndex();
     // 暂停针织总时长计时
     const app = getApp<IAppOption>();
     if (app) {
       app.pauseKnittingSession(true);
+      // 停止心跳并同步图解数据
+      app.stopDiagramHeartbeat();
+      const userInfo = wx.getStorageSync('userInfo');
+      if (userInfo && userInfo.isLoggedIn && this.data.itemId) {
+        app.forceSyncDiagramCounterData(this.data.itemId).catch(err => {
+          console.error('[Detail] 同步图解数据失败:', err);
+        });
+      }
+      app.globalData.activeDiagramIds = [];
     }
   },
 
   saveLastImageIndex() {
-    const { itemId, currentImageIndex, itemType } = this.data;
-    if (!itemId || itemType !== 'image') return;
+    const { itemId, currentImageIndex } = this.data;
+    if (!itemId) return;
     const storage = wx.getStorageSync(LAST_IMAGE_INDEX_KEY) || {};
     storage[itemId] = currentImageIndex;
     wx.setStorageSync(LAST_IMAGE_INDEX_KEY, storage);
@@ -763,6 +1060,10 @@ Page<DetailPageData, WechatMiniprogram.IAnyObject>({
     const memos = wx.getStorageSync(MEMO_STORAGE_KEY) || {};
     memos[itemId] = content;
     wx.setStorageSync(MEMO_STORAGE_KEY, memos);
+
+    // 重置心跳计时器（用户有操作）
+    const app = getApp<IAppOption>();
+    if (app) app.resetDiagramHeartbeat();
   },
 
   onShareAppMessage() {
@@ -771,5 +1072,167 @@ Page<DetailPageData, WechatMiniprogram.IAnyObject>({
       path: '/pages/home/home',
       imageUrl: '/assets/share.png'
     }
+  },
+
+  /**
+   * 检查本地文件是否存在
+   * @param paths 文件路径数组
+   * @returns 是否所有文件都存在
+   */
+  checkLocalFilesExist(paths: string[]): boolean {
+    if (!paths || paths.length === 0) {
+      return false;
+    }
+    const fs = wx.getFileSystemManager();
+    try {
+      // 检查第一个文件是否存在（如果第一个存在，通常其他也存在）
+      fs.accessSync(paths[0]);
+      return true;
+    } catch {
+      console.log('本地文件不存在:', paths[0]);
+      return false;
+    }
+  },
+
+  /**
+   * 从云端下载图解图片（兜底逻辑）
+   * 当本地文件不存在时，从云端下载到本地
+   * 优先使用传入的 cloudImages 字段，避免重复调用云函数
+   */
+  async downloadCloudDiagramImages(item: any) {
+    const { id, name, cloudImages } = item;
+
+    this.setData({ isConverting: true });
+    wx.showLoading({ title: '加载中...', mask: true });
+
+    try {
+      // 1. 获取云端图片ID列表
+      let cloudImageIds: string[] = [];
+
+      if (cloudImages && cloudImages.length > 0) {
+        // 优先使用传入的 cloudImages 字段
+        cloudImageIds = cloudImages;
+      } else {
+        // 兜底：调用云函数获取数据
+        const res = await wx.cloud.callFunction({
+          name: 'syncDiagramData',
+          data: { action: 'download' }
+        }) as any;
+
+        if (!res.result?.success) {
+          throw new Error('获取云端数据失败');
+        }
+
+        const cloudItem = res.result.data.diagrams.find((d: any) => d.id === id);
+        if (!cloudItem || !cloudItem.images || cloudItem.images.length === 0) {
+          throw new Error('图解数据不存在');
+        }
+        cloudImageIds = cloudItem.images;
+      }
+
+      // 2. 构建本地已有图片的映射（cloudId -> localPath）
+      const existingPaths = item.paths || [];
+      const existingCloudImages = item.cloudImages || [];
+      const cloudIdToLocalPath: Record<string, string> = {};
+
+      console.log('[Detail] 本地已有图片:', existingPaths.length, '云端图片:', cloudImageIds.length);
+
+      // 建立映射：只映射本地存在的图片
+      const fs = wx.getFileSystemManager();
+      for (let i = 0; i < existingCloudImages.length && i < existingPaths.length; i++) {
+        if (existingCloudImages[i] && existingPaths[i]) {
+          try {
+            fs.accessSync(existingPaths[i]);
+            cloudIdToLocalPath[existingCloudImages[i]] = existingPaths[i];
+          } catch {
+            // 本地文件不存在，忽略
+          }
+        }
+      }
+
+      // 3. 按云端顺序生成本地路径，只下载缺失的
+      const localPaths: string[] = [];
+      for (let i = 0; i < cloudImageIds.length; i++) {
+        const cloudImageId = cloudImageIds[i];
+        const existingLocalPath = cloudIdToLocalPath[cloudImageId];
+
+        if (existingLocalPath) {
+          // 本地已有，直接使用
+          localPaths.push(existingLocalPath);
+          console.log('[Detail] 使用已有图片:', i + 1, cloudImageId.split('/').pop());
+        } else {
+          // 需要下载
+          wx.showLoading({ title: `下载中 ${i + 1}/${cloudImageIds.length}`, mask: true });
+          console.log('[Detail] 下载新图片:', i + 1, cloudImageId.split('/').pop());
+          const localPath = await this.downloadCloudImage(cloudImageId);
+          localPaths.push(localPath);
+        }
+      }
+
+      wx.hideLoading();
+
+      // 3. 更新本地存储（关键：同时保存 cloudImages 保持顺序对应）
+      const imageList = wx.getStorageSync('imageList') || [];
+      const fileList = wx.getStorageSync('fileList') || [];
+      const updatedImageList = imageList.map((img: any) => {
+        if (img.id === id) {
+          return { ...img, paths: localPaths, path: localPaths[0], cloudImages: cloudImageIds };
+        }
+        return img;
+      });
+      const updatedFileList = fileList.map((file: any) => {
+        if (file.id === id) {
+          return { ...file, paths: localPaths, path: localPaths[0], cloudImages: cloudImageIds };
+        }
+        return file;
+      });
+      wx.setStorageSync('imageList', updatedImageList);
+      wx.setStorageSync('fileList', updatedFileList);
+
+      // 4. 显示图片
+      this.setData({
+        itemType: item.type,
+        itemName: name,
+        itemPath: localPaths[0],
+        itemPaths: localPaths,
+        currentImageIndex: 0,
+        totalImages: localPaths.length,
+        scale: 1,
+        translateX: 0,
+        translateY: 0,
+        swiperEnabled: true,
+        imageSizes: {},
+        isConverting: false,
+      });
+
+      wx.setNavigationBarTitle({ title: name });
+      this.loadMemoContent();
+
+    } catch (err: any) {
+      wx.hideLoading();
+      console.error('下载云端图片失败:', err);
+      this.setData({ isConverting: false });
+      this.showToast(err?.message || '加载失败');
+      setTimeout(() => wx.navigateBack(), 1500);
+    }
+  },
+
+  /**
+   * 下载云存储图片到本地
+   */
+  async downloadCloudImage(fileId: string): Promise<string> {
+    return new Promise((resolve, reject) => {
+      wx.cloud.downloadFile({
+        fileID: fileId,
+        success: (res) => {
+          wx.saveFile({
+            tempFilePath: res.tempFilePath,
+            success: (saveRes) => resolve(saveRes.savedFilePath),
+            fail: reject
+          });
+        },
+        fail: reject
+      });
+    });
   },
 });

@@ -396,6 +396,10 @@ Page({
           app.globalData.totalKnittingTime = totalTime;
           // 重置账号失效标志（用户重新登录）
           app.globalData.accountInvalidatedShown = false;
+          // 预加载图解数据（加速首页显示）
+          app.preloadDiagrams().catch(err => {
+            console.error('[Me] 预加载图解失败:', err);
+          });
           // 处理计数器数据合并
           await app.handleLoginDataMerge();
         }
@@ -523,6 +527,10 @@ Page({
           app.globalData.totalKnittingTime = totalTime;
           // 重置账号失效标志（用户重新登录）
           app.globalData.accountInvalidatedShown = false;
+          // 预加载图解数据（加速首页显示）
+          app.preloadDiagrams().catch(err => {
+            console.error('[Me] 预加载图解失败:', err);
+          });
           // 处理计数器数据合并（新用户可能本地有默认计数器的修改）
           await app.handleLoginDataMerge();
         }

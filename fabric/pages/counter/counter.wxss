@@ -2,13 +2,18 @@
 page {
   background-color: #ffffff;
   height: 100vh;
-  --tab-font-size: 16px;
+  overflow: hidden;
+  /* 覆盖 Vant tabs 默认尺寸，使用 rpx 确保所有设备响应式一致 */
+  --tab-font-size: 32rpx;
+  --tabs-line-height: 88rpx;
+  --tabs-bottom-bar-height: 6rpx;
 }
 
 .page-container {
   display: flex;
   flex-direction: column;
   height: 100%;
+  overflow: hidden;
 }
 
 .title-container {
@@ -62,6 +67,7 @@ page {
 
 .tab-container {
   height: calc(100% - 140rpx);
+  overflow: hidden;
 }
 
 .nav-class {
@@ -179,8 +185,8 @@ page {
 /* 微信小程序 scroll-view 隐藏滚动条 */
 scroll-view {
   -webkit-overflow-scrolling: touch;
-  scrollbar-width: none;
-  -ms-overflow-style: none;
+  scrollbar-width: none !important;
+  -ms-overflow-style: none !important;
 }
 
 scroll-view::-webkit-scrollbar {
@@ -194,11 +200,13 @@ scroll-view::-webkit-scrollbar {
   z-index: 0 !important;
 }
 
+/* Indicator 上边缘距离 tab 文案下边缘 8dp (16rpx) */
 .van-tabs__line {
   bottom: -16rpx !important;
+  height: var(--tabs-bottom-bar-height, 6rpx) !important;
 }
 
-/* 让 counter 内容区域上移，使边框线紧贴 indicator 下边缘 */
+/* 分割线距离 indicator 底部 1dp (2rpx) */
 .van-tabs__content {
   margin-top: -33rpx;
 }

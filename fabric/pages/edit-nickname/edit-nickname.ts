@@ -57,8 +57,8 @@ Page({
       // 同步到云端
       const app = getApp<IAppOption>();
       if (app) {
-        const syncSuccess = await app.syncToCloud(0);
-        if (!syncSuccess) {
+        const syncResult = await app.syncToCloud(0);
+        if (!syncResult.success) {
           // 云端同步失败，回滚本地存储
           userInfo.nickName = oldNickName;
           wx.setStorageSync('userInfo', userInfo);

@@ -1,4 +1,5 @@
 // pages/edit/edit.ts
+export {}
 
 // 最大图片数量
 const MAX_IMAGES = 15;
@@ -12,6 +13,11 @@ const MOVE_THRESHOLD = 10;
 // 提示条存储键
 const TIP_DISMISSED_KEY = "editTipDismissed";
 
+// 同步时间戳存储键（与 home.ts 保持一致）
+const STORAGE_KEYS = {
+  LAST_SYNC_TIME: "lastDiagramSyncTime",
+};
+
 // 通用的提示配置
 const TOAST_CONFIG = {
   icon: "none" as const,
@@ -24,6 +30,11 @@ interface EditPageData {
   images: string[];           // 图片路径数组
   originalImages: string[];   // 原始图片路径（用于检测修改）
   hasChanges: boolean;        // 是否有未保存修改
+
+  // 云端同步相关
+  syncStatus: 'local' | 'synced' | '';  // 同步状态
+  cloudImages: string[];                 // 云端图片 fileID 数组
+  originalCloudImages: string[];         // 原始云端图片（用于检测变化）
 
   // 拖动相关
   isDragging: boolean;        // 是否处于拖动状态
@@ -67,6 +78,11 @@ Page<EditPageData, WechatMiniprogram.IAnyObject>({
     images: [],
     originalImages: [],
     hasChanges: false,
+
+    // 云端同步相关
+    syncStatus: '',
+    cloudImages: [],
+    originalCloudImages: [],
 
     isDragging: false,
     dragIndex: -1,
@@ -161,10 +177,16 @@ Page<EditPageData, WechatMiniprogram.IAnyObject>({
 
     if (item) {
       const itemPaths = item.paths || [item.path];
+      const cloudImages = item.cloudImages || [];
+      const syncStatus = item.syncStatus || 'local';
+
       this.setData({
         itemName: item.name,
         images: [...itemPaths],
         originalImages: [...itemPaths],
+        cloudImages: [...cloudImages],
+        originalCloudImages: [...cloudImages],
+        syncStatus,
       });
     } else {
       this.showToast("未找到图解");
@@ -232,7 +254,7 @@ Page<EditPageData, WechatMiniprogram.IAnyObject>({
     // 已在拖动状态，更新位置
     if (this.data.isDragging) {
       // 阻止页面滚动
-      e.preventDefault && e.preventDefault();
+      (e as any).preventDefault && (e as any).preventDefault();
       this.updateDragPosition(touch);
     }
   },
@@ -302,8 +324,8 @@ Page<EditPageData, WechatMiniprogram.IAnyObject>({
   /**
    * 更新拖动位置（实时重排）
    */
-  updateDragPosition(touch: WechatMiniprogram.Touch) {
-    const { windowWidth, deleteZoneTop, images, dragIndex, gridItemWidth, gridItemHeight, navBarHeight } = this.data;
+  updateDragPosition(touch: WechatMiniprogram.Touch & { clientX: number; clientY: number }) {
+    const { deleteZoneTop, images, dragIndex, gridItemWidth, gridItemHeight } = this.data;
 
     // 更新浮层位置
     const dragX = touch.clientX - gridItemWidth / 2;
@@ -348,7 +370,7 @@ Page<EditPageData, WechatMiniprogram.IAnyObject>({
    * 计算目标索引
    */
   calculateTargetIndex(clientX: number, clientY: number): number {
-    const { windowWidth, images, navBarHeight, gridItemWidth, gridItemHeight, gridPaddingTop, deleteZoneTop } = this.data;
+    const { windowWidth, images, gridItemWidth, gridPaddingTop, deleteZoneTop } = this.data;
 
     // 如果已进入或接近删除区域，不进行重排计算
     if (clientY >= deleteZoneTop - 50) {
@@ -387,7 +409,7 @@ Page<EditPageData, WechatMiniprogram.IAnyObject>({
    * 结束拖动
    */
   endDrag() {
-    const { deleteZoneActive, dragIndex, images } = this.data;
+    const { deleteZoneActive, dragIndex } = this.data;
 
     // 如果在删除区域释放
     if (deleteZoneActive) {
@@ -487,29 +509,159 @@ Page<EditPageData, WechatMiniprogram.IAnyObject>({
   /**
    * 保存修改
    */
-  onSave() {
-    const { itemId, images } = this.data;
+  async onSave() {
+    const { itemId, images, syncStatus, originalImages, originalCloudImages } = this.data;
+
+    console.log('[edit onSave] 开始保存', {
+      itemId,
+      syncStatus,
+      imagesCount: images.length,
+      originalImagesCount: originalImages.length,
+      originalCloudImagesCount: originalCloudImages.length,
+    });
 
     if (images.length === 0) {
       this.showToast("至少保留一张图片");
       return;
     }
 
-    // 更新本地存储
+    wx.showLoading({ title: '保存中...' });
+
+    // 1. 更新本地存储
     const imageList = wx.getStorageSync("imageList") || [];
     const index = imageList.findIndex((item: any) => item.id === itemId);
+
+    // 判断封面是否为自动设置（等于原来的某张图片），用于决定是否跟随首图更新
+    const isAutoCover = index !== -1 && (!imageList[index].cover || originalImages.includes(imageList[index].cover));
 
     if (index !== -1) {
       imageList[index].paths = images;
       imageList[index].path = images[0]; // 兼容旧版本
+      // 自动封面跟随新的首图
+      if (isAutoCover) {
+        imageList[index].cover = images[0];
+      }
       wx.setStorageSync("imageList", imageList);
+      console.log('[edit onSave] 本地存储已更新');
     }
 
-    this.showToast("保存成功");
+    // 2. 如果已同步到云端，进行云端同步
+    console.log('[edit onSave] 检查是否需要云端同步:', { syncStatus, index });
+    if (syncStatus === 'synced' && index !== -1) {
+      console.log('[edit onSave] 进入云端同步流程');
+      try {
+        // 构建本地路径 → 云端ID 的映射表
+        const localToCloud = new Map<string, string>();
+        for (let i = 0; i < originalImages.length; i++) {
+          if (originalCloudImages[i]) {
+            localToCloud.set(originalImages[i], originalCloudImages[i]);
+          }
+        }
+        console.log('[edit onSave] 映射表构建完成:', {
+          mapSize: localToCloud.size,
+          mappings: Array.from(localToCloud.entries()).map(([local, cloud]) => ({
+            local: local.substring(local.lastIndexOf('/') + 1),
+            cloud: cloud.substring(cloud.lastIndexOf('/') + 1),
+          })),
+        });
 
-    setTimeout(() => {
-      wx.navigateBack();
-    }, 500);
+        // 找出需要删除的云端图片（原序中有，现序中无）
+        const deletedCloudIds = originalCloudImages.filter((id, i) =>
+          id && !images.includes(originalImages[i])
+        );
+        console.log('[edit onSave] 需删除的云端图片:', deletedCloudIds.length);
+
+        // 删除云端图片
+        if (deletedCloudIds.length > 0) {
+          console.log('[edit onSave] 正在删除云端图片:', deletedCloudIds);
+          try {
+            await wx.cloud.deleteFile({ fileList: deletedCloudIds });
+            console.log('[edit onSave] 云端图片删除成功');
+          } catch (e) {
+            console.warn('[edit onSave] 删除云端图片失败:', e);
+          }
+        }
+
+        // 上传新增图片并更新映射
+        let newUploadCount = 0;
+        console.log('[edit onSave] 检查新增图片, images:', images.map(p => p.substring(p.lastIndexOf('/') + 1)));
+        console.log('[edit onSave] localToCloud keys:', Array.from(localToCloud.keys()).map(p => p.substring(p.lastIndexOf('/') + 1)));
+        for (const localPath of images) {
+          const isInMap = localToCloud.has(localPath);
+          console.log('[edit onSave] 检查图片:', localPath.substring(localPath.lastIndexOf('/') + 1), '是否在映射表中:', isInMap);
+          if (!isInMap) {
+            const cloudPath = `diagrams/${itemId}/${Date.now()}_${Math.random().toString(36).substr(2, 9)}.jpg`;
+            console.log('[edit onSave] 开始上传新增图片:', localPath.substring(localPath.lastIndexOf('/') + 1), '→', cloudPath);
+            try {
+              const uploadResult = await wx.cloud.uploadFile({ cloudPath, filePath: localPath });
+              console.log('[edit onSave] 上传结果:', uploadResult);
+              if (uploadResult.fileID) {
+                localToCloud.set(localPath, uploadResult.fileID);
+                newUploadCount++;
+                console.log('[edit onSave] 上传成功, fileID:', uploadResult.fileID);
+              } else {
+                console.warn('[edit onSave] 上传返回无 fileID:', uploadResult);
+              }
+            } catch (e) {
+              console.warn('[edit onSave] 上传新增图片失败:', localPath, e);
+            }
+          }
+        }
+        console.log('[edit onSave] 新上传图片数量:', newUploadCount);
+
+        // 按当前顺序生成云端图片数组
+        const finalCloudImages = images.map(p => localToCloud.get(p) || '');
+        console.log('[edit onSave] 最终云端图片数组:', {
+          length: finalCloudImages.length,
+          images: finalCloudImages.map(id => id.substring(id.lastIndexOf('/') + 1)),
+        });
+
+        // 更新本地 cloudImages
+        imageList[index].cloudImages = finalCloudImages;
+        wx.setStorageSync("imageList", imageList);
+        console.log('[edit onSave] 本地 cloudImages 已更新');
+
+        // 调用云函数更新
+        const callFunctionParams: Record<string, any> = {
+          action: 'updateInfo',
+          diagramId: itemId,
+          images: finalCloudImages,
+        };
+        // 只有自动封面才跟随首图更新，自定义封面保持不变
+        if (isAutoCover) {
+          callFunctionParams.cover = finalCloudImages[0] || '';
+        }
+        console.log('[edit onSave] 调用云函数参数:', JSON.stringify(callFunctionParams, null, 2));
+        const cloudResult = await wx.cloud.callFunction({
+          name: 'syncDiagramData',
+          data: callFunctionParams,
+        });
+        console.log('[edit onSave] 云函数返回:', JSON.stringify(cloudResult.result, null, 2));
+
+        // 使用服务器返回的时间戳，避免客户端时间与服务器时间不一致
+        const result = cloudResult.result as any;
+        if (result && result.updatedAt) {
+          wx.setStorageSync(STORAGE_KEYS.LAST_SYNC_TIME, result.updatedAt);
+          console.log('[edit onSave] 已保存服务器时间戳:', result.updatedAt);
+        } else {
+          wx.setStorageSync(STORAGE_KEYS.LAST_SYNC_TIME, Date.now());
+          console.log('[edit onSave] 云函数未返回时间戳，使用本地时间');
+        }
+        console.log('[edit onSave] 云端同步完成');
+      } catch (err) {
+        console.error('[edit onSave] 云端同步失败:', err);
+        wx.hideLoading();
+        wx.showToast({ title: '云同步失败，已保存本地', icon: 'none' });
+        setTimeout(() => wx.navigateBack(), 1500);
+        return;
+      }
+    } else {
+      console.log('[edit onSave] 未进入云端同步:', syncStatus !== 'synced' ? 'syncStatus不是synced' : 'index为-1');
+    }
+
+    wx.hideLoading();
+    this.showToast("保存成功");
+    setTimeout(() => wx.navigateBack(), 500);
   },
 
   /**
