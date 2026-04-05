@@ -1,4 +1,5 @@
 // pages/edit/edit.ts
+export {}
 
 // 最大图片数量
 const MAX_IMAGES = 15;
@@ -253,7 +254,7 @@ Page<EditPageData, WechatMiniprogram.IAnyObject>({
     // 已在拖动状态，更新位置
     if (this.data.isDragging) {
       // 阻止页面滚动
-      e.preventDefault && e.preventDefault();
+      (e as any).preventDefault && (e as any).preventDefault();
       this.updateDragPosition(touch);
     }
   },
@@ -323,8 +324,8 @@ Page<EditPageData, WechatMiniprogram.IAnyObject>({
   /**
    * 更新拖动位置（实时重排）
    */
-  updateDragPosition(touch: WechatMiniprogram.Touch) {
-    const { windowWidth, deleteZoneTop, images, dragIndex, gridItemWidth, gridItemHeight, navBarHeight } = this.data;
+  updateDragPosition(touch: WechatMiniprogram.Touch & { clientX: number; clientY: number }) {
+    const { deleteZoneTop, images, dragIndex, gridItemWidth, gridItemHeight } = this.data;
 
     // 更新浮层位置
     const dragX = touch.clientX - gridItemWidth / 2;
@@ -369,7 +370,7 @@ Page<EditPageData, WechatMiniprogram.IAnyObject>({
    * 计算目标索引
    */
   calculateTargetIndex(clientX: number, clientY: number): number {
-    const { windowWidth, images, navBarHeight, gridItemWidth, gridItemHeight, gridPaddingTop, deleteZoneTop } = this.data;
+    const { windowWidth, images, gridItemWidth, gridPaddingTop, deleteZoneTop } = this.data;
 
     // 如果已进入或接近删除区域，不进行重排计算
     if (clientY >= deleteZoneTop - 50) {
@@ -408,7 +409,7 @@ Page<EditPageData, WechatMiniprogram.IAnyObject>({
    * 结束拖动
    */
   endDrag() {
-    const { deleteZoneActive, dragIndex, images } = this.data;
+    const { deleteZoneActive, dragIndex } = this.data;
 
     // 如果在删除区域释放
     if (deleteZoneActive) {
@@ -638,9 +639,10 @@ Page<EditPageData, WechatMiniprogram.IAnyObject>({
         console.log('[edit onSave] 云函数返回:', JSON.stringify(cloudResult.result, null, 2));
 
         // 使用服务器返回的时间戳，避免客户端时间与服务器时间不一致
-        if (cloudResult.result && cloudResult.result.updatedAt) {
-          wx.setStorageSync(STORAGE_KEYS.LAST_SYNC_TIME, cloudResult.result.updatedAt);
-          console.log('[edit onSave] 已保存服务器时间戳:', cloudResult.result.updatedAt);
+        const result = cloudResult.result as any;
+        if (result && result.updatedAt) {
+          wx.setStorageSync(STORAGE_KEYS.LAST_SYNC_TIME, result.updatedAt);
+          console.log('[edit onSave] 已保存服务器时间戳:', result.updatedAt);
         } else {
           wx.setStorageSync(STORAGE_KEYS.LAST_SYNC_TIME, Date.now());
           console.log('[edit onSave] 云函数未返回时间戳，使用本地时间');

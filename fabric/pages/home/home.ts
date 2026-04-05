@@ -1,4 +1,5 @@
 // pages/home/home.ts
+export {}
 
 interface FileItem {
   id: string;
@@ -143,13 +144,13 @@ Page({
     let fileList = wx.getStorageSync('fileList') || [];
 
     // 为旧数据添加默认 syncStatus（兼容迁移）
-    imageList = imageList.map(item => ({
+    imageList = imageList.map((item: FileItem) => ({
       ...item,
-      syncStatus: item.syncStatus || 'local'  // 旧数据默认为 local
+      syncStatus: item.syncStatus || 'local' as const  // 旧数据默认为 local
     }));
-    fileList = fileList.map(item => ({
+    fileList = fileList.map((item: FileItem) => ({
       ...item,
-      syncStatus: item.syncStatus || 'local'  // 旧数据默认为 local
+      syncStatus: item.syncStatus || 'local' as const  // 旧数据默认为 local
     }));
 
     // 合并并排序
@@ -371,7 +372,7 @@ Page({
     // 已登录时，上传到云端
     if (isLoggedIn) {
       try {
-        const uploadResult = await this.uploadDiagramToCloud(newItem);
+        const uploadResult: any = await this.uploadDiagramToCloud(newItem);
         if (uploadResult) {
           newItem.cloudId = uploadResult.cloudId;
           newItem.cloudImages = uploadResult.cloudImages;  // 关键：保存云端图片 ID
@@ -415,7 +416,7 @@ Page({
    * 上传图解到云端
    * @param item 图解项目
    */
-  async uploadDiagramToCloud(item: FileItem): Promise<string | null> {
+  async uploadDiagramToCloud(item: FileItem): Promise<{ cloudId: string; cloudImages: string[] } | null> {
     try {
       // 1. 上传图片到云存储
       const cloudImages: string[] = [];
@@ -1167,13 +1168,13 @@ Page({
       const allLocalDiagrams = [...localImageList, ...localFileList];
 
       // 合并：云端数据优先，但保留本地已有的 paths 和 cover
-      const mergedItems = cloudDiagrams.map(cloudItem => {
-        const localItem = allLocalDiagrams.find(local => local.id === cloudItem.id);
+      const mergedItems = cloudDiagrams.map((cloudItem: any) => {
+        const localItem = allLocalDiagrams.find((local: any) => local.id === cloudItem.id);
 
         console.log('[Home] 合并图解:', cloudItem.name, 'id:', cloudItem.id);
-        console.log('[Home] 云端 images:', cloudItem.images?.map(id => id?.split('/').pop()));
-        console.log('[Home] 本地 paths:', localItem?.paths?.map(p => p?.split('/').pop()));
-        console.log('[Home] 本地 cloudImages:', localItem?.cloudImages?.map(id => id?.split('/').pop()));
+        console.log('[Home] 云端 images:', cloudItem.images?.map((id: any) => id?.split('/').pop()));
+        console.log('[Home] 本地 paths:', localItem?.paths?.map((p: any) => p?.split('/').pop()));
+        console.log('[Home] 本地 cloudImages:', localItem?.cloudImages?.map((id: any) => id?.split('/').pop()));
 
         if (localItem && localItem.paths && localItem.paths.length > 0) {
           const localCloudImages = localItem.cloudImages || [];
@@ -1196,7 +1197,7 @@ Page({
             // 注意：云端新图片（本地无映射）会返回空字符串，需要标记下载
             const missingCloudIds: string[] = [];
             reorderedPaths = cloudImages
-              .map(cloudId => {
+              .map((cloudId: string) => {
                 const localPath = cloudIdToLocalPath[cloudId];
                 if (!localPath && cloudId) {
                   missingCloudIds.push(cloudId);
@@ -1212,10 +1213,10 @@ Page({
             console.log('[Home] 需要下载的新图片数:', missingCloudIds.length);
 
             // 删除本地多余的图片文件（云端已删除的）
-            const deletedCloudIds = localCloudImages.filter(id => id && !cloudImages.includes(id));
+            const deletedCloudIds = localCloudImages.filter((id: string) => id && !cloudImages.includes(id));
             if (deletedCloudIds.length > 0) {
-              console.log('[Home] 需删除的本地图片:', deletedCloudIds.map(id => id.split('/').pop()));
-              deletedCloudIds.forEach(cloudId => {
+              console.log('[Home] 需删除的本地图片:', deletedCloudIds.map((id: string) => id.split('/').pop()));
+              deletedCloudIds.forEach((cloudId: string) => {
                 const localPath = cloudIdToLocalPath[cloudId];
                 if (localPath) {
                   wx.removeSavedFile({
@@ -1283,7 +1284,7 @@ Page({
 
       // 添加本地独有的未同步图解
       const localOnlyDiagrams = allLocalDiagrams.filter(
-        local => !cloudDiagrams.find(cloud => cloud.id === local.id) && local.syncStatus === 'local'
+        (local: any) => !cloudDiagrams.find((cloud: any) => cloud.id === local.id) && local.syncStatus === 'local'
       );
       mergedItems.push(...localOnlyDiagrams);
 
@@ -1292,8 +1293,8 @@ Page({
 
       // 获取临时 URL 用于显示封面（只处理需要下载的项）
       const coverFileIds = mergedItems
-        .filter(item => item.needsCoverDownload && item.cloudCover)
-        .map(item => item.cloudCover);
+        .filter((item: any) => item.needsCoverDownload && item.cloudCover)
+        .map((item: any) => item.cloudCover);
 
       let tempUrlMap: Record<string, string> = {};
       if (coverFileIds.length > 0) {
@@ -1310,15 +1311,15 @@ Page({
       }
 
       // 更新封面 URL
-      mergedItems.forEach(item => {
+      mergedItems.forEach((item: any) => {
         if (item.cloudCover && !item.cover) {
           item.cover = tempUrlMap[item.cloudCover] || '';
         }
       });
 
       // 更新列表
-      const finalImageList = mergedItems.filter(i => i.type === 'image');
-      const finalFileList = mergedItems.filter(i => i.type === 'pdf');
+      const finalImageList = mergedItems.filter((i: any) => i.type === 'image');
+      const finalFileList = mergedItems.filter((i: any) => i.type === 'pdf');
 
       this.setData({
         isLoggedIn: true,
@@ -1495,13 +1496,13 @@ Page({
         const imageList = wx.getStorageSync('imageList') || [];
         const fileList = wx.getStorageSync('fileList') || [];
 
-        const updatedImageList = imageList.map(item => {
+        const updatedImageList = imageList.map((item: FileItem) => {
           if (item.id === diagram.id) {
             return { ...item, cover: localCoverPath };
           }
           return item;
         });
-        const updatedFileList = fileList.map(item => {
+        const updatedFileList = fileList.map((item: FileItem) => {
           if (item.id === diagram.id) {
             return { ...item, cover: localCoverPath };
           }
@@ -1701,15 +1702,15 @@ Page({
       // 退出登录时会清理已同步的本地文件
 
       // 更新本地项的 syncStatus 为 synced，保留原有 paths，保存 cloudImages
-      const updatedImageList = this.data.imageList.map(i => {
+      const updatedImageList: FileItem[] = this.data.imageList.map(i => {
         if (i.id === itemId) {
-          return { ...i, syncStatus: 'synced', cloudId: uploadResult?.cloudId, cloudImages: uploadResult?.cloudImages };
+          return { ...i, syncStatus: 'synced' as const, cloudId: uploadResult?.cloudId, cloudImages: uploadResult?.cloudImages };
         }
         return i;
       });
-      const updatedFileList = this.data.fileList.map(i => {
+      const updatedFileList: FileItem[] = this.data.fileList.map(i => {
         if (i.id === itemId) {
-          return { ...i, syncStatus: 'synced', cloudId: uploadResult?.cloudId, cloudImages: uploadResult?.cloudImages };
+          return { ...i, syncStatus: 'synced' as const, cloudId: uploadResult?.cloudId, cloudImages: uploadResult?.cloudImages };
         }
         return i;
       });
@@ -1769,8 +1770,8 @@ Page({
 
         // 批量获取所有封面的临时 URL（并行，大幅提升速度）
         const coverFileIds = cloudDiagrams
-          .filter(item => item.cover)
-          .map(item => item.cover);
+          .filter((item: any) => item.cover)
+          .map((item: any) => item.cover);
 
         let tempUrlMap: Record<string, string> = {};
         if (coverFileIds.length > 0) {
@@ -1788,7 +1789,7 @@ Page({
         }
 
         // 构建图解列表
-        const diagrams: FileItem[] = cloudDiagrams.map(cloudItem => {
+        const diagrams: FileItem[] = cloudDiagrams.map((cloudItem: any) => {
           const tempCoverUrl = tempUrlMap[cloudItem.cover] || '';
           return {
             id: cloudItem.id,
@@ -1810,7 +1811,7 @@ Page({
         // 恢复计数器和备忘录数据到本地 Storage
         const countersStorage = wx.getStorageSync('simpleCounters') || {};
         const memosStorage = wx.getStorageSync('itemMemos') || {};
-        cloudDiagrams.forEach(cloudItem => {
+        cloudDiagrams.forEach((cloudItem: any) => {
           // 恢复计数器数据（如果云端有数据）
           if (cloudItem.counterData && cloudItem.counterData.count !== undefined) {
             // 只在本地没有数据时才恢复，避免覆盖本地更新
