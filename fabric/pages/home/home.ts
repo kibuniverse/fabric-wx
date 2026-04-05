@@ -22,7 +22,13 @@ interface FileItem {
   cloudImages?: string[];  // 云端图片文件ID数组（synced 时有值，用于详情页下载）
   cloudCover?: string;     // 云端封面文件ID（用于详情页下载）
   needsCoverDownload?: boolean;  // 是否需要下载封面（优化封面闪动）
+  isBuiltin?: boolean;     // 是否为内置图解
 }
+
+const WELCOME_DIAGRAM_NAME = '知织小信';
+const WELCOME_DIAGRAM_ASSET_PATH = '/assets/zhizhi_letter.png';
+const WELCOME_DIAGRAM_ID = 'builtin_welcome_diagram';
+const WELCOME_IMAGE_CACHE_KEY = 'welcome_diagram_cached_path';
 
 /**
  * 判断是否是本地封面路径
@@ -153,13 +159,17 @@ Page({
       syncStatus: item.syncStatus || 'local' as const  // 旧数据默认为 local
     }));
 
+    const ensured = this.ensureWelcomeDiagram(imageList, fileList);
+    imageList = ensured.imageList;
+    fileList = ensured.fileList;
+
     // 合并并排序
     const allItems = sortItems([...imageList, ...fileList]);
     console.log('All Items:', allItems, imageList, fileList);
 
     // 检查是否需要显示同步 Tips
     const hasShownSyncTips = wx.getStorageSync('has_shown_sync_tips');
-    const firstLocalItem = allItems.find(item => item.syncStatus === 'local');
+    const firstLocalItem = allItems.find(item => item.syncStatus === 'local' && !item.isBuiltin);
     const showSyncTips = isLoggedIn && firstLocalItem && !hasShownSyncTips;
 
     this.setData({
@@ -187,7 +197,7 @@ Page({
    */
   toggleImportOptions() {
     const isLoggedIn = this.data.isLoggedIn;
-    const localCount = this.data.allItems.length;
+    const localCount = this.data.allItems.filter(item => !item.isBuiltin).length;
 
     if (!isLoggedIn) {
       // 未登录：检查本地图解数量，超过1个则引导登录
@@ -540,7 +550,7 @@ Page({
 
         // 检查是否需要显示同步 Tips（已登录、未显示过、且有 local 项目）
         const hasShownSyncTips = wx.getStorageSync('has_shown_sync_tips');
-        const firstLocalItem = allItems.find(item => item.syncStatus === 'local');
+        const firstLocalItem = allItems.find(item => item.syncStatus === 'local' && !item.isBuiltin);
         const showSyncTips = this.data.isLoggedIn && firstLocalItem && !hasShownSyncTips;
 
         this.setData({
@@ -935,19 +945,26 @@ Page({
     const updatedImageList = this.data.imageList.filter(item => item.id !== currentItemId);
     const updatedFileList = this.data.fileList.filter(item => item.id !== currentItemId);
 
+    const ensuredLists = currentItem?.isBuiltin
+      ? this.ensureWelcomeDiagram(updatedImageList, updatedFileList)
+      : { imageList: updatedImageList, fileList: updatedFileList };
+
+    const finalImageList = ensuredLists.imageList;
+    const finalFileList = ensuredLists.fileList;
+
     // 重新计算合并列表
-    const allItems = sortItems([...updatedImageList, ...updatedFileList]);
+    const allItems = sortItems([...finalImageList, ...finalFileList]);
 
     this.setData({
-      imageList: updatedImageList,
-      fileList: updatedFileList,
+      imageList: finalImageList,
+      fileList: finalFileList,
       allItems,
       showDeleteModal: false
     });
 
     // 更新本地存储
-    wx.setStorageSync('imageList', updatedImageList);
-    wx.setStorageSync('fileList', updatedFileList);
+    wx.setStorageSync('imageList', finalImageList);
+    wx.setStorageSync('fileList', finalFileList);
 
     // 如果删除的是已同步图解，更新同步时间戳和数量
     if (currentItem && currentItem.syncStatus === 'synced') {
@@ -1318,14 +1335,19 @@ Page({
       });
 
       // 更新列表
-      const finalImageList = mergedItems.filter((i: any) => i.type === 'image');
-      const finalFileList = mergedItems.filter((i: any) => i.type === 'pdf');
+      let finalImageList = mergedItems.filter((i: any) => i.type === 'image');
+      let finalFileList = mergedItems.filter((i: any) => i.type === 'pdf');
+
+      const ensured = this.ensureWelcomeDiagram(finalImageList, finalFileList);
+      finalImageList = ensured.imageList;
+      finalFileList = ensured.fileList;
+      const finalAllItems = sortItems([...finalImageList, ...finalFileList]);
 
       this.setData({
         isLoggedIn: true,
         imageList: finalImageList,
         fileList: finalFileList,
-        allItems: mergedItems
+        allItems: finalAllItems
       });
 
       // 保存到本地存储
@@ -1365,7 +1387,7 @@ Page({
       console.log('[Home] 同步完成，更新时间戳:', cloudUpdateTime, '云端数量:', cloudDiagrams.length);
 
       // 异步下载封面到本地
-      this.downloadCloudCovers(mergedItems);
+      this.downloadCloudCovers(finalAllItems);
 
       // 检查是否需要显示同步 Tips
       this.checkSyncTips(mergedItems);
@@ -1380,7 +1402,7 @@ Page({
    */
   checkSyncTips(allItems: FileItem[]) {
     const hasShownSyncTips = wx.getStorageSync('has_shown_sync_tips');
-    const firstLocalItem = allItems.find(item => item.syncStatus === 'local');
+    const firstLocalItem = allItems.find(item => item.syncStatus === 'local' && !item.isBuiltin);
     const showSyncTips = this.data.isLoggedIn && firstLocalItem && !hasShownSyncTips;
 
     this.setData({
@@ -1447,15 +1469,20 @@ Page({
       sortItems(mergedItems);
 
       // 6. 更新列表
-      const finalImageList = mergedItems.filter(i => i.type === 'image');
-      const finalFileList = mergedItems.filter(i => i.type === 'pdf');
+      let finalImageList = mergedItems.filter(i => i.type === 'image');
+      let finalFileList = mergedItems.filter(i => i.type === 'pdf');
       console.log('[Home] 最终图片列表:', finalImageList.length);
       console.log('[Home] 最终文件列表:', finalFileList.length);
+
+      const ensured = this.ensureWelcomeDiagram(finalImageList, finalFileList);
+      finalImageList = ensured.imageList;
+      finalFileList = ensured.fileList;
+      const finalAllItems = sortItems([...finalImageList, ...finalFileList]);
 
       this.setData({
         imageList: finalImageList,
         fileList: finalFileList,
-        allItems: mergedItems
+        allItems: finalAllItems
       });
 
       // 7. 保存到本地存储
@@ -1467,7 +1494,7 @@ Page({
       wx.setStorageSync(STORAGE_KEYS.SYNCED_DIAGRAM_COUNT, cloudDiagrams.length);
 
       // 9. 异步下载云端图解的封面到本地（不影响首屏加载）
-      this.downloadCloudCovers(mergedItems);
+      this.downloadCloudCovers(finalAllItems);
     } catch (error) {
       console.error('[Home] 合并图解数据失败:', error);
     }
@@ -1522,6 +1549,77 @@ Page({
       } catch (error) {
         console.error('[Home] 下载封面失败:', diagram.id, error);
       }
+    }
+  },
+
+  getWelcomeDiagramId(): string {
+    return WELCOME_DIAGRAM_ID;
+  },
+
+  ensureWelcomeDiagram(imageList: FileItem[], fileList: FileItem[]): { imageList: FileItem[]; fileList: FileItem[] } {
+    const welcomeId = this.getWelcomeDiagramId();
+
+    let hasWelcome = false;
+    const normalizedImages = imageList.map(item => {
+      if (item.id === welcomeId) {
+        hasWelcome = true;
+        if (!item.isBuiltin || item.syncStatus !== 'local') {
+          return { ...item, isBuiltin: true, syncStatus: 'local' as const };
+        }
+      }
+      return item;
+    });
+
+    if (hasWelcome) {
+      return { imageList: normalizedImages, fileList };
+    }
+
+    const welcomePath = this.ensureWelcomeImageFile();
+    const now = Date.now();
+    const welcomeItem: FileItem = {
+      id: welcomeId,
+      name: WELCOME_DIAGRAM_NAME,
+      originalName: WELCOME_DIAGRAM_NAME,
+      path: welcomePath,
+      paths: [welcomePath],
+      type: 'image',
+      createTime: now,
+      lastAccessTime: now,
+      cover: welcomePath,
+      syncStatus: 'local',
+      isBuiltin: true,
+    };
+
+    const newImageList = [...normalizedImages, welcomeItem];
+    wx.setStorageSync('imageList', newImageList);
+    return { imageList: newImageList, fileList };
+  },
+
+  ensureWelcomeImageFile(): string {
+    const fs = wx.getFileSystemManager();
+    const cachedPath = wx.getStorageSync(WELCOME_IMAGE_CACHE_KEY);
+    if (cachedPath) {
+      try {
+        fs.accessSync(cachedPath);
+        return cachedPath;
+      } catch (err) {
+        wx.removeStorageSync(WELCOME_IMAGE_CACHE_KEY);
+      }
+    }
+
+    try {
+      const userDataPath = wx.env?.USER_DATA_PATH;
+      if (!userDataPath) {
+        return WELCOME_DIAGRAM_ASSET_PATH;
+      }
+      const targetPath = `${userDataPath}/welcome_zhizhi_letter.png`;
+      const fileData = fs.readFileSync(WELCOME_DIAGRAM_ASSET_PATH);
+      fs.writeFileSync(targetPath, fileData);
+      wx.setStorageSync(WELCOME_IMAGE_CACHE_KEY, targetPath);
+      return targetPath;
+    } catch (error) {
+      console.error('[Home] 复制内置图解失败:', error);
+      return WELCOME_DIAGRAM_ASSET_PATH;
     }
   },
 
@@ -1650,6 +1748,11 @@ Page({
   async syncDiagramToCloud(e: any) {
     const itemId = e.currentTarget.dataset.id;
     const item = this.data.allItems.find(i => i.id === itemId);
+
+    if (item?.isBuiltin) {
+      this.showToast('该图解无需同步');
+      return;
+    }
 
     if (!item || item.syncStatus !== 'local') {
       this.showToast('该图解已同步或不存在');

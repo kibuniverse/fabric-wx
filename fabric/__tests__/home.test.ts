@@ -50,6 +50,7 @@ interface FileItem {
   cloudId?: string;
   cloudImages?: string[];
   cloudCover?: string;
+  isBuiltin?: boolean;
 }
 
 // 导入排序函数（从 home.ts 提取的逻辑）
