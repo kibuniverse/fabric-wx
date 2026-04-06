@@ -29,6 +29,7 @@ const WELCOME_DIAGRAM_NAME = '知织小信';
 const WELCOME_DIAGRAM_ASSET_PATH = '/assets/zhizhi_letter.png';
 const WELCOME_DIAGRAM_ID = 'builtin_welcome_diagram';
 const WELCOME_IMAGE_CACHE_KEY = 'welcome_diagram_cached_path';
+const WELCOME_INITIALIZED_KEY = 'welcome_diagram_initialized';
 
 /**
  * 判断是否是本地封面路径
@@ -942,15 +943,8 @@ Page({
     this.cleanupItemData(currentItemId, currentItem);
 
     // 从两个列表中都尝试删除，确保数据一致
-    const updatedImageList = this.data.imageList.filter(item => item.id !== currentItemId);
-    const updatedFileList = this.data.fileList.filter(item => item.id !== currentItemId);
-
-    const ensuredLists = currentItem?.isBuiltin
-      ? this.ensureWelcomeDiagram(updatedImageList, updatedFileList)
-      : { imageList: updatedImageList, fileList: updatedFileList };
-
-    const finalImageList = ensuredLists.imageList;
-    const finalFileList = ensuredLists.fileList;
+    const finalImageList = this.data.imageList.filter(item => item.id !== currentItemId);
+    const finalFileList = this.data.fileList.filter(item => item.id !== currentItemId);
 
     // 重新计算合并列表
     const allItems = sortItems([...finalImageList, ...finalFileList]);
@@ -1335,12 +1329,9 @@ Page({
       });
 
       // 更新列表
-      let finalImageList = mergedItems.filter((i: any) => i.type === 'image');
-      let finalFileList = mergedItems.filter((i: any) => i.type === 'pdf');
+      const finalImageList = mergedItems.filter((i: any) => i.type === 'image');
+      const finalFileList = mergedItems.filter((i: any) => i.type === 'pdf');
 
-      const ensured = this.ensureWelcomeDiagram(finalImageList, finalFileList);
-      finalImageList = ensured.imageList;
-      finalFileList = ensured.fileList;
       const finalAllItems = sortItems([...finalImageList, ...finalFileList]);
 
       this.setData({
@@ -1474,9 +1465,6 @@ Page({
       console.log('[Home] 最终图片列表:', finalImageList.length);
       console.log('[Home] 最终文件列表:', finalFileList.length);
 
-      const ensured = this.ensureWelcomeDiagram(finalImageList, finalFileList);
-      finalImageList = ensured.imageList;
-      finalFileList = ensured.fileList;
       const finalAllItems = sortItems([...finalImageList, ...finalFileList]);
 
       this.setData({
@@ -1558,6 +1546,7 @@ Page({
 
   ensureWelcomeDiagram(imageList: FileItem[], fileList: FileItem[]): { imageList: FileItem[]; fileList: FileItem[] } {
     const welcomeId = this.getWelcomeDiagramId();
+    const initialized = wx.getStorageSync(WELCOME_INITIALIZED_KEY);
 
     let hasWelcome = false;
     const normalizedImages = imageList.map(item => {
@@ -1570,10 +1559,12 @@ Page({
       return item;
     });
 
-    if (hasWelcome) {
+    // 已存在或已初始化过（用户可能已删除），只做标准化，不重新创建
+    if (hasWelcome || initialized) {
       return { imageList: normalizedImages, fileList };
     }
 
+    // 首次启动：创建内置图解
     const welcomePath = this.ensureWelcomeImageFile();
     const now = Date.now();
     const welcomeItem: FileItem = {
@@ -1592,6 +1583,7 @@ Page({
 
     const newImageList = [...normalizedImages, welcomeItem];
     wx.setStorageSync('imageList', newImageList);
+    wx.setStorageSync(WELCOME_INITIALIZED_KEY, true);
     return { imageList: newImageList, fileList };
   },
 
