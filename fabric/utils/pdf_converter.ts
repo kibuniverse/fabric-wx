@@ -33,7 +33,7 @@ export function uploadPdfToCloud(localPath: string, fileId: string): Promise<str
 /**
  * 获取PDF预览图片URL
  * @param fileID 云文件ID
- * @param page 页码（从0开始）
+ * @param page 页码（从1开始）
  * @returns 预览图片URL
  */
 export function getPdfPreviewUrl(fileID: string, page: number): string {
@@ -171,22 +171,22 @@ export async function continuePdfConversion(
   });
 
   const imagePaths = [...existingPaths]; // 复制已有的图片
-  const startIndex = existingPaths.length; // 从缺失的页面开始下载
+  const startIndex = existingPaths.length + 1; // API 页码从1开始，跳过已下载的页面
 
-  for (let i = startIndex; i < totalPageCount; i++) {
+  for (let i = startIndex; i <= totalPageCount; i++) {
     const previewUrl = `${tempFileURL}&ci-process=doc-preview&dstType=jpg&page=${i}`;
 
     try {
       const localImagePath = await downloadImage(previewUrl);
       imagePaths.push(localImagePath);
-      console.log(`下载第${i + 1}/${totalPageCount}页成功`, previewUrl);
+      console.log(`下载第${i}/${totalPageCount}页成功`, previewUrl);
 
       // 调用进度回调，传入当前已下载的路径数组
       if (onProgress) {
-        onProgress({ current: i + 1, total: totalPageCount, paths: imagePaths });
+        onProgress({ current: i, total: totalPageCount, paths: imagePaths });
       }
     } catch (err) {
-      console.error(`下载第${i + 1}页失败:`, err);
+      console.error(`下载第${i}页失败:`, err);
       // 继续尝试下载下一页
     }
   }
@@ -239,20 +239,20 @@ export async function convertPdfToImages(
   console.log(`开始下载${pageCount}页图片...`, tempFileURL);
   const imagePaths: string[] = [];
 
-  for (let i = 0; i < pageCount; i++) {
+  for (let i = 1; i <= pageCount; i++) {
     const previewUrl = `${tempFileURL}&ci-process=doc-preview&dstType=jpg&page=${i}`;
 
     try {
       const localImagePath = await downloadImage(previewUrl);
       imagePaths.push(localImagePath);
-      console.log(`下载第${i + 1}/${pageCount}页成功`, previewUrl);
+      console.log(`下载第${i}/${pageCount}页成功`, previewUrl);
 
       // 调用进度回调，传入当前已下载的路径数组
       if (onProgress) {
-        onProgress({ current: i + 1, total: pageCount, paths: imagePaths });
+        onProgress({ current: i, total: pageCount, paths: imagePaths });
       }
     } catch (err) {
-      console.error(`下载第${i + 1}页失败:`, err);
+      console.error(`下载第${i}页失败:`, err);
       // 继续尝试下载下一页
     }
   }
