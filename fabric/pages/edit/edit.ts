@@ -449,16 +449,35 @@ Page<EditPageData, WechatMiniprogram.IAnyObject>({
       mediaType: ["image"],
       sourceType: ["album", "camera"],
       sizeType: ["original", "compressed"],
-      success: (res) => {
-        const newPaths = res.tempFiles.map((file) => file.tempFilePath);
-        const updatedImages = [...images, ...newPaths];
+      success: async (res) => {
+        const tempPaths = res.tempFiles.map((file) => file.tempFilePath);
 
+        wx.showLoading({ title: '保存中...', mask: true });
+        const savedPaths: string[] = [];
+        for (const tempPath of tempPaths) {
+          try {
+            const savedPath = await new Promise<string>((resolve, reject) => {
+              wx.saveFile({
+                tempFilePath: tempPath,
+                success: (r) => resolve(r.savedFilePath),
+                fail: reject,
+              });
+            });
+            savedPaths.push(savedPath);
+          } catch (err) {
+            console.warn('持久化图片失败，使用临时路径:', err);
+            savedPaths.push(tempPath);
+          }
+        }
+        wx.hideLoading();
+
+        const updatedImages = [...images, ...savedPaths];
         this.setData({
           images: updatedImages,
           hasChanges: true,
         });
 
-        this.showToast(`已添加 ${newPaths.length} 张图片`);
+        this.showToast(`已添加 ${savedPaths.length} 张图片`);
       },
     });
   },
