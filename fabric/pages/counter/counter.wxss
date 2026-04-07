@@ -1,8 +1,8 @@
 /* pages/counter/counter.wxss */
 page {
   background-color: #ffffff;
-  height: 100vh;
-  overflow: hidden;
+  min-height: 100vh;
+  overflow-x: hidden;
   /* 覆盖 Vant tabs 默认尺寸，使用 rpx 确保所有设备响应式一致 */
   --tab-font-size: 32rpx;
   --tabs-line-height: 88rpx;
@@ -12,8 +12,9 @@ page {
 .page-container {
   display: flex;
   flex-direction: column;
-  height: 100%;
-  overflow: hidden;
+  min-height: 100vh;
+  padding-bottom: env(safe-area-inset-bottom);
+  box-sizing: border-box;
 }
 
 .title-container {
@@ -66,8 +67,9 @@ page {
 }
 
 .tab-container {
-  height: calc(100% - 140rpx);
-  overflow: hidden;
+  flex: 1 0 auto;
+  min-height: 0;
+  padding-bottom: 48rpx;
 }
 
 .nav-class {
@@ -204,6 +206,13 @@ scroll-view::-webkit-scrollbar {
 .van-tabs__line {
   bottom: -16rpx !important;
   height: var(--tabs-bottom-bar-height, 6rpx) !important;
+}
+
+@media screen and (min-width: 768px) {
+  .van-tabs__line {
+    height: 0 !important;
+    background-color: transparent !important;
+  }
 }
 
 /* 分割线距离 indicator 底部 1dp (2rpx) */
