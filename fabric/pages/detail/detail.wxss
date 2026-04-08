@@ -328,7 +328,7 @@
 
 /* Tip 2 箭头：从底部中央指向计数器 */
 .tip-delete-arrow {
-  left: 50%;
+  left: 110rpx;
   transform: translateX(-50%);
   bottom: -10rpx;
   border-left: 10rpx solid transparent;
