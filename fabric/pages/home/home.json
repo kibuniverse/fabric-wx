@@ -1,7 +1,9 @@
 {
+  "disableScroll": true,
   "navigationBarTitleText": "知织",
   "usingComponents": {
     "action-sheet": "weui-miniprogram/actionsheet/actionsheet",
-    "mp-dialog": "weui-miniprogram/dialog/dialog"
+    "mp-dialog": "weui-miniprogram/dialog/dialog",
+    "dynamic-svg": "/components/dynamic-svg/index"
   }
 }

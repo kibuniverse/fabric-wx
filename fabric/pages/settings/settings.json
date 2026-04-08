@@ -1,3 +1,7 @@
 {
-  "usingComponents": {}
+  "disableScroll": false,
+  "navigationBarTitleText": "设置",
+  "usingComponents": {
+    "dynamic-svg": "/components/dynamic-svg/index"
+  }
 }

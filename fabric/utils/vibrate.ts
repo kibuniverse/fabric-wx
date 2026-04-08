@@ -27,15 +27,3 @@ export const vibrate = (type: VibrateType = 'heavy'): Promise<void> => {
   });
 };
 
-/**
- * 执行长振动
- * @returns Promise
- */
-export const vibrateLong = (): Promise<void> => {
-  return new Promise((resolve, reject) => {
-    wx.vibrateLong({
-      success: () => resolve,
-      fail: reject
-    });
-  });
-};

@@ -82,7 +82,7 @@ Component({
       }
 
     },
-    initColumn(n: number) {
+    initColumn(n) {
       let digit = (n + '').length,
         arr = [],
         rows = [' ', '0', '1', '2', '3', '4', '5', '6', '7', '8', '9'];
@@ -104,7 +104,7 @@ Component({
       return arr
     },
 
-    run(n: number) {
+    run(n) {
       let { max, min } = this.data;
       let value = n;
       value = value < min ? min :

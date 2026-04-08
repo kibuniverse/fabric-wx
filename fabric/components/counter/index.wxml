@@ -1,24 +1,24 @@
 <view class="counter-wrapper">
   <!-- 标题和目标行数 -->
   <view class="counter-header">
-    <view class="counter-name-wrapper" bindtap="handleClickModifyCounterName">
+    <view class="counter-name-wrapper" bindtap="handleClickModifyCounterName" bind:showModifyName="handleShowModifyName">
       <text class="counter-name">{{counterData.name || '默认计数器'}}</text>
       <image class='edit-icon' src="/assets/edit.svg" />
     </view>
-    <view class="target-count" bindtap="showTargetInput">
-      <view>目标行数：</view>
+    <view class="target-count" bindtap="showTargetInput" bind:showTargetInput="handleShowTargetInput">
+      <view class="target-label">目标行数：</view>
       <view class="target-num">{{counterData.targetCount}}</view>
     </view>
   </view>
   <!-- 计数器主体 -->
   <view class="counter-main">
-    <view class="counter-btn minus" bindtap="decrease">
+    <view class="counter-btn minus" hover-class="counter-btn-hover" bindtap="decrease" data-isFromChildCounter="false">
       <image class='minus-icon' src="/assets/minus.svg" />
     </view>
-    <view class="counter-number" bindtap="handleClickModifyCount">
+    <view class="counter-number" bindtap="handleClickModifyCount" bind:showModifyCount="handleShowModifyCount">
       <animate-numbers value="{{counterData.currentCount}}" min='{{0}}' max='{{999}}' options='{{options}}' />
     </view>
-    <view class="counter-btn plus" bindtap="increase">
+    <view class="counter-btn plus" hover-class="counter-btn-hover" bindtap="increase" data-isFromChildCounter="false">
       <image class='plus-icon' src="/assets/plus.svg" />
     </view>
   </view>
@@ -38,35 +38,40 @@
       <view class="operation-btn memo {{hasMemo ? 'memo-active' : ''}}" bindtap="handleMemoClick">
         <image class="memo-icon" src="{{hasMemo ? '/assets/memorandum_colorful.svg' : '/assets/memorandum.svg'}}" />
       </view>
-      <view class="operation-btn timer {{isTimerRunning ? 'timer-start' : 'timer-stop'}}" bindtap="toggleTimer">
-        <image class="timer-icon" src="{{isTimerRunning ? '/assets/clock_colorful.svg' : '/assets/clock.svg'}}" />
+      <view class="operation-btn timer {{isSmartTimerOn ? 'timer-start' : 'timer-stop'}} {{isTimerRunning ? 'timer-counting' : ''}}" bindtap="toggleTimer">
+        <image class="timer-icon" src="{{isSmartTimerOn ? '/assets/clock_colorful.svg' : '/assets/clock.svg'}}" />
       </view>
-      <view class="operation-btn reset" bindtap="showResetConfirm">
+      <!-- 计时器功能引导气泡 -->
+      <view class="timer-guide {{showTimerGuide ? 'show' : ''}}" catchtap="hideTimerGuide">
+        <view class="timer-guide-content">
+          <text>现在操作计数器可以自动开始计时啦～</text>
+          <text class="timer-guide-confirm">我知道啦</text>
+        </view>
+        <view class="timer-guide-arrow"></view>
+      </view>
+      <view class="operation-btn reset" bindtap="showResetConfirm" bindlongpress="onResetLongPress">
         <image class="reset-icon" src="/assets/reset.svg" />
+      </view>
+      <!-- 重置按钮引导气泡 -->
+      <view class="reset-guide {{showResetGuide ? 'show' : ''}}" catchtap="hideResetGuide">
+        <view class="reset-guide-content">
+          <text>长按可重置计时</text>
+          <text class="reset-guide-confirm">我知道了</text>
+        </view>
+        <view class="reset-guide-arrow"></view>
       </view>
     </view>
   </view>
   <!-- 历史记录 -->
   <view class="history-section">
-    <view wx:if="{{counterData.history.length > 0}}" class="history-header">
-      <view class="clear-history" bindtap="clearHistory">
-        <text>清除记录</text>
-      </view>
-      <view class="history-title">
-        <image class='history-icon' src="/assets/history.svg" />
-        <text class="history-text">操作记录</text>
-      </view>
-      <view class="clear-history" style="opacity: 0">
-        <text>占位符</text>
-      </view>
-    </view>
     <block wx:if="{{counterData.history.length > 0}}">
       <scroll-view scroll-y class="history-list" id="historyList" scroll-top="{{historyScrollTop}}">
         <block wx:for="{{counterData.history}}" wx:key="index">
           <view class="history-item {{item.isNew ? 'slide-in' : ''}}">
             <view class="history-time">{{item.time}}</view>
             <view class="history-action">{{item.action}}</view>
-            <view class="history-count">{{item.count}}</view>
+            <view class="history-count">第{{item.count}}行</view>
+            <view class="history-interval">{{item.interval || '--'}}</view>
           </view>
         </block>
         <view class="history-bottom-shadow"></view>
@@ -76,21 +81,5 @@
       <image src="/assets/history_empty.png" mode="aspectFit" class="empty-image"></image>
     </view>
   </view>
-  <!-- 目标行数输入弹窗 -->
-  <van-dialog use-slot z-index="9999" title="设置目标行数" transition="fade" show="{{ showTargetInput }}" show-cancel-button bind:close="closeModifyTargetModal" bind:confirm="confirmTargetInput" confirm-button-color="#A889C8">
-    <view class="modal-content">
-      <input type="number" class="modal-content-input" placeholder="请输入目标行数" value="{{targetInputValue}}" bindinput="onTargetInput" focus="{{showTargetInput}}" maxlength="3" />
-    </view>
-  </van-dialog>
-  <van-dialog use-slot z-index="9999" title="修改计数器名称" transition="fade" show="{{ showModifyCounterName }}" show-cancel-button bind:close="closeModifyCounterNameModal" bind:confirm="confirmModifyCounterName" confirm-button-color="#A889C8">
-    <view class="modal-content">
-      <input class="modal-content-input" placeholder="请输入计数器名称" value="{{targetInputValue}}" bindinput="onTargetInput" maxlength="30" />
-    </view>
-  </van-dialog>
-  <van-dialog use-slot z-index="9999" title="修改当前行数" transition="fade" show="{{ showModifyCount }}" show-cancel-button bind:close="closeModifyCountModal" bind:confirm="confirmModifyCountData" confirm-button-color="#A889C8">
-    <view class="modal-content">
-      <input type="number" class="modal-content-input" placeholder="请输入新的行数" value="{{targetInputValue}}" bindinput="onTargetInput" maxlength="3" />
-    </view>
-  </van-dialog>
-  <van-dialog z-index="9999" id="van-dialog" confirm-button-color="#A889C8" />
+  <van-dialog z-index="10000" id="van-dialog" confirm-button-color="#A889C8" />
 </view>

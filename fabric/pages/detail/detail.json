@@ -1,4 +1,1 @@
-{
-  "usingComponents": { "simple-counter": "/components/simple-counter/index" },
-  "navigationBarTitleText": "图解详情"
-}
+{"navigationBarTitleText": "图解详情", "usingComponents": {"simple-counter": "/components/simple-counter/index"}}

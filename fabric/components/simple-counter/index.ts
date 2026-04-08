@@ -28,11 +28,11 @@ Component({
    * 组件的属性列表
    */
   properties: {
-    // 计数器ID，用于持久化存储
-    id: {
+    // 计数器ID，用于持久化存储（避免与微信小程序内置id属性冲突）
+    counterId: {
       type: String,
       value: "",
-      observer(newVal: string) {
+      observer(newVal) {
         if (newVal) {
           this.loadCounterValue();
         }
@@ -58,6 +58,16 @@ Component({
       type: Boolean,
       value: wx.getStorageSync(SETTINGS_STORAGE_KEYS.VIBRATION) || false,
     },
+    // 是否显示备忘录按钮
+    showMemoBtn: {
+      type: Boolean,
+      value: false,
+    },
+    // 备忘录内容（用于判断是否显示高亮图标）
+    memoContent: {
+      type: String,
+      value: "",
+    },
   },
 
   /**
@@ -67,12 +77,14 @@ Component({
     count: 0,
     options: {
       during: 1, // (number) 动画时间
-      height: 40, // (number) 滚动行高 px
-      cellWidth: 24, // (number) 单个数字宽度 px
+      height: 40, // (number) 滚动行高 rpx
+      cellWidth: 30, // (number) 单个数字宽度 px
       ease: "cubic-bezier(0, 1, 0, 1)", // (string) 动画过渡效果
       color: "#000000", // (string) 字体颜色
-      columnStyle: "font-size: 64rpx;", // (string) 字体单元 覆盖样式
+      columnStyle: "font-size: 48px;", // (string) 字体单元 覆盖样式
     },
+    showModifyCount: false,
+    modifyCountInput: "",
   },
 
   /**
@@ -81,7 +93,7 @@ Component({
   lifetimes: {
     attached() {
       // 组件挂载时加载保存的值
-      if (this.properties.id) {
+      if (this.properties.counterId) {
         this.loadCounterValue();
       }
 
@@ -109,7 +121,7 @@ Component({
      * 加载计数器值
      */
     loadCounterValue() {
-      const counterId = this.properties.id;
+      const counterId = this.properties.counterId;
       if (!counterId) return;
 
       try {
@@ -137,7 +149,7 @@ Component({
      * 保存计数器值
      */
     saveCounterValue() {
-      const counterId = this.properties.id;
+      const counterId = this.properties.counterId;
       if (!counterId) return;
 
       try {
@@ -151,6 +163,10 @@ Component({
           id: counterId,
           count: this.data.count,
         });
+
+        // 重置图解心跳计时器（用户有操作）
+        const app = getApp<IAppOption>();
+        if (app) app.resetDiagramHeartbeat();
       } catch (error) {
         console.error("Failed to save counter value:", error);
       }
@@ -160,6 +176,18 @@ Component({
      * 增加计数器值
      */
     increaseCount() {
+      // 重置针织总时长计时器的活跃时间
+      const app = getApp<IAppOption>();
+      if (app) {
+        app.resetKnittingActivity();
+      }
+
+      // 防止计数超过最大值
+      if (this.data.count >= 999) {
+        this.showToast("已经是最大值了");
+        return;
+      }
+
       const newCount = this.data.count + 1;
       this.setData({
         count: newCount,
@@ -186,6 +214,12 @@ Component({
      * 减少计数器值
      */
     decreaseCount() {
+      // 重置针织总时长计时器的活跃时间
+      const app = getApp<IAppOption>();
+      if (app) {
+        app.resetKnittingActivity();
+      }
+
       // 防止计数为负数
       if (this.data.count <= 0) {
         this.showToast("已经是最小值了");
@@ -234,17 +268,75 @@ Component({
     /**
      * 设置当前计数值（供父组件调用）
      */
-    setCount(count: number) {
+    setCount(count) {
       this.setData({
         count,
       });
       this.saveCounterValue();
     },
-    
+
+    /**
+     * 点击备忘录按钮
+     */
+    onMemoTap() {
+      this.triggerEvent("memotap", {
+        id: this.properties.counterId,
+      });
+    },
+
+    /**
+     * 点击数字区域，显示修改弹窗
+     */
+    onCountTap() {
+      this.setData({
+        showModifyCount: true,
+        modifyCountInput: String(this.data.count),
+      });
+    },
+
+    /**
+     * 输入框内容变化
+     */
+    onModifyCountInput(e) {
+      this.setData({
+        modifyCountInput: e.detail.value,
+      });
+    },
+
+    /**
+     * 关闭修改弹窗
+     */
+    closeModifyCountModal() {
+      this.setData({
+        showModifyCount: false,
+      });
+    },
+
+    /**
+     * 确认修改计数
+     */
+    confirmModifyCount() {
+      const inputValue = parseInt(this.data.modifyCountInput, 10);
+
+      // 验证输入
+      if (isNaN(inputValue) || inputValue < 0) {
+        this.showToast("请输入有效的数字");
+        return;
+      }
+
+      // 限制最大值为 999
+      const newCount = Math.min(inputValue, 999);
+      this.setData({
+        count: newCount,
+        showModifyCount: false,
+      });
+      this.saveCounterValue();
+    },
+
     /**
      * 显示Toast提示
      */
-    showToast(title: string) {
+    showToast(title) {
       wx.showToast({
         title,
         ...TOAST_CONFIG,

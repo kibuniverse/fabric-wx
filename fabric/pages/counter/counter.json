@@ -1,4 +1,5 @@
 {
+  "disableScroll": false,
   "navigationBarTitleText": "知织",
   "usingComponents": {
     "mp-dialog": "weui-miniprogram/dialog/dialog",
@@ -8,7 +9,9 @@
     "counter": "/components/counter/index",
     "van-button": "@vant/weapp/button/index",
     "van-tab": "@vant/weapp/tab/index",
-    "van-tabs": "@vant/weapp/tabs/index"
+    "van-tabs": "@vant/weapp/tabs/index",
+    "van-dialog": "@vant/weapp/dialog/index",
+    "animate-numbers": "/components/animate-numbers/index"
   },
   "globalStyle": {
     "rpxCalcMaxDeviceWidth": 768,

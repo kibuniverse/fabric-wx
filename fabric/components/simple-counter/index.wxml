@@ -1,17 +1,39 @@
 <!-- components/simple-counter/index.wxml -->
 <view class="counter-container" style="background-color: {{backgroundColor}};">
   <view class="counter-main">
-    <view class="counter-btn decrease-btn" bindtap="decreaseCount">
+    <view class="counter-btn decrease-btn" hover-class="counter-btn-hover" bindtap="decreaseCount">
       <image src="/assets/minus.svg" mode="aspectFit"></image>
     </view>
-    <view class="counter-center">
+    <view class="counter-center" bindtap="onCountTap">
       <animate-numbers value="{{count}}" min='{{0}}' max='{{999}}' options='{{options}}' />
     </view>
-    <view class="counter-btn increase-btn" bindtap="increaseCount">
+    <view class="counter-btn increase-btn" hover-class="counter-btn-hover" bindtap="increaseCount">
       <image src="/assets/plus.svg" mode="aspectFit"></image>
     </view>
   </view>
-  <view class="reset-btn" bindtap="resetCount">
+  <!-- 备忘录按钮（左下角） -->
+  <view wx:if="{{showMemoBtn}}" class="memo-btn" hover-class="btn-hover" bindtap="onMemoTap">
+    <image src="{{memoContent ? '/assets/memorandum_colorful.svg' : '/assets/memorandum.svg'}}" mode="aspectFit"></image>
+  </view>
+  <!-- 重置按钮（右下角） -->
+  <view class="reset-btn" hover-class="btn-hover" bindtap="resetCount">
     <image src="/assets/reset.svg" mode="aspectFit"></image>
   </view>
 </view>
+
+<!-- 修改当前行数弹窗 -->
+<van-dialog
+  use-slot
+  z-index="10000"
+  title="修改当前行数"
+  transition="fade"
+  show="{{ showModifyCount }}"
+  show-cancel-button
+  bind:close="closeModifyCountModal"
+  bind:confirm="confirmModifyCount"
+  confirm-button-color="#A889C8"
+>
+  <view class="modal-content">
+    <input type="number" class="modal-content-input" placeholder="请输入新的行数" value="{{modifyCountInput}}" bindinput="onModifyCountInput" focus="{{showModifyCount}}" maxlength="3" />
+  </view>
+</van-dialog>

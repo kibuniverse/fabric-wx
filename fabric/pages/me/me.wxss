@@ -1,0 +1,430 @@
+.container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  min-height: 100vh;
+  background-color: #f5f5f5;
+  padding-bottom: 356rpx;
+}
+
+.content-wrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+}
+
+/* 提示文案 - Medium 20pt */
+.tip-text {
+  font-size: 40rpx;
+  font-weight: 500;
+  color: #000;
+  margin-bottom: 256rpx;
+}
+
+.user-info {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+/* 头像 80*80dp = 160rpx */
+.avatar-wrapper {
+  width: 160rpx;
+  height: 160rpx;
+  border-radius: 50%;
+  overflow: hidden;
+}
+
+.avatar {
+  width: 160rpx;
+  height: 160rpx;
+  border-radius: 50%;
+  background-color: #e0e0e0;
+}
+
+/* 昵称距离头像 12dp = 24rpx */
+.nickname {
+  margin-top: 24rpx;
+  font-size: 40rpx;
+  font-weight: 500;
+  color: #000;
+}
+
+/* 登录按钮：距离昵称 70dp = 140rpx，距离两侧 24dp = 48rpx，圆角 8dp = 16rpx，高 46dp = 92rpx */
+.login-btn {
+  width: calc(100% - 96rpx);
+  height: 92rpx;
+  background: #A889C8;
+  border-radius: 16rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 140rpx;
+}
+
+/* 登录文案 fontsize 16pt = 32rpx */
+.login-btn text {
+  color: #fff;
+  font-size: 32rpx;
+}
+
+/* 协议区域距离按钮底部 16dp = 32rpx */
+.agreement {
+  display: flex;
+  align-items: center;
+  margin-top: 32rpx;
+  flex-wrap: wrap;
+  justify-content: center;
+  padding: 0 40rpx;
+}
+
+/* 复选框外层容器，用于扩大热区 */
+.checkbox-wrapper {
+  padding: 16rpx;
+  margin-right: -6rpx;
+}
+
+/* 复选框 12*12dp = 24rpx，描边 2dp = 4rpx，颜色 D9D9D9 */
+.checkbox {
+  width: 24rpx;
+  height: 24rpx;
+  border: 4rpx solid #D9D9D9;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.checkbox.checked {
+  background: #A889C8;
+  border-color: #A889C8;
+}
+
+.check-icon {
+  color: #fff;
+  font-size: 18rpx;
+  line-height: 1;
+}
+
+/* 已阅读并同意... fontsize 12pt = 24rpx，颜色 40%黑 */
+.agreement-text {
+  color: #00000066;
+  font-size: 24rpx;
+}
+
+.link {
+  color: #576B95;
+  font-size: 24rpx;
+  margin-left: 4rpx;
+  margin-right: 4rpx;
+}
+
+/* 登录对话框样式 */
+.dialog-mask {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.dialog-container {
+  width: 600rpx;
+  background-color: #fff;
+  border-radius: 24rpx;
+  overflow: hidden;
+}
+
+.dialog-title {
+  text-align: center;
+  font-size: 34rpx;
+  font-weight: 500;
+  color: #000;
+  padding: 40rpx 0 20rpx;
+}
+
+.dialog-content {
+  padding: 20rpx 40rpx 40rpx;
+}
+
+.avatar-section {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 30rpx;
+}
+
+.avatar-btn {
+  width: 160rpx;
+  height: 160rpx;
+  padding: 0;
+  margin: 0;
+  background: transparent;
+  border: none;
+  border-radius: 50%;
+  overflow: hidden;
+}
+
+.avatar-btn::after {
+  border: none;
+}
+
+.avatar-preview {
+  width: 160rpx;
+  height: 160rpx;
+  border-radius: 50%;
+}
+
+.avatar-placeholder-dialog {
+  width: 160rpx;
+  height: 160rpx;
+  border-radius: 50%;
+  background-color: #f0f0f0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2rpx dashed #ccc;
+}
+
+.placeholder-text {
+  font-size: 24rpx;
+  color: #999;
+}
+
+.nickname-section {
+  width: 100%;
+}
+
+.nickname-input {
+  width: 100%;
+  height: 88rpx;
+  background-color: #f5f5f5;
+  border-radius: 12rpx;
+  padding: 0 24rpx;
+  font-size: 28rpx;
+  box-sizing: border-box;
+}
+
+.dialog-buttons {
+  display: flex;
+  border-top: 1rpx solid #eee;
+}
+
+.dialog-btn {
+  flex: 1;
+  height: 100rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 32rpx;
+}
+
+.dialog-btn.cancel {
+  color: #666;
+  border-right: 1rpx solid #eee;
+}
+
+.dialog-btn.confirm {
+  color: #A889C8;
+  font-weight: 500;
+}
+
+/* 已登录容器 */
+.logged-in-container {
+  min-height: 100vh;
+  background-color: #ffffff;
+  position: relative;
+}
+
+/* 紫色背景 - 从屏幕最上方开始 */
+.purple-bg-image {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 556rpx; /* 278dp = 556rpx，匹配 SVG viewBox 高度 */
+  z-index: 0;
+}
+
+/* 渐变遮罩层 */
+.gradient-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 556rpx;
+  z-index: 1;
+  background: linear-gradient(
+    to bottom,
+    rgba(168, 137, 200, 0.1) 50%,
+    rgba(168, 137, 200, 0.3) 75%,
+    rgba(168, 137, 200, 0.6) 100%
+  );
+}
+
+/* 内容区域 */
+.content-area {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 2;
+}
+
+/* 顶部行 */
+.header-row {
+  display: flex;
+  flex-direction: row;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0 44rpx 0; /* 22dp = 44rpx */
+}
+
+/* 平板适配：整体下移 20dp */
+@media (min-width: 500px) {
+  .header-row {
+    margin-top: 60rpx; /* 20dp = 40rpx */
+  }
+}
+
+.total-time {
+  display: flex;
+  flex-direction: row;
+  align-items: baseline;
+}
+
+.time-label {
+  font-size: 28rpx; /* 14pt = 28rpx */
+  font-weight: bold;
+  color: #333333;
+}
+
+.time-value {
+  font-size: 48rpx; /* 24pt = 48rpx */
+  font-weight: bold;
+  color: #333;
+  margin: 0 8rpx;
+  transform: translateY(3rpx); /* 向下移动约 1.5dp */
+}
+
+/* 设置按钮：24*24dp 圆形背景，颜色 #A889C8 60% */
+.settings-btn {
+  width: 48rpx;  /* 24dp = 48rpx */
+  height: 48rpx;
+  border-radius: 50%;
+  background: rgba(168, 137, 200, 0.6); /* A889C8 60% */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.settings-icon {
+  width: 36rpx;  /* 18dp = 36rpx */
+  height: 36rpx;
+}
+
+/* 用户信息行 */
+.user-info-row {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  margin-top: 72rpx; /* 36dp = 72rpx */
+  padding-left: 44rpx; /* 22dp = 44rpx */
+}
+
+/* 头像容器 - 带内描边 */
+.avatar-wrapper-large {
+  width: 160rpx; /* 80dp = 160rpx */
+  height: 160rpx;
+  border-radius: 50%;
+  padding: 4rpx; /* 2dp描边 = 4rpx */
+  background: rgba(255, 255, 255, 0.3); /* 70%透明度的白色描边 */
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.avatar-large {
+  width: 152rpx;
+  height: 152rpx;
+  border-radius: 50%;
+  background-color: #f0f0f0;
+}
+
+/* 头像加载中占位图样式 */
+.avatar-large.avatar-placeholder {
+  animation: pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
+/* 用户文字信息 */
+.user-text {
+  display: flex;
+  flex-direction: column;
+  margin-left: 44rpx; /* 22dp = 44rpx */
+  max-width: 458rpx; /* 750rpx - 44rpx(左侧padding) - 160rpx(头像) - 44rpx(间距) - 44rpx(右侧距离) = 458rpx */
+}
+
+.nickname-large {
+  font-size: 40rpx; /* 20pt = 40rpx */
+  font-weight: bold;
+  color: #333333;
+  word-wrap: break-word;
+  word-break: break-all;
+}
+
+.zhizhi-id {
+  font-size: 20rpx; /* 10pt = 20rpx */
+  font-weight: 600; /* Semi-bold */
+  color: #666666; /* 与 #333333 60%不透明度视觉效果相近 */
+  margin-top: 0rpx;
+}
+
+.zhizhi-id-wrapper {
+  display: flex;
+  align-items: center;
+  padding: 8rpx 12rpx 8rpx 0;
+  border-radius: 8rpx;
+  background: transparent;
+}
+
+.zhizhi-id-wrapper:active {
+  background: rgba(168, 137, 200, 0.1);
+}
+
+/* 兜底图容器 - 在渐变(556rpx)和tab(96rpx)之间垂直居中 */
+.placeholder-wrapper {
+  position: fixed;
+  top: 556rpx;
+  bottom: calc(96rpx + env(safe-area-inset-bottom));
+  left: 0;
+  right: 0;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 0;
+}
+
+/* 兜底图 160×160 DP = 320rpx */
+.placeholder-image {
+  width: 320rpx;
+  height: 320rpx;
+}

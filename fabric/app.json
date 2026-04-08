@@ -1,11 +1,18 @@
 {
   "pages": [
-    "pages/counter/counter",
     "pages/home/home",
+    "pages/counter/counter",
+    "pages/me/me",
     "pages/library/library",
     "pages/settings/settings",
     "pages/detail/detail",
-    "pages/memo/memo"
+    "pages/memo/memo",
+    "pages/edit/edit",
+    "pages/edit-profile/edit-profile",
+    "pages/edit-nickname/edit-nickname",
+    "pages/edit-zhizhi-id/edit-zhizhi-id",
+    "pages/agreement/agreement",
+    "pages/webview/webview"
   ],
   "window": {
     "navigationBarTextStyle": "black",
@@ -17,5 +24,31 @@
   "lazyCodeLoading": "requiredComponents",
   "useExtendedLib": {
     "weui": true
+  },
+  "tabBar": {
+    "custom": true,
+    "color": "#00000066",
+    "selectedColor": "#A889C8",
+    "backgroundColor": "#ffffff",
+    "list": [
+      {
+        "pagePath": "pages/home/home",
+        "text": "首页",
+        "iconPath": "/assets/home.png",
+        "selectedIconPath": "/assets/home_select.png"
+      },
+      {
+        "pagePath": "pages/counter/counter",
+        "text": "计数器",
+        "iconPath": "/assets/counter.png",
+        "selectedIconPath": "/assets/counter_select.png"
+      },
+      {
+        "pagePath": "pages/me/me",
+        "text": "我的",
+        "iconPath": "/assets/me.png",
+        "selectedIconPath": "/assets/me_select.png"
+      }
+    ]
   }
 }

@@ -1,5 +1,6 @@
 import Dialog from "@vant/weapp/dialog/dialog";
 import { vibrate } from "../../utils/vibrate";
+import { eventBus } from "../../utils/event_bus";
 
 interface CounterData {
   name: string;
@@ -16,6 +17,8 @@ interface CounterData {
   timerState: {
     startTimestamp: number;
     elapsedTime: number;
+    wasRunning: boolean; // 离开时是否在计时中
+    idlePaused?: boolean; // 是否因空闲而暂停
   };
   showDeleteBtn: boolean;
   memo: string; // 添加备忘录字段
@@ -30,6 +33,7 @@ const DEFAULT_COUNTER_DATA: CounterData = {
   timerState: {
     startTimestamp: 0,
     elapsedTime: 0,
+    wasRunning: false,
   },
   showDeleteBtn: true,
   memo: "", // 默认备忘录为空
@@ -46,14 +50,8 @@ const voiceConfig = {
   enableOperate: ["increase", "decrease"],
 };
 
-// 在 methods 外部直接暴露 stopTimer，保证父组件可直接调用
-function stopTimerProxy(this: any) {
-  if (this && this.stopTimer) {
-    this.stopTimer();
-  } else if (this && this.methods && this.methods.stopTimer) {
-    this.methods.stopTimer.call(this);
-  }
-}
+// 空闲自动暂停时间（毫秒），默认10分钟
+const IDLE_TIMEOUT = 10 * 60 * 1000;
 
 Component({
   properties: {
@@ -77,18 +75,31 @@ Component({
       type: Boolean,
       value: true,
     },
+    showResetGuide: {
+      type: Boolean,
+      value: false,
+    },
+    showTimerGuide: {
+      type: Boolean,
+      value: false,
+    },
   },
   pageLifetimes: {
     hide() {
       // 在这里可以执行一些逻辑，例如保存数据或暂停操作
-      this.stopTimer();
+      this.pauseTimerAndMark();
+      // 注意：同步时长到云端的逻辑已移至页面层 (counter.ts onHide -> pauseKnittingSession)
+      // 避免与页面层的同步逻辑冲突
     },
   },
   data: {
     counterData: DEFAULT_COUNTER_DATA,
-    timerDisplay: "00:00:00",
+    timerDisplay: "00 : 00 : 00",
     isTimerRunning: false,
+    isSmartTimerOn: true, // 智能计时开关（默认开启）
     timerInterval: 0,
+    idleCheckInterval: 0, // 空闲检测定时器
+    lastOperationTime: 0, // 最后操作时间戳
     showTargetInput: false,
     targetInputValue: "",
     options: {
@@ -116,6 +127,13 @@ Component({
       });
       this.loadCounterData();
       this.restoreTimerState();
+      eventBus.on("refreshCounter", ({ counterKey }) => {
+        // 支持刷新所有计数器或指定计数器
+        if (counterKey === 'all' || counterKey === this.properties.storageKey) {
+          this.loadCounterData();
+          this.restoreTimerState(); // 同步更新计时器显示
+        }
+      });
     },
     detached() {
       this.stopTimer();
@@ -146,29 +164,34 @@ Component({
       }
     },
     handleMemoClick() {
-      const memoKey = `memo_${this.properties.storageKey}`;
       wx.navigateTo({
-        url: `/pages/memo/memo?key=${memoKey}&content=${encodeURIComponent(this.data.counterData.memo || '')}`,
+        url: `/pages/memo/memo?key=${this.properties.storageKey}&content=${encodeURIComponent(
+          this.data.counterData.memo || ""
+        )}&type=counter`,
         events: {
-          onMemoContentChange: (data: { key: string, content: string }) => {
-            if (data.key === memoKey && typeof data.content === 'string') {
+          onMemoContentChange: (data) => {
+            if (data.key === this.properties.storageKey && typeof data.content === "string") {
               this.updateMemo(data.content);
             }
-          }
-        }
+          },
+        },
       });
     },
 
     // 添加更新备忘录的方法
-    updateMemo(content: string) {
+    updateMemo(content) {
       this.setData({
-        'counterData.memo': content,
-        hasMemo: !!content
+        "counterData.memo": content,
+        hasMemo: !!content,
       });
       this.saveCounterData();
     },
 
     saveCounterData() {
+      // 每次保存时更新 updatedAt，用于云同步时判断数据新旧
+      this.setData({
+        'counterData.updatedAt': Date.now()
+      });
       wx.setStorageSync(this.properties.storageKey, this.data.counterData);
     },
     playVoice() {
@@ -184,7 +207,21 @@ Component({
       });
     },
     // 计数器操作相关
-    async handleCountChange(type: "increase" | "decrease" | "reset") {
+    async handleCountChange(
+      type: "increase" | "decrease" | "reset",
+      isFromChildCounter = false
+    ) {
+      // 更新最后操作时间（重置空闲计时器）
+      this.updateLastOperationTime();
+
+      // 重置针织总时长计时器的活跃时间
+      const app = getApp<IAppOption>();
+      if (app) {
+        app.resetKnittingActivity();
+        // 重置心跳计时器
+        app.resetCounterHeartbeat();
+      }
+
       const { currentCount, targetCount } = this.data.counterData;
       const canShowVoice =
         this.properties.voiceOn && voiceConfig.enableOperate.includes(type);
@@ -206,7 +243,7 @@ Component({
           title: "确认重置",
           content: "确定要重置计数器吗？",
           success: async (
-            res: WechatMiniprogram.ShowModalSuccessCallbackResult
+            res
           ) => {
             if (res.confirm) {
               await this.updateCount(0, "重置计数");
@@ -219,12 +256,28 @@ Component({
       const isIncrease = type === "increase";
 
       if (!isIncrease && currentCount <= 0) {
-        this.showToast("已经是最小值了");
+        this.showToast("已经是最小值了~");
         return;
       }
-
+      if (isIncrease && currentCount >= 999) {
+        this.showToast("已经是最大值了~");
+        return;
+      }
       const newCount = currentCount + (isIncrease ? 1 : -1);
-      this.updateCount(newCount, isIncrease ? "行+1" : "行-1");
+
+      if (isFromChildCounter) {
+        this.updateCount(
+          newCount,
+          isIncrease ? "行+1 (子计数)" : "行-1 (子计数)"
+        );
+      } else {
+        this.updateCount(newCount, isIncrease ? "行+1" : "行-1");
+      }
+
+      // 智能计时：加减操作时自动开始计时
+      if (this.data.isSmartTimerOn && !this.data.isTimerRunning) {
+        this.startTimer();
+      }
 
       if (isIncrease && newCount === targetCount) {
         Dialog.confirm({
@@ -233,76 +286,29 @@ Component({
           message: "已经完成了上次设置的目标～",
           cancelButtonText: "重置当前行",
           confirmButtonText: "继续织",
+          zIndex: 10000,
         }).catch(() => {
           this.updateCount(0, "重置计数");
         });
       }
     },
     handleClickModifyCount() {
-      this.setData({
-        showModifyCount: true,
-        targetInputValue: String(this.data.counterData.currentCount),
+      // 触发修改当前行数事件
+      this.triggerEvent('showModifyCount', {
+        key: this.properties.storageKey,
+        currentCount: this.data.counterData.currentCount
       });
-    },
-    closeModifyCountModal() {
-      this.setData({
-        showModifyCount: false,
-        targetInputValue: String(this.data.counterData.currentCount),
-      });
-    },
-    confirmModifyCountData() {
-      const newCount = parseInt(this.data.targetInputValue);
-      if (isNaN(newCount)) {
-        wx.showToast({
-          title: "请输入有效数字",
-          icon: "none",
-        });
-        return;
-      }
-      if (newCount < 0) {
-        wx.showToast({
-          title: "行数不能小于0",
-          icon: "none",
-        });
-        return;
-      }
-      this.updateCount(newCount, `修改行数为${newCount}`);
     },
 
     handleClickModifyCounterName() {
-      this.setData({
-        showModifyCounterName: true,
-        targetInputValue: this.data.counterData.name,
+      console.log("handleClickModifyCounterName");
+      // 触发修改计数器名称事件
+      this.triggerEvent('showModifyName', {
+        key: this.properties.storageKey,
+        currentName: this.data.counterData.name
       });
     },
-    closeModifyCounterNameModal() {
-      this.setData({
-        showModifyCounterName: false,
-        targetInputValue: this.data.counterData.name,
-      });
-    },
-    confirmModifyCounterName() {
-      const newName = this.data.targetInputValue.trim();
-      if (newName === "") {
-        wx.showToast({
-          title: "计数器名称不能为空",
-          icon: "none",
-        });
-        return;
-      }
-      this.setData({
-        "counterData.name": newName,
-        showModifyCounterName: false,
-        targetInputValue: newName
-      });
-      this.saveCounterData();
-      this.triggerEvent('modifyName', { data: { name: newName } }, {
-        bubbles: true,     // 是否冒泡
-        composed: true     // 是否跨组件边界
-      });
-    },
-
-    async updateCount(newCount: number, action: string) {
+    async updateCount(newCount, action) {
       this.setData({
         "counterData.currentCount": newCount,
       });
@@ -311,25 +317,22 @@ Component({
       this.saveCounterData();
       this.addHistory(action);
     },
-    showToast(title: string) {
+    showToast(title) {
       wx.showToast({
         title,
         ...TOAST_CONFIG,
       });
     },
 
-    showModal(options: {
-      title: string;
-      content: string;
-      success: (res: WechatMiniprogram.ShowModalSuccessCallbackResult) => void;
-    }) {
+    showModal(options) {
       wx.showModal(options);
     },
 
     // 历史记录相关
-    addHistory(action: string) {
-      const now = new Date();
-      const timeString = this.formatDateTime(now);
+    addHistory(action) {
+      const nowDate = new Date();
+      const timeString = this.formatDateTime(nowDate);
+      const timestamp = Date.now();
 
       // 先将所有现有记录的 isNew 标记移除
       const currentHistory = this.data.counterData.history.map((item) => ({
@@ -343,8 +346,31 @@ Component({
         action,
         count: this.data.counterData.currentCount,
         isNew: true,
-        id: Date.now(), // 添加唯一标识符
+        id: timestamp,
+        timestamp,
+        interval: "", // 稍后计算
       };
+
+      // 计算时间差
+      if (currentHistory.length > 0) {
+        const prevTimestamp = currentHistory[0].timestamp;
+        if (prevTimestamp) {
+          const diffMs = timestamp - prevTimestamp;
+          const diffSec = Math.floor(diffMs / 1000);
+
+          // 超过60分钟不显示
+          if (diffSec >= 3600) {
+            newHistoryItem.interval = "";
+          } else if (diffSec >= 60) {
+            // 超过60秒，显示x分x秒
+            const minutes = Math.floor(diffSec / 60);
+            const seconds = diffSec % 60;
+            newHistoryItem.interval = `${minutes}分${seconds}秒`;
+          } else {
+            newHistoryItem.interval = `${diffSec}秒`;
+          }
+        }
+      }
 
       // 更新历史记录列表，只保留最近20条
       const newHistory = [newHistoryItem, ...currentHistory].slice(0, 20);
@@ -385,18 +411,24 @@ Component({
       this.showToast("记录已清除");
     },
     toggleTimer() {
-      if (this.data.isTimerRunning) {
-        wx.showToast({
-          title: "暂停计时",
-          icon: "none",
+      const newSmartTimerState = !this.data.isSmartTimerOn;
+      this.setData({
+        isSmartTimerOn: newSmartTimerState,
+      });
+      wx.setStorageSync(`${this.properties.storageKey}_smart_timer`, newSmartTimerState);
+
+      if (!newSmartTimerState) {
+        // 关闭智能计时：停止计时并清除 wasRunning 标记
+        if (this.data.isTimerRunning) {
+          this.stopTimer();
+        }
+        this.setData({
+          "counterData.timerState.wasRunning": false,
         });
-        this.stopTimer();
+        this.saveCounterData();
+        this.showToast("智能计时已关闭");
       } else {
-        wx.showToast({
-          title: "开启计时",
-          icon: "none",
-        });
-        this.startTimer();
+        this.showToast("智能计时已开启，操作计数器将开始自动计时");
       }
     },
 
@@ -422,25 +454,74 @@ Component({
         timerInterval,
         isTimerRunning: true,
         counterData,
+        lastOperationTime: Date.now(), // 初始化最后操作时间
       });
       // 6. 立即存储当前状态
       this.saveCounterData();
+      // 7. 启动空闲检测
+      this.startIdleCheck();
     },
 
     stopTimer() {
       // 1. 清理定时器
       this.clearTimer();
-      // 2. 计算累计用时
+      // 2. 停止空闲检测
+      this.stopIdleCheck();
+      // 3. 计算累计用时
       const counterData = this.data.counterData;
       const elapsed = this.getCurrentElapsedTime();
+      const previousElapsed = counterData.timerState.elapsedTime || 0;
+      const newSessionTime = elapsed - previousElapsed; // 本次计时时长
+
       counterData.timerState.elapsedTime = elapsed;
       counterData.timerState.startTimestamp = 0;
-      // 3. 更新状态
+      // 4. 更新状态
       this.setData({
         counterData,
         isTimerRunning: false,
       });
-      // 4. 存储当前状态
+      // 5. 存储当前状态
+      this.saveCounterData();
+      // 注意：不再累加到全局总时长，因为针织总时长计时器会自动记录
+      // 原因：避免与页面层的针织总时长计时器重复计算
+    },
+
+    // 暂停计时并标记 wasRunning（用于页面离开时）
+    pauseTimerAndMark() {
+      if (this.data.isTimerRunning) {
+        this.stopTimer();
+        this.setData({
+          "counterData.timerState.wasRunning": true,
+        });
+        this.saveCounterData();
+      }
+    },
+
+    // 检查是否需要显示恢复计时弹窗
+    checkAndShowResumeDialog() {
+      const { wasRunning } = this.data.counterData.timerState;
+      if (wasRunning && this.data.isSmartTimerOn) {
+        // 触发弹窗显示（由页面层处理）
+        this.triggerEvent('showResumeDialog', {
+          key: this.properties.storageKey
+        });
+      }
+    },
+
+    // 恢复计时
+    resumeTimer() {
+      this.setData({
+        "counterData.timerState.wasRunning": false,
+      });
+      this.startTimer();
+      this.saveCounterData();
+    },
+
+    // 取消恢复计时
+    cancelResumeTimer() {
+      this.setData({
+        "counterData.timerState.wasRunning": false,
+      });
       this.saveCounterData();
     },
 
@@ -451,7 +532,68 @@ Component({
       }
     },
 
-    getCurrentElapsedTime(): number {
+    // 空闲检测相关
+    startIdleCheck() {
+      this.stopIdleCheck(); // 先清理旧的
+      const idleCheckInterval = setInterval(() => {
+        const lastOpTime = this.data.lastOperationTime;
+        if (lastOpTime && Date.now() - lastOpTime >= IDLE_TIMEOUT) {
+          // 空闲超时，暂停计时器并通知页面
+          this.pauseForIdle();
+        }
+      }, 30000); // 每30秒检查一次
+
+      this.setData({ idleCheckInterval });
+    },
+
+    stopIdleCheck() {
+      if (this.data.idleCheckInterval) {
+        clearInterval(this.data.idleCheckInterval);
+        this.setData({ idleCheckInterval: 0 });
+      }
+    },
+
+    updateLastOperationTime() {
+      this.setData({ lastOperationTime: Date.now() });
+    },
+
+    pauseForIdle() {
+      if (!this.data.isTimerRunning) return;
+
+      // 暂停计时器并标记为空闲暂停
+      this.stopTimer();
+      this.setData({
+        "counterData.timerState.wasRunning": true,
+        "counterData.timerState.idlePaused": true, // 区分是空闲暂停还是页面离开
+      });
+      this.saveCounterData();
+
+      // 通知页面显示弹窗
+      this.triggerEvent('showIdleDialog', {
+        key: this.properties.storageKey
+      });
+    },
+
+    // 从空闲暂停恢复计时
+    resumeFromIdle() {
+      this.setData({
+        "counterData.timerState.wasRunning": false,
+        "counterData.timerState.idlePaused": false,
+      });
+      this.startTimer();
+      this.saveCounterData();
+    },
+
+    // 取消空闲恢复，保持暂停状态
+    cancelIdleResume() {
+      this.setData({
+        "counterData.timerState.wasRunning": false,
+        "counterData.timerState.idlePaused": false,
+      });
+      this.saveCounterData();
+    },
+
+    getCurrentElapsedTime() {
       const { startTimestamp, elapsedTime } = this.data.counterData.timerState;
       if (!this.data.isTimerRunning || !startTimestamp) return elapsedTime || 0;
       return (elapsedTime || 0) + (Date.now() - startTimestamp);
@@ -462,15 +604,19 @@ Component({
       const { counterData } = this.data;
       if (counterData) {
         const totalElapsed = counterData.timerState.elapsedTime || 0;
+        // 恢复智能计时开关状态
+        const savedSmartTimer = wx.getStorageSync(`${this.properties.storageKey}_smart_timer`);
+        const isSmartTimerOn = savedSmartTimer !== '' ? savedSmartTimer : true;
         this.setData({
           timerDisplay: this.formatTime(totalElapsed),
           isTimerRunning: false,
+          isSmartTimerOn,
         });
       }
     },
 
     // 格式化相关
-    formatTime(milliseconds: number): string {
+    formatTime(milliseconds) {
       const totalSeconds = Math.floor(milliseconds / 1000);
       const hours = Math.floor(totalSeconds / 3600);
       const minutes = Math.floor((totalSeconds % 3600) / 60);
@@ -479,71 +625,26 @@ Component({
       return this.padNumbers(hours, minutes, seconds);
     },
 
-    formatDateTime(date: Date): string {
-      const pad = (n: number) => String(n).padStart(2, "0");
-      return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(
+    formatDateTime(date) {
+      const pad = (n) => String(n).padStart(2, "0");
+      return `${pad(date.getMonth() + 1)}-${pad(
         date.getDate()
-      )} ${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
+      )} ${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(
+        date.getSeconds()
+      )}`;
     },
 
-    padNumbers(...numbers: number[]): string {
-      return numbers.map((n) => n.toString().padStart(2, "0")).join(":");
+    padNumbers(...numbers) {
+      return numbers.map((n) => n.toString().padStart(2, "0")).join(" : ");
     },
 
     // 目标设置相关
     showTargetInput() {
-      this.setData({
-        showTargetInput: true,
-        targetInputValue: String(this.data.counterData.targetCount),
+      // 触发设置目标行数事件
+      this.triggerEvent('showTargetInput', {
+        key: this.properties.storageKey,
+        currentTarget: this.data.counterData.targetCount
       });
-    },
-    closeModifyTargetModal() {
-      this.cancelTargetInput()
-    },
-    onTargetInput(e: any) {
-      this.setData({
-        targetInputValue: e.detail.value,
-      });
-    },
-    cancelTargetInput() {
-      this.setData({
-        showTargetInput: false,
-        targetInputValue: "",
-      });
-    },
-
-    confirmTargetInput() {
-      const value = parseInt(this.data.targetInputValue);
-      if (isNaN(value)) {
-        wx.showToast({
-          title: "请输入有效数字",
-          icon: "none",
-        });
-        return;
-      }
-
-      if (value < 0) {
-        wx.showToast({
-          title: "目标行数不能小于0",
-          icon: "none",
-        });
-        return;
-      }
-
-      if (value > 999) {
-        wx.showToast({
-          title: "目标行数不能超过999",
-          icon: "none",
-        });
-        return;
-      }
-
-      this.setData({
-        "counterData.targetCount": value,
-        showTargetInput: false,
-        targetInputValue: "",
-      });
-      this.saveCounterData();
     },
 
     // 删除相关
@@ -556,27 +657,150 @@ Component({
     },
 
     // 公共方法
-    increase() {
-      this.handleCountChange("increase");
+    increase(isFromChildCounter = false) {
+      // 只有声音提示开启时才触发悬浮球表情
+      if (this.properties.voiceOn) {
+        // 获取数字位置并通知悬浮球展示表情
+        this.getCounterNumberPosition((position) => {
+          eventBus.emit('counterButtonClicked', { type: 'increase', numberPosition: position });
+        });
+      }
+      this.handleCountChange("increase", isFromChildCounter === true);
     },
 
-    decrease() {
-      this.handleCountChange("decrease");
+    decrease(isFromChildCounter = false) {
+      // 只有声音提示开启时才触发悬浮球表情
+      if (this.properties.voiceOn) {
+        // 获取数字位置并通知悬浮球展示表情
+        this.getCounterNumberPosition((position) => {
+          eventBus.emit('counterButtonClicked', { type: 'decrease', numberPosition: position });
+        });
+      }
+      this.handleCountChange("decrease", isFromChildCounter === true);
+    },
+
+    // 获取数字显示区域的位置
+    getCounterNumberPosition(callback: (position: { x: number; y: number }) => void) {
+      const query = this.createSelectorQuery();
+      query.select('.counter-number').boundingClientRect();
+      query.exec((res) => {
+        if (res && res[0]) {
+          callback({
+            x: res[0].left + res[0].width / 2,
+            y: res[0].top + res[0].height / 2
+          });
+        }
+      });
     },
     showResetConfirm() {
       this.handleCountChange("reset");
     },
+
+    // 长按重置按钮显示菜单
+    onResetLongPress() {
+      wx.showActionSheet({
+        itemList: ['重置计时', '重置行数', '重置全部', '清除操作记录'],
+        success: (res) => {
+          switch (res.tapIndex) {
+            case 0:
+              this.resetTimer();
+              break;
+            case 1:
+              this.handleCountChange("reset");
+              break;
+            case 2:
+              this.resetAll();
+              break;
+            case 3:
+              this.clearHistory();
+              break;
+          }
+        }
+      });
+    },
+
+    // 重置计时
+    resetTimer() {
+      this.clearTimer();
+      this.setData({
+        "counterData.timerState.elapsedTime": 0,
+        "counterData.timerState.startTimestamp": 0,
+        timerDisplay: "00 : 00 : 00",
+        isTimerRunning: false,
+      });
+      this.saveCounterData();
+      this.showToast("计时已重置");
+    },
+
+    // 重置全部（行数+计时）
+    resetAll() {
+      // 先重置计时
+      this.clearTimer();
+      this.setData({
+        "counterData.timerState.elapsedTime": 0,
+        "counterData.timerState.startTimestamp": 0,
+        timerDisplay: "00 : 00 : 00",
+        isTimerRunning: false,
+      });
+      // 再重置行数
+      this.updateCount(0, "重置全部");
+      this.showToast("已重置全部");
+    },
+
+    // 重置按钮引导气泡相关
+    hideResetGuide() {
+      this.triggerEvent('hideResetGuide');
+    },
+    // 计时器功能引导气泡相关
+    hideTimerGuide() {
+      this.triggerEvent('hideTimerGuide');
+    },
+    getCurrentCount(): number {
+      return this.data.counterData.currentCount;
+    },
+
+    // 弹窗事件处理
+    handleShowTargetInput() {
+      this.triggerEvent('showTargetInput', {
+        key: this.properties.storageKey,
+        currentTarget: this.data.counterData.targetCount
+      });
+    },
+
+    handleShowModifyName() {
+      this.triggerEvent('showModifyName', {
+        key: this.properties.storageKey,
+        currentName: this.data.counterData.name
+      });
+    },
+
+    handleShowModifyCount() {
+      this.triggerEvent('showModifyCount', {
+        key: this.properties.storageKey,
+        currentCount: this.data.counterData.currentCount
+      });
+    },
+
+    /**
+     * 累加时长到全局总时长
+     */
+    addGlobalKnittingTime(elapsedMs: number) {
+      if (elapsedMs <= 0) return;
+
+      const app = getApp<IAppOption>();
+      if (app) {
+        app.addKnittingTime(elapsedMs);
+      }
+    },
+
+    /**
+     * 同步时长到云端
+     */
+    async syncTimeToCloud() {
+      const app = getApp<IAppOption>();
+      if (app) {
+        await app.syncToCloud(0);
+      }
+    },
   },
 });
-// 兼容 selectComponent/AllComponents 调用
-// @ts-ignore
-Component.prototype.stopTimer = stopTimerProxy;
-
-/**
- * 该文件为计数器组件（counter）的主逻辑文件：
- * - 管理计数器的数据（名称、目标、当前值、历史记录、计时器等）
- * - 提供计数操作（加、减、重置）、目标设置、历史记录、计时器等功能
- * - 支持震动、声音、删除等交互
- * - 历史记录只保留最近20条，超出自动丢弃旧记录
- * - 组件数据持久化到本地 storage，支持多计数器独立存储
- */

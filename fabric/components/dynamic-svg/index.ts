@@ -41,7 +41,7 @@ Component({
   },
 
   methods: {
-    changeIcon(svgPath: string, color?: string) {
+    changeIcon(svgPath, color) {
       // 不传入颜色时，直接采用原图进行展示
       if (!color) {
         return this.setData({
@@ -56,7 +56,7 @@ Component({
         fs.readFile({
           filePath: svgPath,
           encoding: 'utf-8',
-          success(res: WechatMiniprogram.ReadFileSuccessCallbackResult) {
+          success(res) {
             const svgContent = res.data as string; // 读取到svg文件的内容
             // 替换颜色
             const newSvgContent = /(fill|stroke)=".*?"/.test(svgContent)

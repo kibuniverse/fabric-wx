@@ -2,6 +2,8 @@
 type EventMap = {
     'onMemoContentChange': void;
     // 在此处继续追加业务事件与参数类型
+    'refreshCounter': { counterKey: string }; // counterKey='all' 表示刷新所有计数器
+    'counterButtonClicked': { type: 'increase' | 'decrease'; numberPosition: { x: number; y: number } };
 };
 
 type EventKey = keyof EventMap;
@@ -18,15 +20,6 @@ class MiniEventBus {
             this.listeners[event] = [];
         }
         this.listeners[event].push(fn);
-    }
-
-    /** 一次性订阅 */
-    once<K extends EventKey>(event: K, fn: EventCallback<K>) {
-        const wrapper: EventCallback<K> = (p) => {
-            fn(p);
-            this.off(event, wrapper);
-        };
-        this.on(event, wrapper);
     }
 
     /** 取消订阅（不传 fn 则清空该事件全部回调） */

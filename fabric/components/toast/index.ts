@@ -17,7 +17,7 @@ Component({
   },
 
   methods: {
-    showToast(message?: string) {
+    showToast(message) {
       // 清除现有的定时器
       if (this.data.timer) {
         clearTimeout(this.data.timer);

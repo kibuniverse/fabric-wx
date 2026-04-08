@@ -1,0 +1,54 @@
+.container {
+  min-height: 100vh;
+  background: linear-gradient(to bottom, rgba(230, 230, 250, 0.1), white);
+  padding-top: 24px;
+}
+
+/* 输入框区域 */
+.input-wrapper {
+  position: relative;
+  width: 100vw;
+  box-sizing: border-box;
+}
+
+.input-row {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  box-sizing: border-box;
+  padding: 0 44rpx;
+}
+
+.input-field {
+  display: flex;
+  align-items: center;
+  background: white;
+  border-radius: 20rpx;
+  height: 80rpx;
+  padding: 0 24rpx;
+  box-sizing: border-box;
+  flex: 1;
+}
+
+.nickname-input {
+  flex: 1;
+  font-size: 28rpx;
+  color: black;
+}
+
+.char-count {
+  font-size: 24rpx;
+  color: rgba(51, 51, 51, 0.6);
+  margin-left: 16rpx;
+}
+
+/* 保存按钮距离编辑框右侧 22dp = 44rpx */
+.save-btn {
+  display: flex;
+  align-items: center;
+  font-size: 28rpx;
+  font-weight: bold;
+  color: #333;
+  white-space: nowrap;
+  margin-left: 44rpx;
+}

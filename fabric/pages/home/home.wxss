@@ -6,65 +6,61 @@
   position: relative;
   background-color: #FFFFFF;
 }
-
-/* 顶部标签导航栏 */
+/* 顶部标签导航栏 - 无底部浅灰横线、tab居中 */
 .tab-header {
   display: flex;
   position: relative;
-  padding: 10rpx 30rpx;
-  border-bottom: 1rpx solid #f0f0f0;
+  justify-content: center;
+  align-items: center;
+  padding: 12rpx 30rpx;
   background-color: #FFFFFF;
+  justify-content: center;
 }
-
 .tab {
   position: relative;
-  padding: 20rpx 0;
-  margin-right: 60rpx;
+  padding: 12rpx 0 12rpx; /* 底部padding设为6px，为下划线留出间距 */
 }
-
 .tab text {
   font-size: 32rpx;
   color: #666;
+  display: inline-block; /* 让文字高度可计算 */
+  line-height: 1; /* 重置行高，避免行高干扰间距 */
 }
-
 .tab.active text {
-  font-weight: bold;
-  color: #8a7bec;
+  font-weight: 500;
+  font-size: 32rpx;
+  line-height: 44rpx;
+  letter-spacing: -0.43px;
+  color: #A889C8CC;
 }
-
 .tab-line {
   position: absolute;
-  bottom: 0;
+  bottom: 0; /* 与文字底部间距12rpx */
   left: 50%;
   transform: translateX(-50%);
-  width: 0;
+  width: 40rpx;
   height: 6rpx;
-  background-color: #8a7bec;
+  background-color: #A889C8CC;
   border-radius: 4rpx;
   transition: width 0.3s;
 }
-
-.tab-line.active {
-  width: 40rpx;
-}
-
-/* 加号按钮 */
+/* 加号按钮容器 - 22×22rpx图标适配 */
 .add-btn {
   position: absolute;
   right: 30rpx;
-  top: 20rpx;
-  width: 50rpx;
-  height: 50rpx;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 40rpx;
+  height: 40rpx;
   display: flex;
-  justify-content: center;
   align-items: center;
+  justify-content: center;
 }
-
 .add-icon {
-  font-size: 48rpx;
-  color: #333;
+  width: 44rpx;
+  height: 44rpx;
+  /* tint-color: #A889C8CC; 可选：修改SVG颜色 */
 }
-
 /* 导入选项弹出层 */
 .import-options {
   position: absolute;
@@ -79,106 +75,124 @@
   transform: translateY(-20rpx);
   visibility: hidden;
   transition: all 0.3s;
-  border-bottom: 1px solid #00000005;
 }
-
 .import-options.show {
   opacity: 1;
   transform: translateY(0);
   visibility: visible;
 }
-
 .import-option {
   padding: 20rpx;
   display: flex;
   align-items: center;
 }
-
 .option-icon {
   width: 36rpx;
   height: 36rpx;
   margin-right: 20rpx;
 }
-
 .import-option text {
   font-size: 28rpx;
   color: #333;
 }
 
-/* 内容区域 */
+.tab-content {
+  height: 100%;
+}
 .content-area {
   flex: 1;
   overflow-y: auto;
 }
-
-.tab-content {
-  height: 100%;
-}
-
-/* 空状态 */
 .empty-state {
+  width: 100%;
   height: 100%;
   display: flex;
-  flex-direction: column;
   justify-content: center;
   align-items: center;
-  padding: 40rpx;
 }
-
-.empty-text {
-  font-size: 28rpx;
-  color: #999;
-  text-align: center;
-  line-height: 1.6;
+/* 空状态图片 - 保留420×420，新增兜底居中 */
+.empty-diagram {
+  width: 420rpx;
+  height: 420rpx;
+  object-fit: contain;
 }
-
 /* 合并图解和文件网格 */
 .items-grid {
-  display: flex;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  row-gap: 52rpx;
+  column-gap: 48rpx;
   flex-wrap: wrap;
-  padding: 20rpx;
+  padding: 40rpx;
+  padding-bottom: calc(96rpx + env(safe-area-inset-bottom) + 44rpx);
 }
-
 .item {
-  width: calc(33.33% - 20rpx);
-  margin: 10rpx;
+  width: 100%;
   border-radius: 12rpx;
-  overflow: hidden;
-  background-color: #f5f1ff;
   position: relative;
 }
 
-.image-item {
-  border-left: 3px solid #8a7bec;
-}
 
-.file-item {
-  border-left: 3px solid #56bfb5;
+.type-logo {
+  position: absolute;
+  top: 12rpx;
+  right: 12rpx;
+  width: 32rpx;
+  height: 32rpx;
+  z-index: 2;
 }
-
-.item image {
+.cover-wrapper {
   width: 100%;
-  height: 200rpx;
+  height: 240rpx;
+  position: relative;
+  border-radius: 8rpx;
+}
+.default-illustration {
+  width: 100%;
+  height: 240rpx;
   display: block;
+  border-radius: 8rpx;
 }
-
+.cover-border-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  border-radius: 8rpx;
+  box-shadow: inset 0 0 0 1rpx #E6E6FA;
+  z-index: 3;
+}
 .item-info {
-  padding: 10rpx;
+  height: 50rpx;
   display: flex;
-  justify-content: space-between;
+  justify-content: center;
   align-items: center;
-  flex-wrap: wrap;
+  position: absolute;
+  bottom: 0;
+  background-color: var(--main-color);
+  width: 100%;
+  border-bottom-left-radius: 8rpx;
+  border-bottom-right-radius: 8rpx;
+  z-index: 2;
 }
-
 .item-name {
-  font-size: 24rpx;
-  color: #333;
+  font-size: 26rpx;
+  color: #fff;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  width: 70%;
+  padding: 0 12rpx;
 }
 
+.item-operate-container {
+  display: flex;
+  justify-content: space-between;
+  height: 48rpx;
+  align-items: center;
+  padding-left: 0;
+  position: relative;
+}
 .item-type {
   font-size: 20rpx;
   color: #999;
@@ -188,15 +202,10 @@
   margin-left: auto;
 }
 
-.item-more {
-  font-size: 28rpx;
-  color: #8a7bec;
-  width: 60rpx;
-  text-align: center;
-  padding: 0 10rpx;
-  margin-left: 10rpx;
+.more-action {
+  height: 48rpx;
+  width: 48rpx;
 }
-
 /* 遮罩层 */
 .mask {
   position: fixed;
@@ -208,11 +217,9 @@
   z-index: 5;
   visibility: hidden;
 }
-
 .mask.show {
   visibility: visible;
 }
-
 /* 重命名输入框 */
 .rename-input {
   width: 100%;
@@ -224,7 +231,12 @@
   margin: 20rpx 0;
   box-sizing: border-box;
 }
-
+/* 命名提示文字 */
+.name-hint {
+  font-size: 24rpx;
+  color: #999;
+  margin-bottom: 16rpx;
+}
 /* 删除弹窗内容 */
 .delete-modal-content {
   padding: 20rpx 0;
@@ -233,12 +245,118 @@
   text-align: center;
   line-height: 1.6;
 }
-
 /* 三个点栏目样式 */
-.image-more, .file-more {
+.image-more,
+.file-more {
   font-size: 28rpx;
-  color: #8a7bec;
+  color: #A889C8CC;
   width: 60rpx;
   text-align: center;
   padding: 0 10rpx;
+}
+
+/* 重复文件高亮样式 */
+.cover-border-overlay.highlight {
+  animation: highlight-pulse 1s ease-in-out 2;
+}
+
+@keyframes highlight-pulse {
+  0%, 100% {
+    box-shadow: inset 0 0 0 1rpx #E6E6FA, 0 0 2rpx 0 rgba(168, 137, 200, 0);
+  }
+  50% {
+    box-shadow: inset 0 0 0 1rpx #E6E6FA, 0 0 2rpx 4rpx rgba(168, 137, 200, 0.5);
+  }
+}
+
+.item-date {
+  font-size: 18rpx;
+  color: rgba(51, 51, 51, 0.5);
+}
+
+.sync-status-icon {
+  width: 30rpx;
+  height: 30rpx;
+}
+
+/* 同步中旋转动画 */
+.sync-loading-icon {
+  width: 30rpx;
+  height: 30rpx;
+  animation: sync-spin 1s linear infinite;
+}
+
+@keyframes sync-spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.sync-icon-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+/* 同步 Tips 提示样式 */
+.sync-tips {
+  position: absolute;
+  bottom: 40rpx;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 10;
+}
+
+.sync-tips-content {
+  background-color: #333;
+  color: #fff;
+  padding: 12rpx 16rpx;
+  border-radius: 8rpx;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 16rpx;
+  position: relative;
+  white-space: nowrap;
+}
+
+.sync-tips-text {
+  font-size: 22rpx;
+}
+
+.sync-tips-btn {
+  font-size: 22rpx;
+  color: #A889C8;
+  padding: 4rpx 12rpx;
+}
+
+/* 小箭头指向下方 */
+.sync-tips-content::after {
+  content: '';
+  position: absolute;
+  bottom: -10rpx;
+  left: 50%;
+  transform: translateX(-50%);
+  border-left: 6rpx solid transparent;
+  border-right: 6rpx solid transparent;
+  border-top: 10rpx solid #333;
+}
+
+/* 登录引导弹窗内容 */
+.login-dialog-content {
+  padding: 20rpx 0;
+  font-size: 28rpx;
+  color: #666;
+  text-align: center;
+  line-height: 1.6;
+}
+
+/* 同步按钮样式 */
+.sync-btn {
+  font-size: 20rpx;
+  color: #A889C8;
+  padding: 4rpx 12rpx;
+  background-color: #f5f1ff;
+  border-radius: 8rpx;
+  margin-left: auto;
+  margin-right: 8rpx;
 }

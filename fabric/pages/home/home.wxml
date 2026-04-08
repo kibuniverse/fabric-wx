@@ -1,4 +1,5 @@
 <!-- pages/home/home.wxml -->
+<wxs src="../../utils/filters.wxs" module="filters" />
 <view class="home_container">
   <!-- 顶部标题栏 -->
   <view class="tab-header">
@@ -8,7 +9,7 @@
     </view>
     <!-- 右上角加号按钮 -->
     <view class="add-btn" bindtap="toggleImportOptions">
-      <text class="add-icon">+</text>
+      <image class="add-icon" src="/assets/add_diagram.svg" mode="aspectFit"></image>
     </view>
   </view>
   <!-- 导入选项弹出层 -->
@@ -28,17 +29,36 @@
     <view class="tab-content">
       <block wx:if="{{allItems.length === 0}}">
         <view class="empty-state">
-          <text class="empty-text">内置计数器，建议导入带有行与号的图解</text>
+          <image class="empty-diagram" src="/assets/empty_diagram.png" mode="aspectFit"></image>
         </view>
       </block>
       <block wx:else>
         <view class="items-grid">
-          <view class="item {{item.type === 'image' ? 'image-item' : 'file-item'}}" wx:for="{{allItems}}" wx:key="id" bindtap="navigateToDetail" data-id="{{item.id}}">
-            <image src="{{item.path}}" mode="aspectFill"></image>
-            <view class="item-info">
-              <text class="item-name">{{item.name}}</text>
-              <text class="item-type">{{item.type === 'image' ? '图片' : 'PDF'}}</text>
-              <text class="item-more" bindtap="showActionSheet" data-id="{{item.id}}" data-type="{{item.type}}">...</text>
+          <view class="item" wx:for="{{allItems}}" wx:key="id" bindtap="navigateToDetail" data-id="{{item.id}}">
+            <view class="cover-wrapper">
+              <image class="default-illustration" src="{{item.cover || '/assets/default_Illustration.png'}}" mode="aspectFill"></image>
+              <view class="cover-border-overlay {{item.id === highlightItemId ? 'highlight' : ''}}"></view>
+              <image class="type-logo" src="/assets/{{item.type === 'image' ? 'image' : 'pdf_logo'}}.svg"></image>
+              <view class="item-info">
+                <text class="item-name">{{item.name}}</text>
+              </view>
+            </view>
+            <view class="item-operate-container" catchtap="showActionSheet" data-id="{{item.id}}" data-type="{{item.type}}">
+              <text class="item-date">{{item.createTime ? filters.formatDate(item.createTime) : ''}}</text>
+              <!-- 同步图标：已登录且未同步且不在同步中 -->
+              <view class="sync-icon-wrapper">
+                <image wx:if="{{isLoggedIn && item.syncStatus === 'local' && !item.isBuiltin && !syncingStatus[item.id]}}" class="sync-status-icon" src="/assets/sync_status.svg" mode="aspectFit" catchtap="syncDiagramToCloud" data-id="{{item.id}}" />
+                <!-- 同步中旋转动画 -->
+                <image wx:if="{{syncingStatus[item.id]}}" class="sync-loading-icon" src="/assets/sync_loading.svg" mode="aspectFit" />
+                <!-- 同步 Tips 提示：仅显示一次，只在第一个未同步图解上 -->
+                <view wx:if="{{showSyncTips && item.id === firstLocalItemId}}" class="sync-tips">
+                  <view class="sync-tips-content">
+                    <text class="sync-tips-text">点击可同步</text>
+                    <view class="sync-tips-btn" catchtap="hideSyncTips">我知道了</view>
+                  </view>
+                </view>
+              </view>
+              <image src="/assets/more_action.svg" class="more-action" mode="aspectFill" />
             </view>
           </view>
         </view>
@@ -46,20 +66,28 @@
     </view>
   </view>
   <!-- 遮罩层 -->
-  <view class="mask {{showImportOptions ? 'show' : ''}}" bindtap="toggleImportOptions"></view>
-  
+  <view class="mask {{showImportOptions ? 'show' : ''}}" bindtap="closeImportOptions"></view>
   <!-- WeUI ActionSheet -->
-  <action-sheet show="{{showActionSheet}}" actions="{{actions}}" bind:actiontap="handleActionClick" bind:close="closeActionSheet"/>
-  
+  <action-sheet show="{{showActionSheet}}" actions="{{actions}}" bind:actiontap="handleActionClick" bind:close="closeActionSheet" />
   <!-- 重命名对话框 -->
   <mp-dialog title="重命名" show="{{showRenameModal}}" bindbuttontap="handleRenameDialogButtonClick" buttons="{{renameButtons}}">
     <view>
-      <input class="rename-input" type="text" value="{{newItemName}}" bindinput="onRenameInput" placeholder="请输入新名称" />
+      <input class="rename-input" type="text" value="{{newItemName}}" bindinput="onRenameInput" placeholder="请输入新名称" focus="{{renameInputFocus}}" cursor="{{newItemName.length}}" />
     </view>
   </mp-dialog>
-  
   <!-- 删除确认对话框 -->
   <mp-dialog title="确认删除" show="{{showDeleteModal}}" bindbuttontap="handleDeleteDialogButtonClick" buttons="{{deleteButtons}}">
     <view class="delete-modal-content">确定要删除该项吗？此操作无法撤销。</view>
+  </mp-dialog>
+  <!-- 命名对话框（导入图片时使用） -->
+  <mp-dialog title="命名图解" show="{{showNameModal}}" bindbuttontap="handleNameDialogButtonClick" buttons="{{nameButtons}}">
+    <view>
+      <view class="name-hint">已选择 {{pendingImages.length}} 张图片</view>
+      <input class="rename-input" type="text" value="{{diagramName}}" bindinput="onNameInput" placeholder="请输入图解名称" focus="{{nameInputFocus}}" cursor="{{diagramName.length}}" />
+    </view>
+  </mp-dialog>
+  <!-- 登录引导弹窗 -->
+  <mp-dialog title="登录后继续上传" show="{{showLoginPrompt}}" bindbuttontap="handleLoginDialogButtonClick" buttons="{{loginButtons}}">
+    <view class="login-dialog-content">登录后上传更多图解，并同步数据～</view>
   </mp-dialog>
 </view>

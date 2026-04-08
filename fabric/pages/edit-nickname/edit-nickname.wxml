@@ -1,0 +1,21 @@
+<view class="container">
+  <!-- 输入框区域 -->
+  <view class="input-wrapper">
+    <view class="input-row">
+      <view class="input-field">
+        <input
+          class="nickname-input"
+          type="text"
+          placeholder="请输入用户名"
+          value="{{nickName}}"
+          bindinput="onInputChange"
+          bindfocus="onInputFocus"
+          maxlength="20"
+          cursor="{{cursor}}"
+        />
+        <text class="char-count">{{nickName.length}}/20</text>
+      </view>
+      <view class="save-btn" bindtap="onSave">保存</view>
+    </view>
+  </view>
+</view>

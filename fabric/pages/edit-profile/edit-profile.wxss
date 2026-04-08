@@ -1,0 +1,111 @@
+page {
+  min-height: 100vh;
+  background: linear-gradient(180deg, #E6E6FA 0%, #FFFFFF 100%);
+}
+
+.container {
+  padding-top: 44rpx;
+  padding-left: 44rpx;
+  padding-right: 44rpx;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+/* 头像按钮容器 - 清除 button 默认样式 */
+.avatar-btn-wrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 0;
+  margin: 0;
+  background: transparent;
+  border: none;
+  line-height: normal;
+}
+
+.avatar-btn-wrapper::after {
+  border: none;
+}
+
+/* 头像 80*80dp = 160rpx */
+.avatar-section {
+  width: 160rpx;
+  height: 160rpx;
+  border-radius: 50%;
+  overflow: hidden;
+}
+
+.avatar {
+  width: 160rpx;
+  height: 160rpx;
+  border-radius: 50%;
+  border: 4rpx solid rgba(255, 255, 255, 0.7);
+  box-sizing: border-box;
+}
+
+/* 更换头像文字 */
+.change-avatar-text {
+  margin-top: 36rpx;
+  font-size: 32rpx;
+  font-weight: 500;
+  color: #333333;
+}
+
+/* 用户信息卡片 */
+.info-card {
+  width: 100%;
+  height: 222rpx;
+  margin-top: 48rpx;
+  background: #FFFFFF;
+  border-radius: 20rpx;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.info-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0 40rpx;
+  height: 50%;
+}
+
+.info-row:first-child {
+  border-bottom: 1rpx solid #f0f0f0;
+}
+
+.info-label {
+  font-size: 28rpx;
+  color: #333333;
+}
+
+.info-value {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  font-size: 28rpx;
+  color: rgba(51, 51, 51, 0.6);
+}
+
+/* 用户名和知织ID文字区域，固定宽度确保对齐 */
+.nickname-text,
+.zhizhi-id-text {
+  width: 280rpx; /* 约10个字 */
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-align: right;
+}
+
+/* 无箭头时，ID文字右边缘距离卡片右侧27dp(54rpx) */
+.zhizhi-id-text--no-arrow {
+  margin-right: 14rpx; /* 40rpx(padding) + 14rpx = 54rpx */
+}
+
+.arrow-icon {
+  width: 44rpx;
+  height: 44rpx;
+  margin-left: 8rpx;
+}

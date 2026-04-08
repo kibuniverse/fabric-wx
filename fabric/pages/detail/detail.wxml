@@ -3,59 +3,78 @@
 
   <!-- 计数器区域 -->
   <view class="counter-section">
-    <simple-counter 
-      id="detail-counter" 
-      bindchange="onCounterChange" 
+    <simple-counter
+      id="detail-counter"
+      counterId="{{itemId}}"
       backgroundColor="transparent"
       enableVibration="{{true}}"
       enableVoice="{{true}}"
+      showMemoBtn="{{true}}"
+      memoContent="{{memoContent}}"
+      bind:memotap="onMemoTap"
     ></simple-counter>
-  </view>
-  
-  <!-- 进度指示器 -->
-  <view class="progress-indicator" wx:if="{{itemType === 'pdf'}}">
-    {{currentPage}}/{{totalPages}}
   </view>
 
   <!-- 图解预览区域 -->
   <view class="preview-area">
-    <!-- 图片预览 支持手动缩放 -->
-    <movable-area 
-      wx:if="{{itemType === 'image'}}" 
-      class="movable-area">
-      <movable-view 
-        class="movable-view" 
-        direction="all" 
-        scale="true" 
-        scale-min="0.5" 
-        scale-max="5" 
-        scale-value="{{imageScale}}" 
-        damping="60"
-        friction="2"
-        animation="{{true}}"
-        bind:change="onMovableViewChange"
-        bind:scale="onImageScale">
-        <view class="image-mask"></view>
-        <image 
-          src="{{itemPath}}" 
-          mode="aspectFit" 
-          bindtap="previewImage"
-          class="preview-image"
-          catchlongtap="onLongTap"></image>
-      </movable-view>
-    </movable-area>
-    
-    <!-- PDF预览 -->
-    <pdf-viewer 
-      wx:elif="{{itemType === 'pdf'}}" 
-      filePath="{{itemPath}}" 
-      class="preview-pdf"></pdf-viewer>
-    
-    <!-- 加载中或错误状态 -->
+    <!-- 图片预览：swiper + 手势缩放 -->
+    <block wx:if="{{itemType === 'image' || (itemType === 'pdf' && itemPaths.length > 0)}}">
+      <!-- 统一的手势处理容器 -->
+      <view
+        class="swiper-wrapper"
+        catchtouchstart="onTouchStart"
+        catchtouchmove="onTouchMove"
+        catchtouchend="onTouchEnd"
+      >
+        <!-- 正常状态：swiper 滑动 -->
+        <swiper
+          class="image-swiper"
+          current="{{currentImageIndex}}"
+          duration="{{300}}"
+          bindchange="onSwiperChange"
+          hidden="{{scale > 1}}"
+          style="pointer-events: {{scale > 1 ? 'none' : 'auto'}};"
+        >
+          <swiper-item wx:for="{{itemPaths}}" wx:key="index">
+            <view class="image-container">
+              <image
+                src="{{item}}"
+                mode="aspectFit"
+                class="preview-image {{isAnimating ? 'animating' : ''}}"
+                bindload="onImageLoad"
+                bindtap="onImageTap"
+              />
+            </view>
+          </swiper-item>
+        </swiper>
+        <!-- 缩放状态：单张图片 -->
+        <image
+          wx:if="{{scale > 1}}"
+          src="{{itemPath}}"
+          mode="aspectFit"
+          class="preview-image {{isAnimating ? 'animating' : ''}}"
+          style="transform: translate({{translateX}}px, {{translateY}}px) scale({{scale}});"
+          bindload="onImageLoad"
+          bindtap="onScaleImageTap"
+        />
+      </view>
+
+      <!-- 页码指示器 -->
+      <view wx:if="{{totalImages > 1 && scale <= 1}}" class="page-indicator">
+        <text>{{currentImageIndex + 1}}/{{totalImages}}</text>
+      </view>
+    </block>
+
+    <!-- PDF转换中 -->
+    <view wx:elif="{{itemType === 'pdf' && isConverting}}" class="loading-state">
+      <text>正在转换PDF...</text>
+    </view>
+
+    <!-- 加载中 -->
     <view wx:else class="loading-state">
       <text>加载中...</text>
     </view>
   </view>
 
-
+  
 </view>

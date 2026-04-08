@@ -1,11 +1,11 @@
 .counter-wrapper {
-  padding: 44rpx;
+  padding: 56rpx 44rpx 0 44rpx;
   /* height: calc(100vh - 500rpx); */
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  margin-top: 4rpx;
   border-top: 2rpx solid #0000001a;
+  position: relative;
 }
 
 /* 头部样式 */
@@ -19,14 +19,17 @@
 
 .counter-name-wrapper {
   display: flex;
-  align-items: flex-end;
+  align-items: center;
 }
 
 
 .counter-name {
   max-width: 320rpx;
   font-size: 32rpx;
-  color: var(--main-default-gray);
+  font-weight: 400;
+  line-height: 44rpx;
+  letter-spacing: -0.86rpx;
+  color: #00000066;
 }
 
 .edit-icon {
@@ -34,7 +37,6 @@
   height: 32rpx;
   color: var(--main-default-gray);
   margin-left: 8rpx;
-  transform: translateY(-10rpx);
 }
 
 .counter-delete-btn {
@@ -50,18 +52,11 @@
 }
 
 .delete-text {
-  font-family: PingFang SC;
   font-weight: 400;
   font-size: 28rpx;
   line-height: 44rpx;
+  letter-spacing: -0.86rpx;
   color: #b22222e5;
-}
-
-.target-count {
-  flex-shrink: 0;
-  color: #333333;
-  font-size: 32rpx;
-  font-weight: 500;
 }
 
 /* 计数器主体样式 */
@@ -70,6 +65,8 @@
   justify-content: space-between;
   align-items: center;
   margin-bottom: 24rpx;
+  margin-left: 16rpx;
+  margin-right: 16rpx;
 }
 
 .counter-btn {
@@ -81,6 +78,10 @@
   align-items: center;
   font-size: 60rpx;
   color: #a889c8;
+}
+
+.counter-btn-hover {
+  opacity: 0.7;
 }
 
 .minus {
@@ -115,6 +116,9 @@
 .timer-display {
   text-align: center;
   font-size: 32rpx;
+  font-weight: 500;
+  line-height: 44rpx;
+  letter-spacing: -0.86rpx;
   color: var(--main-default-gray);
   margin-bottom: 52rpx;
 }
@@ -124,7 +128,7 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 40rpx;
+  margin-bottom: 36rpx;
 }
 
 .operation-buttons-left {
@@ -136,20 +140,28 @@
   display: flex;
   align-items: center;
   gap: 48rpx;
+  position: relative;
 }
 
 .target-count {
   display: flex;
   align-items: center;
-  color: #333333;
+  margin-left: 20rpx;
+}
+
+.target-label {
   font-size: 32rpx;
   font-weight: 500;
-  margin-left: 20rpx;
-  display: flex;
+  line-height: 44rpx;
+  letter-spacing: -0.86rpx;
+  color: #333333;
 }
 
 .target-num {
   font-size: 40rpx;
+  font-weight: 500;
+  line-height: 44rpx;
+  letter-spacing: -0.86rpx;
   color: var(--main-color);
 }
 
@@ -200,44 +212,118 @@
   background-color: #0000001a;
 }
 
+/* 计时中的脉冲动画 */
+.timer-counting {
+  animation: pulse 2s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(168, 137, 200, 0.4);
+  }
+  50% {
+    box-shadow: 0 0 0 12rpx rgba(168, 137, 200, 0);
+  }
+}
+
+/* 重置按钮引导气泡 */
+.reset-guide {
+  position: absolute;
+  right: 0;
+  bottom: 100rpx;
+  opacity: 0;
+  transform: translateY(10rpx);
+  transition: opacity 0.3s ease, transform 0.3s ease;
+  pointer-events: none;
+  z-index: 100;
+}
+
+.reset-guide.show {
+  opacity: 1;
+  transform: translateY(0);
+  pointer-events: auto;
+}
+
+.reset-guide-content {
+  background-color: rgba(0, 0, 0, 0.75);
+  color: #fff;
+  font-size: 24rpx;
+  padding: 16rpx 24rpx;
+  border-radius: 12rpx;
+  white-space: nowrap;
+  display: flex;
+  align-items: center;
+  gap: 20rpx;
+}
+
+.reset-guide-confirm {
+  color: #A889C8;
+  font-weight: 500;
+}
+
+.reset-guide-arrow {
+  position: absolute;
+  right: 30rpx;
+  bottom: -12rpx;
+  width: 0;
+  height: 0;
+  border-left: 12rpx solid transparent;
+  border-right: 12rpx solid transparent;
+  border-top: 14rpx solid rgba(0, 0, 0, 0.75);
+}
+
+/* 计时器功能引导气泡 */
+.timer-guide {
+  position: absolute;
+  right: 76rpx;
+  bottom: 100rpx;
+  opacity: 0;
+  transform: translateY(10rpx);
+  transition: opacity 0.3s ease, transform 0.3s ease;
+  pointer-events: none;
+  z-index: 100;
+}
+
+.timer-guide.show {
+  opacity: 1;
+  transform: translateY(0);
+  pointer-events: auto;
+}
+
+.timer-guide-content {
+  background-color: rgba(0, 0, 0, 0.75);
+  color: #fff;
+  font-size: 24rpx;
+  padding: 16rpx 24rpx;
+  border-radius: 12rpx;
+  white-space: nowrap;
+  display: flex;
+  align-items: center;
+  gap: 20rpx;
+}
+
+.timer-guide-confirm {
+  color: #A889C8;
+  font-weight: 500;
+}
+
+.timer-guide-arrow {
+  position: absolute;
+  right: 92rpx;
+  bottom: -12rpx;
+  width: 0;
+  height: 0;
+  border-left: 10rpx solid transparent;
+  border-right: 10rpx solid transparent;
+  border-top: 12rpx solid rgba(0, 0, 0, 0.75);
+}
+
 /* 历史记录部分 */
 .history-section {
   background: #fff;
   border-radius: 16rpx;
-  padding: 20rpx;
+  padding: 0rpx 30rpx;
   position: relative;
-}
-
-.history-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 20rpx;
-  font-size: 28rpx;
-  color: #333;
-}
-
-.history-title {
-  display: flex;
-  align-items: center;
-}
-
-.history-icon {
-  width: 32rpx;
-  height: 32rpx;
-  margin-right: 12rpx;
-}
-
-.history-text {
-  font-size: 32rpx;
-  line-height: 44rpx;
-  color: #00000066;
-}
-
-.clear-history {
-  color: #a889c8;
-  font-size: 28rpx;
-  font-weight: 400;
 }
 
 ::-webkit-scrollbar {
@@ -250,8 +336,8 @@
 /* 微信小程序 scroll-view 隐藏滚动条 */
 scroll-view {
   -webkit-overflow-scrolling: touch;
-  scrollbar-width: none;
-  -ms-overflow-style: none;
+  scrollbar-width: none !important;
+  -ms-overflow-style: none !important;
 }
 
 scroll-view::-webkit-scrollbar {
@@ -262,7 +348,7 @@ scroll-view::-webkit-scrollbar {
 }
 
 .history-list {
-  height: 328rpx;
+  height: 476rpx;
   overflow-y: auto;
 }
 
@@ -278,16 +364,24 @@ scroll-view::-webkit-scrollbar {
 .history-item {
   display: flex;
   align-items: center;
-  padding: 20rpx 0;
-  font-size: 24rpx;
+  padding: 20rpx 0rpx;
+  font-size: 22rpx;
+  font-weight: 400;
+  line-height: 1;
+  letter-spacing: 0;
   color: #666;
-  border-bottom: 1rpx solid #f5f5f5;
+  border-bottom: 2rpx solid #0000001a;
   position: relative;
   transform: translateX(0);
   opacity: 1;
   will-change: transform, opacity;
+  justify-content: space-between;
 }
 
+
+.history-item:first-child {
+  border-top: 2rpx solid #0000001a;
+}
 
 .history-item.slide-in {
   animation: slideInFromRight 0.3s ease-out;
@@ -306,15 +400,27 @@ scroll-view::-webkit-scrollbar {
 }
 
 .history-time {
-  color: #999;
-  flex: 2;
-  font-size: 26rpx;
+  font-size: 22rpx;
+  font-weight: 400;
+  line-height: 1;
+  letter-spacing: 0;
+  color: #00000066;
+  white-space: nowrap;
+  text-align: center;
+  width: 120rpx;
+  flex-shrink: 0;
 }
 
 .history-action {
-  color: #666;
-  flex: 1;
+  font-size: 22rpx;
+  font-weight: 400;
+  line-height: 1;
+  letter-spacing: 0;
+  color: #00000066;
+  white-space: nowrap;
   text-align: center;
+  width: 80rpx;
+  flex-shrink: 0;
 }
 
 .history-item:first-child .history-action {
@@ -329,9 +435,32 @@ scroll-view::-webkit-scrollbar {
   color: var(--main-color);
 }
 
+.history-item:first-child .history-interval {
+  color: var(--main-color);
+}
+
 .history-count {
-  flex: 1;
-  text-align: right;
+  font-size: 22rpx;
+  font-weight: 400;
+  line-height: 1;
+  letter-spacing: 0;
+  color: #00000066;
+  white-space: nowrap;
+  text-align: center;
+  width: 80rpx;
+  flex-shrink: 0;
+}
+
+.history-interval {
+  font-size: 22rpx;
+  font-weight: 400;
+  line-height: 1;
+  letter-spacing: 0;
+  color: #00000066;
+  white-space: nowrap;
+  text-align: center;
+  width: 100rpx;
+  flex-shrink: 0;
 }
 
 .history-empty {
@@ -360,11 +489,6 @@ scroll-view::-webkit-scrollbar {
 }
 
 .modal-content {
-  background: #fff;
-  border-radius: 16rpx;
-}
-
-.modal-content {
   margin: 40rpx;
   border: 1rpx solid #ddd;
   border-radius: 8rpx;
@@ -372,11 +496,28 @@ scroll-view::-webkit-scrollbar {
   display: flex;
   align-items: center;
   justify-content: center;
+  box-sizing: border-box;
 }
 
 .modal-content-input {
   width: 100%;
+  height: 60rpx;
+  line-height: 60rpx;
   text-align: center;
+  box-sizing: border-box;
+}
+
+/* iPad 适配：输入框高度调整 */
+@media (min-width: 750px) {
+  .modal-content {
+    margin: 20px;
+    padding: 10px;
+  }
+
+  .modal-content-input {
+    height: 30px;
+    line-height: 30px;
+  }
 }
 
 .cancel-btn {
@@ -407,112 +548,3 @@ scroll-view::-webkit-scrollbar {
   color: #000000;
 }
 
-/* @media (min-width: 500px) {
-  .counter-wrapper {
-    padding: 22px;
-    height: calc(100vh - 250px);
-    margin-top: 4rpx;
-    border-top: 2rpx solid #0000001a;
-  }
-
-  .counter-header {
-    margin-bottom: 60px;
-  }
-
-  .counter-name {
-    max-width: 160px;
-    font-size: 24px;
-    color: var(--main-default-gray);
-  }
-
-  .target-num {
-    font-size: 28px;
-  }
-
-  .delete-icon {
-    width: 23px;
-    height: 23px;
-    margin-right: 12px;
-  }
-
-  .target-count {
-    flex-shrink: 0;
-    color: #333333;
-    font-size: 16px;
-    font-weight: 500;
-  }
-
-  .counter-main {
-    margin-bottom: 12px;
-  }
-
-  .counter-btn {
-    width: 120px;
-    height: 120px;
-    font-size: 30px;
-  }
-
-  .plus-icon {
-    width: 52px;
-    height: 52px;
-  }
-
-  .minus-icon {
-    width: 52px;
-    height: 52px;
-  }
-
-  .timer-display {
-    font-size: 16px;
-    margin-bottom: 28px;
-  }
-
-  .operation-buttons-right {
-    gap: 32px;
-  }
-
-  .history-icon {
-    width: 16px;
-    height: 16px;
-  }
-
-  .operation-btn {
-    width: 40px;
-    height: 40px;
-  }
-
-  .reset-icon {
-    width: 22px;
-    height: 22px;
-  }
-
-  .timer-icon {
-    width: 18px;
-    height: 22px;
-  }
-
-  .history-header {
-    margin-bottom: 12px;
-    font-size: 16px;
-  }
-
-  .history-item {
-    padding: 12px 0;
-    font-size: 12px;
-    border-bottom: 1px solid #f5f5f5;
-  }
-
-  .empty-image {
-    width: 200px;
-    height: 200px;
-    margin-bottom: 12px;
-  }
-
-  .modal-content {
-    padding: 20px;
-  }
-
-  .modal-content input {
-    padding: 12px;
-  }
-} */
