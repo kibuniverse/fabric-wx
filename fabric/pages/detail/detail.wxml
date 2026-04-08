@@ -7,8 +7,8 @@
       id="detail-counter"
       counterId="{{itemId}}"
       backgroundColor="transparent"
-      enableVibration="{{true}}"
-      enableVoice="{{true}}"
+      enableVibration="{{isVibrationOn}}"
+      enableVoice="{{isVoiceOn}}"
       showMemoBtn="{{true}}"
       memoContent="{{memoContent}}"
       bind:memotap="onMemoTap"
@@ -76,5 +76,65 @@
     </view>
   </view>
 
-  
+  <!-- 临时计数浮动按钮 -->
+  <view class="temp-counter-fab" bindtap="onTempCounterTap">
+    <view class="temp-counter-icon-wrap" hover-class="temp-counter-icon-hover" hover-stay-time="150">
+      <image class="temp-counter-icon" src="/assets/temp_counter.svg" mode="aspectFit" />
+    </view>
+    <text class="temp-counter-label">临时计数</text>
+  </view>
+
+  <!-- 临时计数器底部栏 -->
+  <!-- 拖拽时透明遮罩，点击关闭删除按钮 -->
+  <view wx:if="{{showDeleteForId}}" class="temp-counter-overlay" bindtap="onDismissDelete" />
+
+  <view
+    wx:for="{{tempCounters}}"
+    wx:key="id"
+    class="temp-counter-item {{draggingCounterId === item.id && didDrag ? 'dragging' : ''}}"
+    style="left:{{item.x}}px;top:{{item.y}}px;z-index:{{draggingCounterId === item.id && didDrag ? 999 : (200 + item.zOrder)}};"
+    bindtouchstart="onTempCounterTouchStart"
+    catchtouchmove="onTempCounterDragMove"
+    bindtouchend="onTempCounterDragEnd"
+    data-id="{{item.id}}"
+  >
+    <!-- 删除按钮 -->
+    <view wx:if="{{showDeleteForId}}" class="temp-counter-delete" catchtap="onTempCounterDelete" data-id="{{item.id}}">
+      <image src="/assets/temp_conter_delete.svg" mode="aspectFit" />
+    </view>
+    <!-- icon（点击切换颜色） -->
+    <image
+      class="temp-counter-frame"
+      src="{{item.isActive ? '/assets/temp_connect_active.svg' : '/assets/temp_connect.svg'}}"
+      mode="aspectFit"
+      catchtap="onTempCounterIconTap"
+      data-id="{{item.id}}"
+    />
+    <!-- [-] 数字 [+] -->
+    <view class="temp-counter-row">
+      <view class="temp-counter-btn {{showDeleteForId ? 'temp-counter-btn-disabled' : ''}}" hover-class="{{showDeleteForId ? '' : 'temp-counter-btn-hover'}}" hover-stay-time="100" catchtap="{{showDeleteForId ? '' : 'onTempCounterDecrease'}}" data-id="{{item.id}}">
+        <image src="/assets/minus.svg" mode="aspectFit" />
+      </view>
+      <text class="temp-counter-value">{{item.count}}</text>
+      <view class="temp-counter-btn {{showDeleteForId ? 'temp-counter-btn-disabled' : ''}}" hover-class="{{showDeleteForId ? '' : 'temp-counter-btn-hover'}}" hover-stay-time="100" catchtap="{{showDeleteForId ? '' : 'onTempCounterIncrease'}}" data-id="{{item.id}}">
+        <image src="/assets/plus.svg" mode="aspectFit" />
+      </view>
+    </view>
+    <text class="temp-counter-item-label" catchtap="onTempCounterLabelTap" data-id="{{item.id}}">{{item.name || '临时计数'}}</text>
+
+    <!-- Tip 1: 同步开关引导（在 icon 上方） -->
+    <view wx:if="{{showTempCounterTipStep === 1 && item.id === tempCounterTipTargetId}}" class="temp-counter-tip tip-sync" catchtouchstart="" catchtouchend="" catchtap="">
+      <text class="temp-counter-tip-text">打开同步开关，可以和主计数器同步操作</text>
+      <view class="temp-counter-tip-btn" catchtap="onTempCounterTipDismiss" data-step="{{1}}">我知道了</view>
+      <view class="temp-counter-tip-arrow tip-sync-arrow"></view>
+    </view>
+
+    <!-- Tip 2: 长按删除引导（在计数器上方） -->
+    <view wx:if="{{showTempCounterTipStep === 2 && item.id === tempCounterTipTargetId}}" class="temp-counter-tip tip-delete" catchtouchstart="" catchtouchend="" catchtap="">
+      <text class="temp-counter-tip-text-inline">长按可以删除临时计数器</text>
+      <text class="temp-counter-tip-btn-inline" catchtap="onTempCounterTipDismiss" data-step="{{2}}">我知道了</text>
+      <view class="temp-counter-tip-arrow tip-delete-arrow"></view>
+    </view>
+  </view>
+
 </view>

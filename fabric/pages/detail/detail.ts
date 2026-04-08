@@ -1,5 +1,6 @@
 // pages/detail/detail.ts
 import { convertPdfToImages, continuePdfConversion, showLoading, hideLoading } from '../../utils/pdf_converter';
+import { vibrate } from '../../utils/vibrate';
 
 // 备忘录存储键
 const MEMO_STORAGE_KEY = "itemMemos";
@@ -7,6 +8,8 @@ const MEMO_STORAGE_KEY = "itemMemos";
 const COUNTERS_STORAGE_KEY = "simpleCounters";
 // 图片索引存储键
 const LAST_IMAGE_INDEX_KEY = "lastImageIndex";
+// 临时计数器新手引导是否已展示
+const TEMP_COUNTER_TIPS_SHOWN_KEY = "tempCounterTipsShown";
 
 // 定义详情页面需要的接口
 interface DetailPageData {
@@ -54,6 +57,28 @@ interface DetailPageData {
   // PDF转换状态
   isConverting: boolean;     // 是否正在转换PDF
   isPageHidden: boolean;     // 页面是否已隐藏（用户返回）
+
+  // ========== 临时计数器 ==========
+  tempCounters: Array<{
+    id: string;
+    count: number;
+    isActive: boolean;
+    x: number;
+    y: number;
+    name: string;
+    zOrder: number;            // 触摸排序，越大越在上层
+  }>;
+  draggingCounterId: string;
+  dragOffsetX: number;
+  dragOffsetY: number;
+  didDrag: boolean;
+  showDeleteForId: string;
+  // 震动/音效开关（与 simple-counter 一致，从存储读取）
+  isVibrationOn: boolean;
+  isVoiceOn: boolean;
+  // 新手引导 tips
+  showTempCounterTipStep: number;  // 0=不显示, 1=同步开关tip, 2=长按删除tip
+  tempCounterTipTargetId: string;  // tip 指向的计数器 id
 }
 
 // 缩放范围常量
@@ -105,6 +130,16 @@ Page<DetailPageData, WechatMiniprogram.IAnyObject>({
     swiperEnabled: true,
     isConverting: false,
     isPageHidden: false,
+    tempCounters: [],
+    draggingCounterId: '',
+    dragOffsetX: 0,
+    dragOffsetY: 0,
+    didDrag: false,
+    showDeleteForId: '',
+    isVibrationOn: false,
+    isVoiceOn: false,
+    showTempCounterTipStep: 0,
+    tempCounterTipTargetId: '',
   },
 
   onLoad(options: Record<string, string>) {
@@ -713,6 +748,13 @@ Page<DetailPageData, WechatMiniprogram.IAnyObject>({
 
   // 用于增量计算的临时变量
   lastDistance: 0,
+  // zOrder 递增计数器（栈式层级）
+  _nextZOrder: 0,
+  // 自定义长按计时器
+  _longPressTimer: null as ReturnType<typeof setTimeout> | null,
+  _longPressId: '',
+  _longPressTouchX: 0,
+  _longPressTouchY: 0,
 
   /**
    * 单指拖动处理
@@ -950,10 +992,17 @@ Page<DetailPageData, WechatMiniprogram.IAnyObject>({
     // 标记页面可见
     this.setData({ isPageHidden: false });
 
+    // 读取震动/音效设置（与 simple-counter 一致）
+    this.setData({
+      isVibrationOn: !!wx.getStorageSync('counter_vibration_state'),
+      isVoiceOn: !!wx.getStorageSync('counter_voice_state'),
+    });
+
     if (this.data.itemId) {
       this.loadItemDetail(this.data.itemId, true);
     }
     this.getContainerSize();
+    this.loadTempCounters();
     // 开始针织总时长计时
     const app = getApp<IAppOption>();
     if (app) {
@@ -982,6 +1031,7 @@ Page<DetailPageData, WechatMiniprogram.IAnyObject>({
     }
 
     this.saveLastImageIndex();
+    this.saveTempCounters();
     // 暂停针织总时长计时
     const app = getApp<IAppOption>();
     if (app) {
@@ -1008,6 +1058,7 @@ Page<DetailPageData, WechatMiniprogram.IAnyObject>({
     }
 
     this.saveLastImageIndex();
+    this.saveTempCounters();
     // 暂停针织总时长计时
     const app = getApp<IAppOption>();
     if (app) {
@@ -1030,6 +1081,333 @@ Page<DetailPageData, WechatMiniprogram.IAnyObject>({
     const storage = wx.getStorageSync(LAST_IMAGE_INDEX_KEY) || {};
     storage[itemId] = currentImageIndex;
     wx.setStorageSync(LAST_IMAGE_INDEX_KEY, storage);
+  },
+
+  onTempCounterTap() {
+    const counters = this.data.tempCounters;
+    if (counters.length >= 1) {
+      this.showToast('暂时只能创建1个临时计数器～');
+      return;
+    }
+    const pos = this._getDefaultPosition(counters.length);
+    const newCounter = {
+      id: `temp_${Date.now()}`,
+      count: 0,
+      isActive: false,
+      x: pos.x,
+      y: pos.y,
+      name: '',
+      zOrder: ++this._nextZOrder,
+    };
+    const newCounters = [...counters, newCounter];
+    this.setData({
+      tempCounters: newCounters,
+    });
+    this.saveTempCounters();
+
+    // 首次创建临时计数器时展示新手引导
+    if (counters.length === 0 && !wx.getStorageSync(TEMP_COUNTER_TIPS_SHOWN_KEY)) {
+      this.setData({
+        showTempCounterTipStep: 1,
+        tempCounterTipTargetId: newCounter.id,
+      });
+    }
+  },
+
+  /** 计算新建计数器的默认位置（左下角排列，满行向上换行） */
+  _getDefaultPosition(index: number): { x: number; y: number } {
+    const sys = wx.getSystemInfoSync();
+    const ratio = sys.windowWidth / 750;
+    const counterWidthPx = 180 * ratio;
+    const counterHeightPx = 120 * ratio;
+    const padding = 24 * ratio;
+    const gap = 16 * ratio;
+    const bannerHeight = 120 * ratio; // counter-section 高度
+    const minY = bannerHeight + padding;
+
+    const maxPerRow = Math.floor((sys.windowWidth - 2 * padding + gap) / (counterWidthPx + gap));
+    const row = Math.floor(index / maxPerRow);
+    const col = index % maxPerRow;
+
+    const x = padding + col * (counterWidthPx + gap);
+    const bottomY = sys.windowHeight - padding - counterHeightPx;
+    const y = Math.max(minY, bottomY - row * (counterHeightPx + gap));
+
+    return { x, y };
+  },
+
+  onTempCounterIncrease(e: WechatMiniprogram.CustomEvent) {
+    if (this.data.showDeleteForId) {
+      this.setData({ showDeleteForId: '' });
+    }
+    const id = e.currentTarget.dataset.id;
+    const counter = this.data.tempCounters.find((c) => c.id === id);
+    if (!counter) return;
+
+    // 临时计数器上限 999（与主计数器一致）
+    if (counter.count >= 999) return;
+
+    const counters = this.data.tempCounters.map((c) =>
+      c.id === id ? { ...c, count: c.count + 1 } : c
+    );
+    this.setData({ tempCounters: counters });
+    this.saveTempCounters();
+
+    // 同步主计数器
+    if (counter.isActive) {
+      this.syncMainCounter(1);
+    }
+
+    // 震动和音效反馈（与 simple-counter 一致）
+    if (this.data.isVibrationOn) vibrate();
+    if (this.data.isVoiceOn) {
+      const audio = wx.createInnerAudioContext();
+      audio.src = '/assets/audio_voice.m4a';
+      audio.onEnded(() => audio.destroy());
+      audio.play();
+    }
+  },
+
+  onTempCounterDecrease(e: WechatMiniprogram.CustomEvent) {
+    if (this.data.showDeleteForId) {
+      this.setData({ showDeleteForId: '' });
+    }
+    const id = e.currentTarget.dataset.id;
+    const counter = this.data.tempCounters.find((c) => c.id === id);
+    if (!counter || counter.count <= 0) return;
+
+    const counters = this.data.tempCounters.map((c) =>
+      c.id === id ? { ...c, count: c.count - 1 } : c
+    );
+    this.setData({ tempCounters: counters });
+    this.saveTempCounters();
+
+    // 同步主计数器
+    if (counter.isActive) {
+      this.syncMainCounter(-1);
+    }
+
+    // 震动和音效反馈（与 simple-counter 一致）
+    if (this.data.isVibrationOn) vibrate();
+    if (this.data.isVoiceOn) {
+      const audio = wx.createInnerAudioContext();
+      audio.src = '/assets/audio_voice.m4a';
+      audio.onEnded(() => audio.destroy());
+      audio.play();
+    }
+  },
+
+  /** 同步主计数器（simple-counter）增减 */
+  syncMainCounter(delta: number) {
+    const comp = this.selectComponent('#detail-counter');
+    if (!comp) return;
+    const currentCount = comp.getCurrentCount();
+    const newCount = Math.max(0, Math.min(999, currentCount + delta));
+    comp.setCount(newCount);
+  },
+
+  /** 点击顶部 icon 切换同步开关 */
+  onTempCounterIconTap(e: WechatMiniprogram.CustomEvent) {
+    // 编辑态（长按触发）下不响应
+    if (this.data.showDeleteForId) return;
+    const id = e.currentTarget.dataset.id;
+    const counter = this.data.tempCounters.find((c) => c.id === id);
+    if (!counter) return;
+    const newActive = !counter.isActive;
+    const counters = this.data.tempCounters.map((c) =>
+      c.id === id ? { ...c, isActive: newActive } : c
+    );
+    this.setData({ tempCounters: counters });
+    this.saveTempCounters();
+    this.showToast(newActive ? '关联开关已打开' : '关联开关已关闭');
+  },
+
+  /** 触摸开始：立即开始拖动 + 长按进入编辑 */
+  onTempCounterTouchStart(e: WechatMiniprogram.TouchEvent) {
+    const id = e.currentTarget.dataset.id;
+    const touch = e.touches[0];
+    this._longPressId = id;
+    this._longPressTouchX = touch.clientX;
+    this._longPressTouchY = touch.clientY;
+    this._longPressTimer = null;
+
+    const counter = this.data.tempCounters.find((c) => c.id === id);
+    if (!counter) return;
+
+    // 递增 zOrder，使当前触摸的计数器在最上层
+    this._nextZOrder++;
+    const newZOrder = this._nextZOrder;
+    const counters = this.data.tempCounters.map((c) =>
+      c.id === id ? { ...c, zOrder: newZOrder } : c
+    );
+
+    // 立即进入拖动就绪
+    this.setData({
+      tempCounters: counters,
+      draggingCounterId: id,
+      dragOffsetX: touch.clientX - counter.x,
+      dragOffsetY: touch.clientY - counter.y,
+      didDrag: false,
+    });
+
+    // 非编辑态下，同时启动长按计时器进入编辑态
+    if (!this.data.showDeleteForId) {
+      this._longPressTimer = setTimeout(() => {
+        this._longPressTimer = null;
+        this.setData({
+          showDeleteForId: 'all',
+        });
+      }, 500);
+    }
+  },
+
+  /** 拖动计数器（限制在可见区域内） */
+  onTempCounterDragMove(e: WechatMiniprogram.TouchEvent) {
+    // 手指移动超过阈值时取消长按计时器（用户在滑动，不是长按）
+    if (this._longPressTimer) {
+      const touch = e.touches[0];
+      const dx = Math.abs(touch.clientX - this._longPressTouchX);
+      const dy = Math.abs(touch.clientY - this._longPressTouchY);
+      if (dx > 10 || dy > 10) {
+        clearTimeout(this._longPressTimer);
+        this._longPressTimer = null;
+      }
+    }
+    const { draggingCounterId, dragOffsetX, dragOffsetY, tempCounters } = this.data;
+    if (!draggingCounterId) return;
+    const touch = e.touches[0];
+    const sys = wx.getSystemInfoSync();
+    const ratio = sys.windowWidth / 750;
+    const counterWidthPx = 180 * ratio;
+    const counterHeightPx = 120 * ratio;
+    // 限制在可见区域内：不超出屏幕边界
+    // 删除按钮在右上角溢出 14rpx，需要额外预留
+    const deleteOverflowPx = 14 * ratio;
+    const minX = 0;
+    const maxX = sys.windowWidth - counterWidthPx - deleteOverflowPx;
+    const minY = deleteOverflowPx;
+    const maxY = sys.windowHeight - counterHeightPx;
+
+    let newX = touch.clientX - dragOffsetX;
+    let newY = touch.clientY - dragOffsetY;
+    newX = Math.max(minX, Math.min(newX, maxX));
+    newY = Math.max(minY, Math.min(newY, maxY));
+
+    const counters = tempCounters.map((c) =>
+      c.id === draggingCounterId ? { ...c, x: newX, y: newY } : c
+    );
+    this.setData({ tempCounters: counters, didDrag: true });
+  },
+
+  /** 拖动结束 */
+  onTempCounterDragEnd() {
+    // 取消长按计时器
+    if (this._longPressTimer) {
+      clearTimeout(this._longPressTimer);
+      this._longPressTimer = null;
+    }
+    const { draggingCounterId } = this.data;
+    if (!draggingCounterId) return;
+    this.setData({
+      draggingCounterId: '',
+    });
+    this.saveTempCounters();
+  },
+
+  /** 点击标签文案重命名 */
+  onTempCounterLabelTap(e: WechatMiniprogram.CustomEvent) {
+    // 编辑态（长按触发）下不响应
+    if (this.data.showDeleteForId) return;
+    const id = e.currentTarget.dataset.id;
+    const counter = this.data.tempCounters.find((c) => c.id === id);
+    if (!counter) return;
+    wx.showModal({
+      title: '修改名称',
+      editable: true,
+      placeholderText: '请输入名称',
+      content: counter.name || '',
+      success: (res) => {
+        if (res.confirm && res.content !== undefined) {
+          const trimmed = res.content.trim();
+          const counters = this.data.tempCounters.map((c) =>
+            c.id === id ? { ...c, name: trimmed } : c
+          );
+          this.setData({ tempCounters: counters });
+          this.saveTempCounters();
+        }
+      },
+    });
+  },
+
+  /** 删除计数器 */
+  onTempCounterDelete(e: WechatMiniprogram.CustomEvent) {
+    const id = e.currentTarget.dataset.id;
+    const counters = this.data.tempCounters.filter((c) => c.id !== id);
+    // 全部删除时才退出编辑态，否则保持编辑态
+    const showDelete = counters.length > 0 ? 'all' : '';
+    this.setData({
+      tempCounters: counters,
+      showDeleteForId: showDelete,
+      draggingCounterId: '',
+    });
+    this.saveTempCounters();
+  },
+
+  /** 点击空白关闭删除按钮 */
+  onDismissDelete() {
+    this.setData({ showDeleteForId: '' });
+  },
+
+  /** 新手引导 tips 关闭 */
+  onTempCounterTipDismiss(e: WechatMiniprogram.CustomEvent) {
+    const step = e.currentTarget.dataset.step;
+    if (step === 1) {
+      this.setData({ showTempCounterTipStep: 2 });
+    } else if (step === 2) {
+      this.setData({ showTempCounterTipStep: 0, tempCounterTipTargetId: '' });
+      wx.setStorageSync(TEMP_COUNTER_TIPS_SHOWN_KEY, true);
+    }
+  },
+
+  saveTempCounters() {
+    const { itemId, tempCounters } = this.data;
+    if (!itemId) return;
+    wx.setStorageSync(`tempCounters_${itemId}`, tempCounters);
+  },
+
+  loadTempCounters() {
+    const { itemId } = this.data;
+    if (!itemId) return;
+    const raw: Array<any> = wx.getStorageSync(`tempCounters_${itemId}`) || [];
+    // 迁移旧数据：补充缺失字段
+    let needsRecalc = false;
+    const counters = raw.map((c: any, index: number) => {
+      if (c.x === undefined || c.y === undefined) {
+        needsRecalc = true;
+      }
+      return {
+        id: c.id || `temp_${Date.now()}_${index}`,
+        count: c.count || 0,
+        isActive: c.isActive || false,
+        x: c.x || 0,
+        y: c.y || 0,
+        name: c.name || '',
+        zOrder: c.zOrder ?? index,
+      };
+    });
+    this.setData({ tempCounters: counters });
+    // 如果有旧数据缺少位置，重新计算
+    if (needsRecalc && counters.length > 0) {
+      const updated = counters.map((c: any, index: number) => {
+        if (c.x === 0 && c.y === 0) {
+          return { ...c, ...this._getDefaultPosition(index) };
+        }
+        return c;
+      });
+      this.setData({ tempCounters: updated });
+    }
+    // 初始化 zOrder 计数器，避免新触摸的计数器层级低于已有计数器
+    this._nextZOrder = counters.reduce((max, c) => Math.max(max, c.zOrder || 0), 0);
   },
 
   onMemoTap() {

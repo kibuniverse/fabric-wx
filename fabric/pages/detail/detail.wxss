@@ -95,3 +95,256 @@
   font-size: 24rpx;
   pointer-events: none;
 }
+
+/* 临时计数浮动按钮 */
+.temp-counter-fab {
+  position: fixed;
+  right: 36rpx;
+  bottom: 480rpx;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  z-index: 100;
+  background-color: rgba(255, 255, 255, 0.85);
+  border-radius: 28rpx;
+  padding: 12rpx 16rpx;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+}
+
+.temp-counter-fab-hover {
+  opacity: 0.7;
+}
+
+.temp-counter-icon-wrap {
+  border-radius: 50%;
+  transition: opacity 0.15s ease;
+}
+
+.temp-counter-icon-hover {
+  opacity: 0.7;
+}
+
+.temp-counter-icon {
+  width: 52rpx;
+  height: 52rpx;
+}
+
+.temp-counter-label {
+  font-size: 16rpx;
+  font-weight: bold;
+  line-height: 1.2;
+  letter-spacing: 0;
+  color: #A889C8;
+  white-space: nowrap;
+}
+
+/* 临时计数器遮罩层（点击空白关闭删除按钮） */
+.temp-counter-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 199;
+}
+
+/* 单个临时计数器（独立 fixed 定位） */
+.temp-counter-item {
+  position: fixed;
+  width: 180rpx;
+  height: 120rpx;
+  background-color: #e6e6fa;
+  border: 2rpx solid rgba(168, 137, 200, 0.1);
+  border-radius: 16rpx;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+/* 拖拽状态 */
+.temp-counter-item.dragging {
+  transform: scale(1.05);
+  opacity: 0.9;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+/* 删除按钮摇晃动画 */
+@keyframes delete-wobble {
+  0%, 100% { transform: translateX(0) rotate(0deg); }
+  25% { transform: translateX(-2rpx) rotate(5deg); }
+  75% { transform: translateX(2rpx) rotate(-5deg); }
+}
+
+/* 删除按钮 */
+.temp-counter-delete {
+  position: absolute;
+  top: -14rpx;
+  right: -14rpx;
+  width: 28rpx;
+  height: 28rpx;
+  border-radius: 50%;
+  background-color: #D9D9D9;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10;
+  animation: delete-wobble 0.8s ease-in-out infinite;
+}
+
+.temp-counter-delete image {
+  width: 8rpx;
+  height: 8rpx;
+}
+
+/* Frame 图标（顶部小图标） */
+.temp-counter-frame {
+  width: 44rpx;
+  height: 44rpx;
+  position: absolute;
+  top: 0;
+  filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.1));
+}
+
+/* 计数行 [-] 数字 [+] */
+.temp-counter-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  margin-top: 40rpx;
+  padding: 0 10rpx;
+  box-sizing: border-box;
+}
+
+.temp-counter-btn {
+  width: 52rpx;
+  height: 52rpx;
+  border-radius: 50%;
+  background-color: #ffffff;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background-color 0.15s ease;
+}
+
+.temp-counter-btn image {
+  width: 26rpx;
+  height: 26rpx;
+}
+
+.temp-counter-btn-hover {
+  background-color: #ebebeb;
+}
+
+.temp-counter-btn-disabled {
+  opacity: 0.5;
+}
+
+.temp-counter-value {
+  font-size: 32rpx;
+  font-weight: 600;
+  color: rgba(0, 0, 0, 0.9);
+  line-height: 44rpx;
+  letter-spacing: -0.86rpx;
+  min-width: 40rpx;
+  text-align: center;
+  text-shadow: 0 1px 1px rgba(0, 0, 0, 0.06);
+}
+
+/* 计数器底部文案 */
+.temp-counter-item-label {
+  font-size: 16rpx;
+  font-weight: 500;
+  color: #6a0dad;
+  letter-spacing: 0;
+  padding: 0 8rpx;
+  max-width: 140rpx;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-shadow: 0 1px 1px rgba(0, 0, 0, 0.06);
+}
+
+/* ========== 新手引导 Tips ========== */
+
+.temp-counter-tip {
+  position: absolute;
+  background-color: rgba(0, 0, 0, 0.75);
+  border-radius: 12rpx;
+  padding: 16rpx 24rpx;
+  z-index: 210;
+  box-sizing: border-box;
+}
+
+/* Tip 1: 同步开关（在计数器上方，箭头指向 icon） */
+.tip-sync {
+  bottom: calc(100% + 6rpx);
+  left: 0;
+  width: 260rpx;
+}
+
+/* Tip 2: 长按删除（在计数器整体上方） */
+.tip-delete {
+  bottom: calc(100% + 12rpx);
+  left: -20rpx;
+  width: auto;
+  white-space: nowrap;
+}
+
+.temp-counter-tip-text {
+  display: block;
+  font-size: 24rpx;
+  color: #fff;
+  line-height: 1.4;
+  margin-bottom: 8rpx;
+}
+
+.temp-counter-tip-btn {
+  display: inline-block;
+  font-size: 22rpx;
+  color: #A889C8;
+  font-weight: 500;
+  float: right;
+}
+
+/* 箭头 - 通用 */
+.temp-counter-tip-arrow {
+  position: absolute;
+  width: 0;
+  height: 0;
+}
+
+/* Tip 1 箭头：指向 icon（44rpx 宽，水平居中在 180rpx 容器中心 90rpx） */
+.tip-sync-arrow {
+  left: 80rpx;
+  bottom: -16rpx;
+  border-left: 10rpx solid transparent;
+  border-right: 10rpx solid transparent;
+  border-top: 16rpx solid rgba(0, 0, 0, 0.75);
+}
+
+/* Tip 2 箭头：从底部中央指向计数器 */
+.tip-delete-arrow {
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: -10rpx;
+  border-left: 10rpx solid transparent;
+  border-right: 10rpx solid transparent;
+  border-top: 10rpx solid rgba(0, 0, 0, 0.75);
+}
+
+/* Tip 2 单行样式 */
+.temp-counter-tip-text-inline {
+  font-size: 24rpx;
+  color: #fff;
+}
+
+.temp-counter-tip-btn-inline {
+  font-size: 22rpx;
+  color: #A889C8;
+  font-weight: 500;
+  margin-left: 20rpx;
+}

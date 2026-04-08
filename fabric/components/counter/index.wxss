@@ -423,19 +423,19 @@ scroll-view::-webkit-scrollbar {
   flex-shrink: 0;
 }
 
-.history-item:first-child .history-action {
+.history-highlight .history-action {
   color: var(--main-color);
 }
 
-.history-item:first-child .history-time {
+.history-highlight .history-time {
   color: var(--main-color);
 }
 
-.history-item:first-child .history-count {
+.history-highlight .history-count {
   color: var(--main-color);
 }
 
-.history-item:first-child .history-interval {
+.history-highlight .history-interval {
   color: var(--main-color);
 }
 
