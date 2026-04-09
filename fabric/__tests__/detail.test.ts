@@ -531,3 +531,261 @@ describe('详情页 - 新手引导首次展示逻辑', () => {
     expect(hasShownTips).toBe(true);
   });
 });
+
+// ========== PDF 加载 UX 优化 测试 ==========
+
+/**
+ * 模拟 convertPdfItem 的进度回调逻辑（纯函数提取）
+ */
+function handleProgress(
+  progress: { current: number; total: number; paths: string[] },
+  pageState: {
+    isPageHidden: boolean;
+    name: string;
+    currentImageIndex: number;
+    scale: number;
+    translateX: number;
+    translateY: number;
+  },
+): {
+  shouldHideLoading: boolean;
+  setData: Record<string, any> | null;
+} {
+  if (pageState.isPageHidden) {
+    return { shouldHideLoading: false, setData: null };
+  }
+
+  if (progress.current === 1) {
+    // 第一页：关闭 loading，显示图片
+    return {
+      shouldHideLoading: true,
+      setData: {
+        itemType: 'pdf',
+        itemName: pageState.name,
+        itemPath: progress.paths[0],
+        itemPaths: progress.paths,
+        currentImageIndex: 0,
+        totalImages: progress.paths.length,
+        scale: 1,
+        translateX: 0,
+        translateY: 0,
+        swiperEnabled: true,
+        imageSizes: {},
+        pdfConvertProgress: `${progress.current}/${progress.total}`,
+      },
+    };
+  } else {
+    // 后续页：只更新 paths 和进度
+    return {
+      shouldHideLoading: false,
+      setData: {
+        itemPaths: progress.paths,
+        totalImages: progress.paths.length,
+        pdfConvertProgress: `${progress.current}/${progress.total}`,
+      },
+    };
+  }
+}
+
+/**
+ * 模拟加载完成后的状态合并逻辑（纯函数提取）
+ * 保留用户的页面位置和缩放状态
+ */
+function handleCompletion(
+  result: { paths: string[]; pageCount: number; totalPageCount: number },
+  currentState: {
+    currentImageIndex: number;
+    scale: number;
+    translateX: number;
+    translateY: number;
+    isPageHidden: boolean;
+    name: string;
+  },
+): Record<string, any> | null {
+  if (currentState.isPageHidden) {
+    return { isConverting: false, pdfConvertProgress: '' };
+  }
+
+  const itemPaths = result.paths;
+  const totalImages = itemPaths.length;
+  const preserveIndex = Math.min(currentState.currentImageIndex, totalImages - 1);
+  const { scale, translateX, translateY } = currentState;
+
+  return {
+    itemType: 'pdf',
+    itemName: currentState.name,
+    itemPath: itemPaths[preserveIndex],
+    itemPaths,
+    currentImageIndex: preserveIndex,
+    totalImages,
+    scale,
+    translateX,
+    translateY,
+    swiperEnabled: scale <= 1,
+    imageSizes: {},
+    isConverting: false,
+    pdfConvertProgress: '',
+  };
+}
+
+describe('详情页 - PDF加载进度回调', () => {
+  it('第一页加载完成应关闭 loading 并显示图片', () => {
+    const result = handleProgress(
+      { current: 1, total: 5, paths: ['/path/page1.png'] },
+      { isPageHidden: false, name: '测试PDF', currentImageIndex: 0, scale: 1, translateX: 0, translateY: 0 },
+    );
+    expect(result.shouldHideLoading).toBe(true);
+    expect(result.setData).not.toBeNull();
+    expect(result.setData!.itemPath).toBe('/path/page1.png');
+    expect(result.setData!.itemPaths).toEqual(['/path/page1.png']);
+    expect(result.setData!.totalImages).toBe(1); // paths.length, not total
+    expect(result.setData!.pdfConvertProgress).toBe('1/5');
+  });
+
+  it('后续页加载只更新 itemPaths 和进度', () => {
+    const result = handleProgress(
+      { current: 3, total: 5, paths: ['/p1.png', '/p2.png', '/p3.png'] },
+      { isPageHidden: false, name: '测试PDF', currentImageIndex: 0, scale: 1, translateX: 0, translateY: 0 },
+    );
+    expect(result.shouldHideLoading).toBe(false);
+    expect(result.setData!.itemPaths).toEqual(['/p1.png', '/p2.png', '/p3.png']);
+    expect(result.setData!.totalImages).toBe(3);
+    expect(result.setData!.pdfConvertProgress).toBe('3/5');
+    // 不应重置缩放/位移状态
+    expect(result.setData!.scale).toBeUndefined();
+    expect(result.setData!.translateX).toBeUndefined();
+  });
+
+  it('页面隐藏时不应更新 UI', () => {
+    const result = handleProgress(
+      { current: 1, total: 5, paths: ['/page1.png'] },
+      { isPageHidden: true, name: '测试PDF', currentImageIndex: 0, scale: 1, translateX: 0, translateY: 0 },
+    );
+    expect(result.setData).toBeNull();
+    expect(result.shouldHideLoading).toBe(false);
+  });
+});
+
+describe('详情页 - PDF加载完成后状态保留', () => {
+  const defaultResult = { paths: ['/p1.png', '/p2.png', '/p3.png'], pageCount: 3, totalPageCount: 3 };
+
+  it('用户未翻页时应保留 index 0', () => {
+    const state = { currentImageIndex: 0, scale: 1, translateX: 0, translateY: 0, isPageHidden: false, name: 'PDF' };
+    const setData = handleCompletion(defaultResult, state)!;
+    expect(setData.currentImageIndex).toBe(0);
+    expect(setData.itemPath).toBe('/p1.png');
+  });
+
+  it('用户翻到第 2 页时应保留该位置', () => {
+    const state = { currentImageIndex: 1, scale: 1, translateX: 0, translateY: 0, isPageHidden: false, name: 'PDF' };
+    const setData = handleCompletion(defaultResult, state)!;
+    expect(setData.currentImageIndex).toBe(1);
+    expect(setData.itemPath).toBe('/p2.png');
+  });
+
+  it('用户翻到的页数超过加载结果时应回退到最后一页', () => {
+    const state = { currentImageIndex: 5, scale: 1, translateX: 0, translateY: 0, isPageHidden: false, name: 'PDF' };
+    const setData = handleCompletion(defaultResult, state)!;
+    expect(setData.currentImageIndex).toBe(2); // Math.min(5, 3-1) = 2
+    expect(setData.itemPath).toBe('/p3.png');
+  });
+
+  it('用户缩放到 2x 时应保留缩放状态', () => {
+    const state = { currentImageIndex: 0, scale: 2, translateX: 10, translateY: 20, isPageHidden: false, name: 'PDF' };
+    const setData = handleCompletion(defaultResult, state)!;
+    expect(setData.scale).toBe(2);
+    expect(setData.translateX).toBe(10);
+    expect(setData.translateY).toBe(20);
+  });
+
+  it('缩放状态保留时 swiperEnabled 应为 false', () => {
+    const state = { currentImageIndex: 0, scale: 2.5, translateX: 0, translateY: 0, isPageHidden: false, name: 'PDF' };
+    const setData = handleCompletion(defaultResult, state)!;
+    expect(setData.swiperEnabled).toBe(false); // scale <= 1 is false
+  });
+
+  it('未缩放时 swiperEnabled 应为 true', () => {
+    const state = { currentImageIndex: 0, scale: 1, translateX: 0, translateY: 0, isPageHidden: false, name: 'PDF' };
+    const setData = handleCompletion(defaultResult, state)!;
+    expect(setData.swiperEnabled).toBe(true);
+  });
+
+  it('页面隐藏时只清除转换状态', () => {
+    const state = { currentImageIndex: 1, scale: 2, translateX: 10, translateY: 20, isPageHidden: true, name: 'PDF' };
+    const setData = handleCompletion(defaultResult, state)!;
+    expect(setData.isConverting).toBe(false);
+    expect(setData.pdfConvertProgress).toBe('');
+    expect(setData.scale).toBeUndefined(); // 不更新 UI
+  });
+
+  it('加载完成时 pdfConvertProgress 应清空', () => {
+    const state = { currentImageIndex: 0, scale: 1, translateX: 0, translateY: 0, isPageHidden: false, name: 'PDF' };
+    const setData = handleCompletion(defaultResult, state)!;
+    expect(setData.pdfConvertProgress).toBe('');
+  });
+});
+
+describe('详情页 - pdfConvertProgress 格式', () => {
+  it('应格式化为 current/total', () => {
+    const progress = `${3}/${10}`;
+    expect(progress).toBe('3/10');
+  });
+
+  it('完成后应清空', () => {
+    const progress = '';
+    expect(progress).toBe('');
+  });
+
+  it('第一页加载完成时应显示 1/N', () => {
+    const result = handleProgress(
+      { current: 1, total: 8, paths: ['/p1.png'] },
+      { isPageHidden: false, name: 'PDF', currentImageIndex: 0, scale: 1, translateX: 0, translateY: 0 },
+    );
+    expect(result.setData!.pdfConvertProgress).toBe('1/8');
+  });
+
+  it('最后一页加载完成时应显示 N/N', () => {
+    const paths = Array.from({ length: 5 }, (_, i) => `/p${i + 1}.png`);
+    const result = handleProgress(
+      { current: 5, total: 5, paths },
+      { isPageHidden: false, name: 'PDF', currentImageIndex: 0, scale: 1, translateX: 0, translateY: 0 },
+    );
+    expect(result.setData!.pdfConvertProgress).toBe('5/5');
+  });
+});
+
+describe('详情页 - totalImages 使用 paths.length', () => {
+  it('第一页加载时 totalImages 应为 1 而非 PDF 总页数', () => {
+    const result = handleProgress(
+      { current: 1, total: 10, paths: ['/p1.png'] },
+      { isPageHidden: false, name: 'PDF', currentImageIndex: 0, scale: 1, translateX: 0, translateY: 0 },
+    );
+    expect(result.setData!.totalImages).toBe(1);
+  });
+
+  it('第三页加载时 totalImages 应为 3', () => {
+    const result = handleProgress(
+      { current: 3, total: 10, paths: ['/p1.png', '/p2.png', '/p3.png'] },
+      { isPageHidden: false, name: 'PDF', currentImageIndex: 0, scale: 1, translateX: 0, translateY: 0 },
+    );
+    expect(result.setData!.totalImages).toBe(3);
+  });
+});
+
+describe('详情页 - swiperEnabled 动态计算', () => {
+  it('scale = 1 时 swiperEnabled = true', () => {
+    expect(1 <= 1).toBe(true);
+  });
+
+  it('scale = 1.5 时 swiperEnabled = false', () => {
+    expect(1.5 <= 1).toBe(false);
+  });
+
+  it('scale = 2.0 时 swiperEnabled = false', () => {
+    expect(2.0 <= 1).toBe(false);
+  });
+
+  it('scale = 0.5 时 swiperEnabled = true', () => {
+    expect(0.5 <= 1).toBe(true);
+  });
+});

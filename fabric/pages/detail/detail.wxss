@@ -106,6 +106,38 @@
   pointer-events: none;
 }
 
+/* PDF转换小进度（右上角） */
+.pdf-convert-progress {
+  position: absolute;
+  top: 44rpx;
+  left: 44rpx;
+  display: flex;
+  align-items: center;
+  gap: 10rpx;
+  background-color: rgba(230, 230, 250, 0.7);
+  padding: 8rpx 20rpx;
+  border-radius: 24rpx;
+  pointer-events: none;
+}
+
+.pdf-convert-spinner {
+  width: 24rpx;
+  height: 24rpx;
+  border: 3rpx solid rgba(106, 13, 173, 0.2);
+  border-top-color: #6A0DAD;
+  border-radius: 50%;
+  animation: pdf-spin 0.8s linear infinite;
+}
+
+@keyframes pdf-spin {
+  to { transform: rotate(360deg); }
+}
+
+.pdf-convert-text {
+  font-size: 22rpx;
+  color: #6A0DAD;
+}
+
 /* 临时计数浮动按钮 */
 .temp-counter-fab {
   position: fixed;

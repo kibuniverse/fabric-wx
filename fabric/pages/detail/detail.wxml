@@ -63,6 +63,12 @@
       <view wx:if="{{totalImages > 1 && scale <= 1}}" class="page-indicator">
         <text>{{currentImageIndex + 1}}/{{totalImages}}</text>
       </view>
+
+      <!-- PDF转换小进度（右上角，不遮挡操作） -->
+      <view wx:if="{{pdfConvertProgress}}" class="pdf-convert-progress">
+        <view class="pdf-convert-spinner" />
+        <text class="pdf-convert-text">{{pdfConvertProgress}}</text>
+      </view>
     </block>
 
     <!-- PDF转换中 -->

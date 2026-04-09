@@ -55,6 +55,7 @@ interface DetailPageData {
   // PDF转换状态
   isConverting: boolean;     // 是否正在转换PDF
   isPageHidden: boolean;     // 页面是否已隐藏（用户返回）
+  pdfConvertProgress: string; // PDF转换进度文案（如 "3/10"），空串表示不显示
 
   // ========== 临时计数器 ==========
   tempCounters: Array<{
@@ -126,6 +127,7 @@ Page<DetailPageData, WechatMiniprogram.IAnyObject>({
     swiperEnabled: true,
     isConverting: false,
     isPageHidden: false,
+    pdfConvertProgress: '',
     tempCounters: [],
     draggingCounterId: '',
     dragOffsetX: 0,
@@ -260,7 +262,7 @@ Page<DetailPageData, WechatMiniprogram.IAnyObject>({
     const { id, path, name } = item;
 
     this.setData({ isConverting: true });
-    showLoading('首次加载较慢，请等等我');
+    showLoading('加载中...');
 
     try {
       // 转换PDF为图片
@@ -269,28 +271,30 @@ Page<DetailPageData, WechatMiniprogram.IAnyObject>({
         if (!this.data.isPageHidden) {
           // 第一页下载完成后立即显示图片，让用户能边加载边看
           if (progress.current === 1) {
+            hideLoading();
             this.setData({
               itemType: 'pdf',
               itemName: name,
               itemPath: progress.paths[0],
               itemPaths: progress.paths,
               currentImageIndex: 0,
-              totalImages: progress.total,
+              totalImages: progress.paths.length,
               scale: 1,
               translateX: 0,
               translateY: 0,
               swiperEnabled: true,
               imageSizes: {},
+              pdfConvertProgress: `${progress.current}/${progress.total}`,
             });
             wx.setNavigationBarTitle({ title: name });
             this.loadMemoContent();
+          } else {
+            this.setData({
+              itemPaths: progress.paths,
+              totalImages: progress.paths.length,
+              pdfConvertProgress: `${progress.current}/${progress.total}`,
+            });
           }
-
-          // 继续显示进度（用户已能看到第一页内容）
-          wx.showLoading({
-            title: `加载中 ${progress.current}/${progress.total}`,
-            mask: true
-          });
         }
       });
 
@@ -335,23 +339,26 @@ Page<DetailPageData, WechatMiniprogram.IAnyObject>({
 
       // 仅在页面可见时更新UI和显示提示
       if (!this.data.isPageHidden) {
-        // 显示转换后的图片
+        // 显示转换后的图片（保留用户当前浏览位置）
         const itemPaths = result.paths;
         const totalImages = itemPaths.length;
+        const preserveIndex = Math.min(this.data.currentImageIndex, totalImages - 1);
+        const { scale, translateX, translateY } = this.data;
 
         this.setData({
           itemType: 'pdf',
           itemName: name,
-          itemPath: itemPaths[0],
+          itemPath: itemPaths[preserveIndex],
           itemPaths,
-          currentImageIndex: 0,
+          currentImageIndex: preserveIndex,
           totalImages,
-          scale: 1,
-          translateX: 0,
-          translateY: 0,
-          swiperEnabled: true,
+          scale,
+          translateX,
+          translateY,
+          swiperEnabled: scale <= 1,
           imageSizes: {},
           isConverting: false,
+          pdfConvertProgress: '',
         });
 
         wx.setNavigationBarTitle({ title: name });
@@ -365,12 +372,12 @@ Page<DetailPageData, WechatMiniprogram.IAnyObject>({
         }
       } else {
         // 页面已隐藏，仅更新转换状态
-        this.setData({ isConverting: false });
+        this.setData({ isConverting: false, pdfConvertProgress: '' });
       }
     } catch (err: any) {
       hideLoading();
       console.error('PDF转换失败:', err);
-      this.setData({ isConverting: false });
+      this.setData({ isConverting: false, pdfConvertProgress: '' });
       // 仅在页面可见时提示错误并返回
       if (!this.data.isPageHidden) {
         // 显示具体的错误信息
@@ -404,14 +411,10 @@ Page<DetailPageData, WechatMiniprogram.IAnyObject>({
       translateY: 0,
       swiperEnabled: true,
       imageSizes: {},
+      pdfConvertProgress: `${paths.length}/${totalPdfPageCount}`,
     });
     wx.setNavigationBarTitle({ title: name });
     this.loadMemoContent();
-
-    wx.showLoading({
-      title: `继续加载 ${paths.length}/${totalPdfPageCount}`,
-      mask: true
-    });
 
     try {
       // 继续下载缺失的页面
@@ -427,11 +430,7 @@ Page<DetailPageData, WechatMiniprogram.IAnyObject>({
             this.setData({
               itemPaths: progress.paths,
               totalImages: progress.paths.length,
-            });
-
-            wx.showLoading({
-              title: `加载中 ${progress.current}/${progress.total}`,
-              mask: true
+              pdfConvertProgress: `${progress.current}/${progress.total}`,
             });
           }
         }
@@ -471,20 +470,23 @@ Page<DetailPageData, WechatMiniprogram.IAnyObject>({
       if (!this.data.isPageHidden) {
         const itemPaths = result.paths;
         const totalImages = itemPaths.length;
+        const preserveIndex = Math.min(this.data.currentImageIndex, totalImages - 1);
+        const { scale, translateX, translateY } = this.data;
 
         this.setData({
           itemType: 'pdf',
           itemName: name,
-          itemPath: itemPaths[0],
+          itemPath: itemPaths[preserveIndex],
           itemPaths,
-          currentImageIndex: 0,
+          currentImageIndex: preserveIndex,
           totalImages,
-          scale: 1,
-          translateX: 0,
-          translateY: 0,
-          swiperEnabled: true,
+          scale,
+          translateX,
+          translateY,
+          swiperEnabled: scale <= 1,
           imageSizes: {},
           isConverting: false,
+          pdfConvertProgress: '',
         });
 
         wx.setNavigationBarTitle({ title: name });
@@ -496,12 +498,12 @@ Page<DetailPageData, WechatMiniprogram.IAnyObject>({
           this.showToast(`已加载 ${result.pageCount}/${totalPdfPageCount} 页`);
         }
       } else {
-        this.setData({ isConverting: false });
+        this.setData({ isConverting: false, pdfConvertProgress: '' });
       }
     } catch (err: any) {
       hideLoading();
       console.error('继续加载PDF失败:', err);
-      this.setData({ isConverting: false });
+      this.setData({ isConverting: false, pdfConvertProgress: '' });
       if (!this.data.isPageHidden) {
         // 加载失败时，显示已有的图片
         const itemPaths = paths;
