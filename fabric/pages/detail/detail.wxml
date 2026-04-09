@@ -32,7 +32,7 @@
           current="{{currentImageIndex}}"
           duration="{{300}}"
           bindchange="onSwiperChange"
-          hidden="{{scale > 1}}"
+          hidden="{{scale > 1 || isAnimating}}"
           style="pointer-events: {{scale > 1 ? 'none' : 'auto'}};"
         >
           <swiper-item wx:for="{{itemPaths}}" wx:key="index">
@@ -47,21 +47,27 @@
             </view>
           </swiper-item>
         </swiper>
-        <!-- 缩放状态：单张图片 -->
-        <image
-          wx:if="{{scale > 1}}"
-          src="{{itemPath}}"
-          mode="aspectFit"
-          class="preview-image {{isAnimating ? 'animating' : ''}}"
-          style="transform: translate({{translateX}}px, {{translateY}}px) scale({{scale}});"
-          bindload="onImageLoad"
-          bindtap="onScaleImageTap"
-        />
+        <!-- 缩放图片层（始终渲染，缩放/动画时可见） -->
+        <view class="scaled-image-container" hidden="{{scale <= 1 && !isAnimating}}">
+          <image
+            src="{{itemPath}}"
+            mode="aspectFit"
+            class="preview-image {{isAnimating ? 'animating' : ''}}"
+            style="transform: translate({{translateX}}px, {{translateY}}px) scale({{scale}});"
+            bindload="onImageLoad"
+          />
+        </view>
       </view>
 
       <!-- 页码指示器 -->
       <view wx:if="{{totalImages > 1 && scale <= 1}}" class="page-indicator">
         <text>{{currentImageIndex + 1}}/{{totalImages}}</text>
+      </view>
+
+      <!-- PDF转换小进度（右上角，不遮挡操作） -->
+      <view wx:if="{{pdfConvertProgress}}" class="pdf-convert-progress">
+        <view class="pdf-convert-spinner" />
+        <text class="pdf-convert-text">{{pdfConvertProgress}}</text>
       </view>
     </block>
 

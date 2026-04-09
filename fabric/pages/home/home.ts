@@ -280,7 +280,7 @@ Page({
       count: 9, // 最多可以选择的文件个数
       mediaType: ['image'],
       sourceType: ['album', 'camera'],
-      sizeType: ['original', 'compressed'],
+      sizeType: ['original'],
       success: async (res) => {
         // 获取临时文件路径
         const tempFiles = res.tempFiles.map(file => file.tempFilePath);

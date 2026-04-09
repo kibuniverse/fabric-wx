@@ -55,6 +55,7 @@ interface DetailPageData {
   // PDF转换状态
   isConverting: boolean;     // 是否正在转换PDF
   isPageHidden: boolean;     // 页面是否已隐藏（用户返回）
+  pdfConvertProgress: string; // PDF转换进度文案（如 "3/10"），空串表示不显示
 
   // ========== 临时计数器 ==========
   tempCounters: Array<{
@@ -80,8 +81,8 @@ interface DetailPageData {
 }
 
 // 缩放范围常量
-const MIN_SCALE = 0.8;
-const MAX_SCALE = 2.0;
+const MIN_SCALE = 1.0;
+const MAX_SCALE = 6.0;
 // 双击时间阈值
 const DOUBLE_TAP_THRESHOLD = 300;
 
@@ -126,6 +127,7 @@ Page<DetailPageData, WechatMiniprogram.IAnyObject>({
     swiperEnabled: true,
     isConverting: false,
     isPageHidden: false,
+    pdfConvertProgress: '',
     tempCounters: [],
     draggingCounterId: '',
     dragOffsetX: 0,
@@ -260,7 +262,7 @@ Page<DetailPageData, WechatMiniprogram.IAnyObject>({
     const { id, path, name } = item;
 
     this.setData({ isConverting: true });
-    showLoading('首次加载较慢，请等等我');
+    showLoading('加载中...');
 
     try {
       // 转换PDF为图片
@@ -269,28 +271,30 @@ Page<DetailPageData, WechatMiniprogram.IAnyObject>({
         if (!this.data.isPageHidden) {
           // 第一页下载完成后立即显示图片，让用户能边加载边看
           if (progress.current === 1) {
+            hideLoading();
             this.setData({
               itemType: 'pdf',
               itemName: name,
               itemPath: progress.paths[0],
               itemPaths: progress.paths,
               currentImageIndex: 0,
-              totalImages: progress.total,
+              totalImages: progress.paths.length,
               scale: 1,
               translateX: 0,
               translateY: 0,
               swiperEnabled: true,
               imageSizes: {},
+              pdfConvertProgress: `${progress.current}/${progress.total}`,
             });
             wx.setNavigationBarTitle({ title: name });
             this.loadMemoContent();
+          } else {
+            this.setData({
+              itemPaths: progress.paths,
+              totalImages: progress.paths.length,
+              pdfConvertProgress: `${progress.current}/${progress.total}`,
+            });
           }
-
-          // 继续显示进度（用户已能看到第一页内容）
-          wx.showLoading({
-            title: `加载中 ${progress.current}/${progress.total}`,
-            mask: true
-          });
         }
       });
 
@@ -335,23 +339,26 @@ Page<DetailPageData, WechatMiniprogram.IAnyObject>({
 
       // 仅在页面可见时更新UI和显示提示
       if (!this.data.isPageHidden) {
-        // 显示转换后的图片
+        // 显示转换后的图片（保留用户当前浏览位置）
         const itemPaths = result.paths;
         const totalImages = itemPaths.length;
+        const preserveIndex = Math.min(this.data.currentImageIndex, totalImages - 1);
+        const { scale, translateX, translateY } = this.data;
 
         this.setData({
           itemType: 'pdf',
           itemName: name,
-          itemPath: itemPaths[0],
+          itemPath: itemPaths[preserveIndex],
           itemPaths,
-          currentImageIndex: 0,
+          currentImageIndex: preserveIndex,
           totalImages,
-          scale: 1,
-          translateX: 0,
-          translateY: 0,
-          swiperEnabled: true,
+          scale,
+          translateX,
+          translateY,
+          swiperEnabled: scale <= 1,
           imageSizes: {},
           isConverting: false,
+          pdfConvertProgress: '',
         });
 
         wx.setNavigationBarTitle({ title: name });
@@ -365,12 +372,12 @@ Page<DetailPageData, WechatMiniprogram.IAnyObject>({
         }
       } else {
         // 页面已隐藏，仅更新转换状态
-        this.setData({ isConverting: false });
+        this.setData({ isConverting: false, pdfConvertProgress: '' });
       }
     } catch (err: any) {
       hideLoading();
       console.error('PDF转换失败:', err);
-      this.setData({ isConverting: false });
+      this.setData({ isConverting: false, pdfConvertProgress: '' });
       // 仅在页面可见时提示错误并返回
       if (!this.data.isPageHidden) {
         // 显示具体的错误信息
@@ -404,14 +411,10 @@ Page<DetailPageData, WechatMiniprogram.IAnyObject>({
       translateY: 0,
       swiperEnabled: true,
       imageSizes: {},
+      pdfConvertProgress: `${paths.length}/${totalPdfPageCount}`,
     });
     wx.setNavigationBarTitle({ title: name });
     this.loadMemoContent();
-
-    wx.showLoading({
-      title: `继续加载 ${paths.length}/${totalPdfPageCount}`,
-      mask: true
-    });
 
     try {
       // 继续下载缺失的页面
@@ -427,11 +430,7 @@ Page<DetailPageData, WechatMiniprogram.IAnyObject>({
             this.setData({
               itemPaths: progress.paths,
               totalImages: progress.paths.length,
-            });
-
-            wx.showLoading({
-              title: `加载中 ${progress.current}/${progress.total}`,
-              mask: true
+              pdfConvertProgress: `${progress.current}/${progress.total}`,
             });
           }
         }
@@ -471,20 +470,23 @@ Page<DetailPageData, WechatMiniprogram.IAnyObject>({
       if (!this.data.isPageHidden) {
         const itemPaths = result.paths;
         const totalImages = itemPaths.length;
+        const preserveIndex = Math.min(this.data.currentImageIndex, totalImages - 1);
+        const { scale, translateX, translateY } = this.data;
 
         this.setData({
           itemType: 'pdf',
           itemName: name,
-          itemPath: itemPaths[0],
+          itemPath: itemPaths[preserveIndex],
           itemPaths,
-          currentImageIndex: 0,
+          currentImageIndex: preserveIndex,
           totalImages,
-          scale: 1,
-          translateX: 0,
-          translateY: 0,
-          swiperEnabled: true,
+          scale,
+          translateX,
+          translateY,
+          swiperEnabled: scale <= 1,
           imageSizes: {},
           isConverting: false,
+          pdfConvertProgress: '',
         });
 
         wx.setNavigationBarTitle({ title: name });
@@ -496,12 +498,12 @@ Page<DetailPageData, WechatMiniprogram.IAnyObject>({
           this.showToast(`已加载 ${result.pageCount}/${totalPdfPageCount} 页`);
         }
       } else {
-        this.setData({ isConverting: false });
+        this.setData({ isConverting: false, pdfConvertProgress: '' });
       }
     } catch (err: any) {
       hideLoading();
       console.error('继续加载PDF失败:', err);
-      this.setData({ isConverting: false });
+      this.setData({ isConverting: false, pdfConvertProgress: '' });
       if (!this.data.isPageHidden) {
         // 加载失败时，显示已有的图片
         const itemPaths = paths;
@@ -670,22 +672,29 @@ Page<DetailPageData, WechatMiniprogram.IAnyObject>({
         // 移动距离小于 10px 才算点击
         if (moveDistance < 10 && lastTapCheckTime > 0 && now - lastTapCheckTime < DOUBLE_TAP_THRESHOLD) {
           // 双击处理
-          if (scale < 1.5) {
+          if (scale < 2.0) {
+            // 放大：先显示缩放层（isAnimating=true 使 hidden 条件为 false），
+            // 下一帧再改 scale，让 CSS transition 生效
             this.setData({
-              scale: 1.5,
+              isAnimating: true,
+              swiperEnabled: false,
               translateX: 0,
               translateY: 0,
-              isAnimating: true,
+            });
+            wx.nextTick(() => {
+              this.setData({ scale: 2.0 });
+              setTimeout(() => this.setData({ isAnimating: false }), 300);
             });
           } else {
+            // 缩小：直接动画回 scale=1，动画结束后 hidden 生效
             this.setData({
               scale: 1,
               translateX: 0,
               translateY: 0,
               isAnimating: true,
             });
+            setTimeout(() => this.setData({ isAnimating: false }), 300);
           }
-          setTimeout(() => this.setData({ isAnimating: false }), 300);
           this.setData({ isTouching: false, lastTapCheckTime: 0 });
           return;
         }
@@ -710,6 +719,9 @@ Page<DetailPageData, WechatMiniprogram.IAnyObject>({
     const { initialDistance, initialScale, containerWidth, containerHeight } = this.data;
     let newScale = (initialScale * currentDistance) / initialDistance;
 
+    // 硬限制缩放范围，避免超出后回弹动画导致闪白
+    newScale = Math.max(MIN_SCALE, Math.min(newScale, MAX_SCALE));
+
     // 计算缩放中心点位移
     // 公式：新位移 = 初始位移 + (缩放中心 - 容器中心) * (新缩放 - 初始缩放)
     // 但更精确的做法是让缩放中心点在屏幕上的位置不变
@@ -728,10 +740,26 @@ Page<DetailPageData, WechatMiniprogram.IAnyObject>({
     const centerMoveX = currentCenter.x - this.data.lastScaleCenterX;
     const centerMoveY = currentCenter.y - this.data.lastScaleCenterY;
 
+    // 计算目标位移
+    let newTranslateX = this.data.translateX + deltaX + centerMoveX;
+    let newTranslateY = this.data.translateY + deltaY + centerMoveY;
+
+    // 限制位移在图片边界内，防止露出背景色
+    if (newScale > 1) {
+      const imageSize = this.getCurrentImageSize();
+      const fitScale = Math.min(containerWidth / imageSize.width, containerHeight / imageSize.height);
+      const displayWidth = imageSize.width * fitScale;
+      const displayHeight = imageSize.height * fitScale;
+      const maxTX = Math.abs(displayWidth * newScale - containerWidth) / 2;
+      const maxTY = Math.abs(displayHeight * newScale - containerHeight) / 2;
+      newTranslateX = Math.max(-maxTX, Math.min(newTranslateX, maxTX));
+      newTranslateY = Math.max(-maxTY, Math.min(newTranslateY, maxTY));
+    }
+
     this.setData({
       scale: newScale,
-      translateX: this.data.translateX + deltaX + centerMoveX,
-      translateY: this.data.translateY + deltaY + centerMoveY,
+      translateX: newTranslateX,
+      translateY: newTranslateY,
       lastScaleCenterX: currentCenter.x,
       lastScaleCenterY: currentCenter.y,
       // 缩放超过1倍时禁用 swiper
@@ -780,26 +808,14 @@ Page<DetailPageData, WechatMiniprogram.IAnyObject>({
     const displayWidth = imageSize.width * fitScale;
     const displayHeight = imageSize.height * fitScale;
 
-    // 最大位移 = (显示尺寸 * 缩放 - 容器尺寸) / 2
-    const maxTranslateX = Math.max(0, (displayWidth * scale - containerWidth) / 2);
-    const maxTranslateY = Math.max(0, (displayHeight * scale - containerHeight) / 2);
+    // 最大位移 = |显示尺寸 * 缩放 - 容器尺寸| / 2
+    // 使用 Math.abs：当缩放图片小于容器时（平板宽屏+竖图），仍允许在容器内拖动
+    const maxTranslateX = Math.abs(displayWidth * scale - containerWidth) / 2;
+    const maxTranslateY = Math.abs(displayHeight * scale - containerHeight) / 2;
 
-    // 目标位移
-    let newTranslateX = this.data.initialTranslateX + deltaX;
-    let newTranslateY = this.data.initialTranslateY + deltaY;
-
-    // 边界弹性阻力
-    if (Math.abs(newTranslateX) > maxTranslateX) {
-      const overflow = Math.abs(newTranslateX) - maxTranslateX;
-      const resistance = 1 / (1 + overflow / 30);
-      newTranslateX = Math.sign(newTranslateX) * (maxTranslateX + overflow * resistance * 0.2);
-    }
-
-    if (Math.abs(newTranslateY) > maxTranslateY) {
-      const overflow = Math.abs(newTranslateY) - maxTranslateY;
-      const resistance = 1 / (1 + overflow / 30);
-      newTranslateY = Math.sign(newTranslateY) * (maxTranslateY + overflow * resistance * 0.2);
-    }
+    // 目标位移，限制在边界内
+    const newTranslateX = Math.max(-maxTranslateX, Math.min(this.data.initialTranslateX + deltaX, maxTranslateX));
+    const newTranslateY = Math.max(-maxTranslateY, Math.min(this.data.initialTranslateY + deltaY, maxTranslateY));
 
     this.setData({
       translateX: newTranslateX,
@@ -834,8 +850,8 @@ Page<DetailPageData, WechatMiniprogram.IAnyObject>({
       const displayWidth = imageSize.width * fitScale;
       const displayHeight = imageSize.height * fitScale;
 
-      const maxTranslateX = Math.max(0, (displayWidth * targetScale - containerWidth) / 2);
-      const maxTranslateY = Math.max(0, (displayHeight * targetScale - containerHeight) / 2);
+      const maxTranslateX = Math.abs(displayWidth * targetScale - containerWidth) / 2;
+      const maxTranslateY = Math.abs(displayHeight * targetScale - containerHeight) / 2;
 
       if (Math.abs(translateX) > maxTranslateX) {
         targetTranslateX = Math.sign(translateX) * maxTranslateX;
@@ -857,19 +873,22 @@ Page<DetailPageData, WechatMiniprogram.IAnyObject>({
     }
 
     if (needsAnimation) {
-      this.setData({
-        isAnimating: true,
-        scale: targetScale,
-        translateX: targetTranslateX,
-        translateY: targetTranslateY,
+      // 先启用 CSS transition，下一帧再改 transform，避免渲染引擎闪白
+      this.setData({ isAnimating: true });
+      wx.nextTick(() => {
+        this.setData({
+          scale: targetScale,
+          translateX: targetTranslateX,
+          translateY: targetTranslateY,
+        });
+        setTimeout(() => {
+          this.setData({ isAnimating: false });
+          // 如果缩放回弹到 <= 1，恢复 swiper
+          if (targetScale <= 1) {
+            this.setData({ swiperEnabled: true });
+          }
+        }, 300);
       });
-      setTimeout(() => {
-        this.setData({ isAnimating: false });
-        // 如果缩放回弹到 <= 1，恢复 swiper
-        if (targetScale <= 1) {
-          this.setData({ swiperEnabled: true });
-        }
-      }, 300);
     }
   },
 
@@ -877,27 +896,31 @@ Page<DetailPageData, WechatMiniprogram.IAnyObject>({
    * 双击缩放
    */
   onDoubleTap() {
-    const { scale } = this.data;
+    const { scale, isAnimating } = this.data;
+    if (isAnimating) return;
 
-    if (scale < 1.5) {
+    if (scale < 2.0) {
+      // 放大：先显示缩放层，下一帧再改 scale，让 CSS transition 生效
       this.setData({
-        scale: 1.5,
-        translateX: 0,
-        translateY: 0,
         isAnimating: true,
         swiperEnabled: false,
+        translateX: 0,
+        translateY: 0,
+      });
+      wx.nextTick(() => {
+        this.setData({ scale: 2.0 });
+        setTimeout(() => this.setData({ isAnimating: false }), 300);
       });
     } else {
+      // 缩小：直接动画回 scale=1，动画结束后 hidden 生效
       this.setData({
         scale: 1,
         translateX: 0,
         translateY: 0,
         isAnimating: true,
-        swiperEnabled: true,
       });
+      setTimeout(() => this.setData({ isAnimating: false }), 300);
     }
-
-    setTimeout(() => this.setData({ isAnimating: false }), 300);
   },
 
   /**
