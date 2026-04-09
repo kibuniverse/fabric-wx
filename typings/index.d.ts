@@ -19,6 +19,10 @@ interface IAppOption {
     needRefreshMePage: boolean, // 是否需要刷新"我的"页面
     // 图解预加载
     preloadedDiagrams: any[], // 预加载的图解数据
+    // 图解心跳同步相关
+    lastDiagramSyncTime: number,
+    diagramHeartbeatTimer: number,
+    activeDiagramIds: string[],
   }
   userInfoReadyCallback?: WechatMiniprogram.GetUserInfoSuccessCallback,
   addKnittingTime(elapsedMs: number): void,
@@ -51,4 +55,10 @@ interface IAppOption {
   saveLocalCounterToCloud(existingKeys?: any[], existingCounters?: Record<string, any>): Promise<void>,
   // 图解预加载方法
   preloadDiagrams(): Promise<void>,
+  // 图解心跳同步方法
+  startDiagramHeartbeat(): void,
+  stopDiagramHeartbeat(): void,
+  resetDiagramHeartbeat(): void,
+  forceSyncDiagramCounterData(diagramId?: string): Promise<void>,
+  syncDiagramCounterData(diagramId?: string): Promise<void>,
 }

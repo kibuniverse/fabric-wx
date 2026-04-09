@@ -206,7 +206,7 @@ export async function convertPdfToImages(
   localPath: string,
   fileId: string,
   onProgress?: (progress: { current: number; total: number; paths: string[] }) => void
-): Promise<{ paths: string[]; pageCount: number; cloudFileId: string }> {
+): Promise<{ paths: string[]; pageCount: number; totalPageCount: number; cloudFileId: string; isPartialSuccess: boolean }> {
   // 1. 上传PDF到云存储
   console.log('开始上传PDF...');
   const fileID = await uploadPdfToCloud(localPath, fileId);

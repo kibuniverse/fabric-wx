@@ -303,7 +303,6 @@
 }
 
 .temp-counter-tip-btn {
-  display: inline-block;
   font-size: 22rpx;
   color: #A889C8;
   font-weight: 500;

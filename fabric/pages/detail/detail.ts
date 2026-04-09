@@ -4,8 +4,6 @@ import { vibrate } from '../../utils/vibrate';
 
 // 备忘录存储键
 const MEMO_STORAGE_KEY = "itemMemos";
-// 计数器存储键（与 simple-counter 组件保持一致）
-const COUNTERS_STORAGE_KEY = "simpleCounters";
 // 图片索引存储键
 const LAST_IMAGE_INDEX_KEY = "lastImageIndex";
 // 临时计数器新手引导是否已展示
@@ -84,8 +82,6 @@ interface DetailPageData {
 // 缩放范围常量
 const MIN_SCALE = 0.8;
 const MAX_SCALE = 2.0;
-// 滑动切换阈值
-const SWIPE_THRESHOLD = 50;
 // 双击时间阈值
 const DOUBLE_TAP_THRESHOLD = 300;
 
@@ -180,7 +176,7 @@ Page<DetailPageData, WechatMiniprogram.IAnyObject>({
         const hasValidPaths = paths.length > 0 && this.checkLocalFilesExist(paths);
 
         // 检查是否有新图片需要下载（云端图片数 > 本地图片数）
-        const hasNewImages = cloudImages.length > paths.filter(p => p).length;
+        const hasNewImages = cloudImages.length > paths.filter((p: string) => p).length;
         console.log('[Detail] 检查图片同步状态:', {
           name: item.name,
           localPaths: paths.length,
@@ -1040,7 +1036,7 @@ Page<DetailPageData, WechatMiniprogram.IAnyObject>({
       app.stopDiagramHeartbeat();
       const userInfo = wx.getStorageSync('userInfo');
       if (userInfo && userInfo.isLoggedIn && this.data.itemId) {
-        app.forceSyncDiagramCounterData(this.data.itemId).catch(err => {
+        app.forceSyncDiagramCounterData(this.data.itemId).catch((err: any) => {
           console.error('[Detail] 同步图解数据失败:', err);
         });
       }
@@ -1067,7 +1063,7 @@ Page<DetailPageData, WechatMiniprogram.IAnyObject>({
       app.stopDiagramHeartbeat();
       const userInfo = wx.getStorageSync('userInfo');
       if (userInfo && userInfo.isLoggedIn && this.data.itemId) {
-        app.forceSyncDiagramCounterData(this.data.itemId).catch(err => {
+        app.forceSyncDiagramCounterData(this.data.itemId).catch((err: any) => {
           console.error('[Detail] 同步图解数据失败:', err);
         });
       }
