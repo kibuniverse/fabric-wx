@@ -2,6 +2,10 @@ import { eventBus } from "../../utils/event_bus";
 import { vibrate } from "../../utils/vibrate";
 
 // pages/counter/counter.ts
+
+declare const requestAnimationFrame: (callback: (time: number) => void) => number;
+declare const cancelAnimationFrame: (id: number) => void;
+
 const STORAGE_KEYS = {
   VIBRATION: "counter_vibration_state",
   KEEP_SCREEN: "counter_keep_screen_state",
@@ -9,8 +13,6 @@ const STORAGE_KEYS = {
   COUNTER_KEYS: "counter_keys",
   ACTIVE_KEY: "counter_active_key",
 };
-
-const defaultCounterKeys = ["local_default_counter"];
 
 /** 监听是否有备忘录的修改 */
 let isMemoModified = false;
@@ -26,13 +28,13 @@ Page({
   targetEyeOffsetX: 0,
   targetEyeOffsetY: 0,
   // 动画帧 ID
-  animationFrameId: 0 as number,
+  animationFrameId: 0 as any,
   // 按钮点击计时器
-  buttonClickTimer: 0 as number,
+  buttonClickTimer: 0 as any,
   // 眨眼定时器
-  blinkTimer: 0 as number,
+  blinkTimer: 0 as any,
   // 隐藏表情定时器（onTouchend 中使用）
-  hideFaceTimer: 0 as number,
+  hideFaceTimer: 0 as any,
 
   onShareAppMessage() {
     return {
@@ -95,9 +97,6 @@ Page({
     showResetGuide: false,
     // 计时器功能引导气泡
     showTimerGuide: false,
-    // 恢复计时弹窗
-    showResumeTimerDialog: false,
-    resumeTimerKey: "",
     // 空闲暂停弹窗
     showIdleDialog: false,
     idleTimerKey: "",
@@ -152,7 +151,7 @@ Page({
     });
 
     // 如果存在旧格式数据，更新为新格式
-    if (normalizedKeys.some((k, i) => k !== keys[i])) {
+    if (normalizedKeys.some((k: any, i: number) => k !== keys[i])) {
       wx.setStorageSync(STORAGE_KEYS.COUNTER_KEYS, normalizedKeys);
     }
 
@@ -188,10 +187,6 @@ Page({
     });
     this.setData({ counterList, counterKeys: normalizedKeys });
   },
-
-  // 平滑眼珠动画的当前值
-  smoothEyeOffsetX: 0,
-  smoothEyeOffsetY: 0,
 
   initKeepScreen() {
     wx.setKeepScreenOn({
@@ -344,8 +339,8 @@ Page({
       this.selectComponent("#tabs")?.resize();
     });
 
-    // 检查当前 Tab 是否需要显示恢复计时弹窗
-    this.checkResumeTimerDialog();
+    // 清除 wasRunning 标记（不弹窗、不恢复计时，用户操作计数器时会自动开始计时）
+    this.clearWasRunningFlag();
     // 开始针织总时长计时
     const app = getApp<IAppOption>();
     if (app) {
@@ -413,46 +408,13 @@ Page({
     }
   },
 
-  // 检查当前 Tab 是否需要显示恢复计时弹窗
-  checkResumeTimerDialog() {
+  // 清除当前 Tab 的 wasRunning 标记
+  clearWasRunningFlag() {
     wx.nextTick(() => {
       const counter = this.getCounterByIndex(this.data.activeTab);
-      if (counter && counter.checkAndShowResumeDialog) {
-        counter.checkAndShowResumeDialog();
+      if (counter && counter.clearWasRunning) {
+        counter.clearWasRunning();
       }
-    });
-  },
-
-  // 处理组件触发的显示恢复弹窗事件
-  handleShowResumeDialog(e: any) {
-    const { key } = e.detail;
-    this.setData({
-      showResumeTimerDialog: true,
-      resumeTimerKey: key,
-    });
-  },
-
-  // 确认恢复计时
-  onConfirmResumeTimer() {
-    const counter = this.getCounterByIndex(this.data.activeTab);
-    if (counter && counter.resumeTimer) {
-      counter.resumeTimer();
-    }
-    this.setData({
-      showResumeTimerDialog: false,
-      resumeTimerKey: "",
-    });
-  },
-
-  // 取消恢复计时
-  onCancelResumeTimer() {
-    const counter = this.getCounterByIndex(this.data.activeTab);
-    if (counter && counter.cancelResumeTimer) {
-      counter.cancelResumeTimer();
-    }
-    this.setData({
-      showResumeTimerDialog: false,
-      resumeTimerKey: "",
     });
   },
 
@@ -728,10 +690,10 @@ Page({
     }
 
     wx.nextTick(() => {
-      // 检查新 Tab 是否需要显示恢复弹窗
+      // 清除新 Tab 的 wasRunning 标记
       const newCounter = this.getCounterByIndex(index);
-      if (newCounter && newCounter.checkAndShowResumeDialog) {
-        newCounter.checkAndShowResumeDialog();
+      if (newCounter && newCounter.clearWasRunning) {
+        newCounter.clearWasRunning();
       }
     });
   },
@@ -994,7 +956,6 @@ Page({
         if (res.confirm) {
           const counterId = e.detail.id;
           // 用户点击了确认按钮
-          const counterKeys = this.data.counterKeys;
           // 获取被删除计数器的名称
           const deletedCounter = this.data.counterList.find(
             (item) => item.key === counterId

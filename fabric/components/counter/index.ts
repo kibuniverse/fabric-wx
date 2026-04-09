@@ -509,32 +509,14 @@ Component({
       }
     },
 
-    // 检查是否需要显示恢复计时弹窗
-    checkAndShowResumeDialog() {
-      const { wasRunning } = this.data.counterData.timerState;
-      if (wasRunning && this.data.isSmartTimerOn) {
-        // 触发弹窗显示（由页面层处理）
-        this.triggerEvent('showResumeDialog', {
-          key: this.properties.storageKey
+    // 清除 wasRunning 标记（回到页面时调用，不弹窗不恢复）
+    clearWasRunning() {
+      if (this.data.counterData.timerState.wasRunning) {
+        this.setData({
+          "counterData.timerState.wasRunning": false,
         });
+        this.saveCounterData();
       }
-    },
-
-    // 恢复计时
-    resumeTimer() {
-      this.setData({
-        "counterData.timerState.wasRunning": false,
-      });
-      this.startTimer();
-      this.saveCounterData();
-    },
-
-    // 取消恢复计时
-    cancelResumeTimer() {
-      this.setData({
-        "counterData.timerState.wasRunning": false,
-      });
-      this.saveCounterData();
     },
 
     clearTimer() {
