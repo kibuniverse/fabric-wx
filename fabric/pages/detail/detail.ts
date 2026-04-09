@@ -1310,6 +1310,17 @@ Page<DetailPageData, WechatMiniprogram.IAnyObject>({
     this.saveTempCounters();
   },
 
+  /** 重置临时计数器为0 */
+  onTempCounterReset(e: WechatMiniprogram.CustomEvent) {
+    const id = e.currentTarget.dataset.id;
+    const counters = this.data.tempCounters.map((c) =>
+      c.id === id ? { ...c, count: 0 } : c
+    );
+    this.setData({ tempCounters: counters });
+    this.saveTempCounters();
+    this.showToast('已重置');
+  },
+
   /** 点击标签文案重命名 */
   onTempCounterLabelTap(e: WechatMiniprogram.CustomEvent) {
     // 编辑态（长按触发）下不响应

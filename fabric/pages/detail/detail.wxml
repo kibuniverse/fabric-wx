@@ -98,9 +98,13 @@
     bindtouchend="onTempCounterDragEnd"
     data-id="{{item.id}}"
   >
-    <!-- 删除按钮 -->
+    <!-- 删除按钮（编辑态） -->
     <view wx:if="{{showDeleteForId}}" class="temp-counter-delete" catchtap="onTempCounterDelete" data-id="{{item.id}}">
       <image src="/assets/temp_conter_delete.svg" mode="aspectFit" />
+    </view>
+    <!-- 重置按钮（非编辑态） -->
+    <view wx:if="{{!showDeleteForId && item.count > 0}}" class="temp-counter-reset" catchtap="onTempCounterReset" data-id="{{item.id}}">
+      <image src="/assets/tem_counter_clear.svg" mode="aspectFit" />
     </view>
     <!-- icon（点击切换颜色） -->
     <image
