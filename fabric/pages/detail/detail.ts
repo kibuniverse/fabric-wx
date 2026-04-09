@@ -750,8 +750,8 @@ Page<DetailPageData, WechatMiniprogram.IAnyObject>({
       const fitScale = Math.min(containerWidth / imageSize.width, containerHeight / imageSize.height);
       const displayWidth = imageSize.width * fitScale;
       const displayHeight = imageSize.height * fitScale;
-      const maxTX = Math.max(0, (displayWidth * newScale - containerWidth) / 2);
-      const maxTY = Math.max(0, (displayHeight * newScale - containerHeight) / 2);
+      const maxTX = Math.abs(displayWidth * newScale - containerWidth) / 2;
+      const maxTY = Math.abs(displayHeight * newScale - containerHeight) / 2;
       newTranslateX = Math.max(-maxTX, Math.min(newTranslateX, maxTX));
       newTranslateY = Math.max(-maxTY, Math.min(newTranslateY, maxTY));
     }
@@ -808,9 +808,10 @@ Page<DetailPageData, WechatMiniprogram.IAnyObject>({
     const displayWidth = imageSize.width * fitScale;
     const displayHeight = imageSize.height * fitScale;
 
-    // 最大位移 = (显示尺寸 * 缩放 - 容器尺寸) / 2
-    const maxTranslateX = Math.max(0, (displayWidth * scale - containerWidth) / 2);
-    const maxTranslateY = Math.max(0, (displayHeight * scale - containerHeight) / 2);
+    // 最大位移 = |显示尺寸 * 缩放 - 容器尺寸| / 2
+    // 使用 Math.abs：当缩放图片小于容器时（平板宽屏+竖图），仍允许在容器内拖动
+    const maxTranslateX = Math.abs(displayWidth * scale - containerWidth) / 2;
+    const maxTranslateY = Math.abs(displayHeight * scale - containerHeight) / 2;
 
     // 目标位移，限制在边界内
     const newTranslateX = Math.max(-maxTranslateX, Math.min(this.data.initialTranslateX + deltaX, maxTranslateX));
@@ -849,8 +850,8 @@ Page<DetailPageData, WechatMiniprogram.IAnyObject>({
       const displayWidth = imageSize.width * fitScale;
       const displayHeight = imageSize.height * fitScale;
 
-      const maxTranslateX = Math.max(0, (displayWidth * targetScale - containerWidth) / 2);
-      const maxTranslateY = Math.max(0, (displayHeight * targetScale - containerHeight) / 2);
+      const maxTranslateX = Math.abs(displayWidth * targetScale - containerWidth) / 2;
+      const maxTranslateY = Math.abs(displayHeight * targetScale - containerHeight) / 2;
 
       if (Math.abs(translateX) > maxTranslateX) {
         targetTranslateX = Math.sign(translateX) * maxTranslateX;

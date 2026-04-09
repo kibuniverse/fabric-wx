@@ -789,3 +789,105 @@ describe('详情页 - swiperEnabled 动态计算', () => {
     expect(0.5 <= 1).toBe(true);
   });
 });
+
+// ========== 图片缩放拖动 - 平板兼容性测试 ==========
+
+/**
+ * 模拟 handleDragImage 的边界计算（纯函数提取）
+ * 使用 Math.abs 让缩放图片在小于容器时也能拖动
+ */
+function calcMaxTranslate(
+  imageWidth: number,
+  imageHeight: number,
+  containerWidth: number,
+  containerHeight: number,
+  scale: number,
+): { maxTranslateX: number; maxTranslateY: number } {
+  const fitScale = Math.min(containerWidth / imageWidth, containerHeight / imageHeight);
+  const displayWidth = imageWidth * fitScale;
+  const displayHeight = imageHeight * fitScale;
+  return {
+    maxTranslateX: Math.abs(displayWidth * scale - containerWidth) / 2,
+    maxTranslateY: Math.abs(displayHeight * scale - containerHeight) / 2,
+  };
+}
+
+describe('详情页 - 图片缩放拖动：手机端', () => {
+  // iPhone 14 竖屏：容器窄，竖图填满宽度
+  const containerWidth = 390;
+  const containerHeight = 700;
+  const imageWidth = 2000;
+  const imageHeight = 3000;
+
+  it('scale=2 时水平可拖动（图片溢出容器）', () => {
+    const { maxTranslateX } = calcMaxTranslate(imageWidth, imageHeight, containerWidth, containerHeight, 2);
+    expect(maxTranslateX).toBeGreaterThan(0);
+  });
+
+  it('scale=2 时垂直可拖动（图片溢出容器）', () => {
+    const { maxTranslateY } = calcMaxTranslate(imageWidth, imageHeight, containerWidth, containerHeight, 2);
+    expect(maxTranslateY).toBeGreaterThan(0);
+  });
+
+  it('scale=1 时水平不可拖动（图片恰好填满宽度）', () => {
+    const { maxTranslateX } = calcMaxTranslate(imageWidth, imageHeight, containerWidth, containerHeight, 1);
+    // fitScale 限制：displayWidth ≈ containerWidth，差值为 0
+    expect(maxTranslateX).toBe(0);
+  });
+});
+
+describe('详情页 - 图片缩放拖动：平板端（横屏宽容器）', () => {
+  // iPad 横屏：容器宽，竖图受高度限制，水平有大段空白
+  const containerWidth = 1024;
+  const containerHeight = 700;
+  const imageWidth = 2000;
+  const imageHeight = 3000;
+
+  it('scale=2 时水平可拖动（图片虽小于容器，Math.abs 仍允许拖动）', () => {
+    const { maxTranslateX } = calcMaxTranslate(imageWidth, imageHeight, containerWidth, containerHeight, 2);
+    // displayWidth ≈ 467, displayWidth * 2 ≈ 934 < 1024
+    // 旧逻辑: Math.max(0, (934 - 1024)/2) = 0 → 不能拖
+    // 新逻辑: Math.abs(934 - 1024) / 2 = 45 → 可以拖
+    expect(maxTranslateX).toBeGreaterThan(0);
+  });
+
+  it('scale=2 时垂直可拖动（图片溢出容器）', () => {
+    const { maxTranslateY } = calcMaxTranslate(imageWidth, imageHeight, containerWidth, containerHeight, 2);
+    expect(maxTranslateY).toBeGreaterThan(0);
+  });
+
+  it('scale=4 时水平可拖动范围更大', () => {
+    const at2 = calcMaxTranslate(imageWidth, imageHeight, containerWidth, containerHeight, 2);
+    const at4 = calcMaxTranslate(imageWidth, imageHeight, containerWidth, containerHeight, 4);
+    expect(at4.maxTranslateX).toBeGreaterThan(at2.maxTranslateX);
+  });
+
+  it('scale=1 时虽然公式返回非零值，但代码不会调用 handleDragImage（scale <= 1 被跳过）', () => {
+    // 平板上 scale=1 时 displayWidth < containerWidth，Math.abs 返回非零
+    // 但实际代码在 scale <= 1 时不调用 handleDragImage，所以不影响
+    const { maxTranslateX } = calcMaxTranslate(imageWidth, imageHeight, containerWidth, containerHeight, 1);
+    expect(maxTranslateX).toBeGreaterThan(0); // 公式值非零
+  });
+
+  it('宽图（横向图解）在平板上垂直也可拖动', () => {
+    // 横向图片 3000x2000
+    const { maxTranslateY } = calcMaxTranslate(3000, 2000, containerWidth, containerHeight, 2);
+    expect(maxTranslateY).toBeGreaterThan(0);
+  });
+});
+
+describe('详情页 - 图片缩放拖动：旧逻辑回归验证', () => {
+  // 手机端：图片溢出容器时，Math.abs 与旧 Math.max(0,...) 结果一致
+  const containerWidth = 390;
+  const containerHeight = 700;
+  const imageWidth = 2000;
+  const imageHeight = 3000;
+
+  it('图片溢出时新逻辑与旧逻辑结果一致', () => {
+    const { maxTranslateX } = calcMaxTranslate(imageWidth, imageHeight, containerWidth, containerHeight, 2);
+    const fitScale = Math.min(containerWidth / imageWidth, containerHeight / imageHeight);
+    const displayWidth = imageWidth * fitScale;
+    const oldMax = Math.max(0, (displayWidth * 2 - containerWidth) / 2);
+    expect(maxTranslateX).toBe(oldMax);
+  });
+});
