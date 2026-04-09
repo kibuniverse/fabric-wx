@@ -3,7 +3,6 @@
  * 使用微信云开发 + 腾讯云数据万象服务
  */
 
-const CLOUD_ENV = 'cloudbase-7gipudlhe7a11395';
 
 /**
  * 上传PDF到云存储
@@ -81,26 +80,6 @@ export function getPdfPageCount(fileID: string): Promise<number> {
   });
 }
 
-/**
- * 检查图片是否存在
- * @param url 图片URL
- * @returns 是否存在
- */
-function checkImageExists(url: string): Promise<boolean> {
-  return new Promise((resolve) => {
-    wx.request({
-      url,
-      method: 'HEAD',
-      success: (res) => {
-        console.log('res.header', res.header, JSON.stringify(res.header))
-        resolve(res.statusCode === 200);
-      },
-      fail: () => {
-        resolve(false);
-      }
-    });
-  });
-}
 
 /**
  * 下载图片到本地并持久化保存
@@ -150,7 +129,7 @@ export async function continuePdfConversion(
   cloudFileId: string,
   existingPaths: string[],
   totalPageCount: number,
-  fileId: string,
+  _fileId: string,
   onProgress?: (progress: { current: number; total: number; paths: string[] }) => void
 ): Promise<{ paths: string[]; pageCount: number; isComplete: boolean }> {
   console.log(`继续加载PDF，已下载 ${existingPaths.length}/${totalPageCount} 页...`);
@@ -174,7 +153,8 @@ export async function continuePdfConversion(
   const startIndex = existingPaths.length + 1; // API 页码从1开始，跳过已下载的页面
 
   for (let i = startIndex; i <= totalPageCount; i++) {
-    const previewUrl = `${tempFileURL}&ci-process=doc-preview&dstType=jpg&page=${i}`;
+    const imageParams = encodeURIComponent('imageMogr2/thumbnail/!200p|imageMogr2/format/webp|imageMogr2/quality/90');
+    const previewUrl = `${tempFileURL}&ci-process=doc-preview&dstType=png&page=${i}&ImageParams=${imageParams}`;
 
     try {
       const localImagePath = await downloadImage(previewUrl);
@@ -240,7 +220,8 @@ export async function convertPdfToImages(
   const imagePaths: string[] = [];
 
   for (let i = 1; i <= pageCount; i++) {
-    const previewUrl = `${tempFileURL}&ci-process=doc-preview&dstType=jpg&page=${i}`;
+    const imageParams = encodeURIComponent('imageMogr2/thumbnail/!200p|imageMogr2/format/webp|imageMogr2/quality/90');
+    const previewUrl = `${tempFileURL}&ci-process=doc-preview&dstType=png&page=${i}&ImageParams=${imageParams}`;
 
     try {
       const localImagePath = await downloadImage(previewUrl);

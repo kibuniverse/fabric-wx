@@ -14,7 +14,7 @@ Page({
   // 保存原始内容，用于判断是否有修改
   _originalContent: '',
 
-  onLoad(options) {
+  onLoad(options: Record<string, string>) {
     const key = options.key;
     const type = options.type || 'item'; // 默认为 item 类型（图解）
     // 从本地存储获取上次修改时间

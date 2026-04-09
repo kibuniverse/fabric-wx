@@ -59,6 +59,16 @@
   transition: transform 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
 }
 
+/* 缩放图片容器（叠在 swiper 上方） */
+.scaled-image-container {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 2;
+}
+
 /* PDF预览 */
 .preview-pdf {
   width: 100%;

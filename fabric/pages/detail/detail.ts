@@ -80,8 +80,8 @@ interface DetailPageData {
 }
 
 // 缩放范围常量
-const MIN_SCALE = 0.8;
-const MAX_SCALE = 2.0;
+const MIN_SCALE = 1.0;
+const MAX_SCALE = 6.0;
 // 双击时间阈值
 const DOUBLE_TAP_THRESHOLD = 300;
 
@@ -670,22 +670,29 @@ Page<DetailPageData, WechatMiniprogram.IAnyObject>({
         // 移动距离小于 10px 才算点击
         if (moveDistance < 10 && lastTapCheckTime > 0 && now - lastTapCheckTime < DOUBLE_TAP_THRESHOLD) {
           // 双击处理
-          if (scale < 1.5) {
+          if (scale < 2.0) {
+            // 放大：先显示缩放层（isAnimating=true 使 hidden 条件为 false），
+            // 下一帧再改 scale，让 CSS transition 生效
             this.setData({
-              scale: 1.5,
+              isAnimating: true,
+              swiperEnabled: false,
               translateX: 0,
               translateY: 0,
-              isAnimating: true,
+            });
+            wx.nextTick(() => {
+              this.setData({ scale: 2.0 });
+              setTimeout(() => this.setData({ isAnimating: false }), 300);
             });
           } else {
+            // 缩小：直接动画回 scale=1，动画结束后 hidden 生效
             this.setData({
               scale: 1,
               translateX: 0,
               translateY: 0,
               isAnimating: true,
             });
+            setTimeout(() => this.setData({ isAnimating: false }), 300);
           }
-          setTimeout(() => this.setData({ isAnimating: false }), 300);
           this.setData({ isTouching: false, lastTapCheckTime: 0 });
           return;
         }
@@ -710,6 +717,9 @@ Page<DetailPageData, WechatMiniprogram.IAnyObject>({
     const { initialDistance, initialScale, containerWidth, containerHeight } = this.data;
     let newScale = (initialScale * currentDistance) / initialDistance;
 
+    // 硬限制缩放范围，避免超出后回弹动画导致闪白
+    newScale = Math.max(MIN_SCALE, Math.min(newScale, MAX_SCALE));
+
     // 计算缩放中心点位移
     // 公式：新位移 = 初始位移 + (缩放中心 - 容器中心) * (新缩放 - 初始缩放)
     // 但更精确的做法是让缩放中心点在屏幕上的位置不变
@@ -728,10 +738,26 @@ Page<DetailPageData, WechatMiniprogram.IAnyObject>({
     const centerMoveX = currentCenter.x - this.data.lastScaleCenterX;
     const centerMoveY = currentCenter.y - this.data.lastScaleCenterY;
 
+    // 计算目标位移
+    let newTranslateX = this.data.translateX + deltaX + centerMoveX;
+    let newTranslateY = this.data.translateY + deltaY + centerMoveY;
+
+    // 限制位移在图片边界内，防止露出背景色
+    if (newScale > 1) {
+      const imageSize = this.getCurrentImageSize();
+      const fitScale = Math.min(containerWidth / imageSize.width, containerHeight / imageSize.height);
+      const displayWidth = imageSize.width * fitScale;
+      const displayHeight = imageSize.height * fitScale;
+      const maxTX = Math.max(0, (displayWidth * newScale - containerWidth) / 2);
+      const maxTY = Math.max(0, (displayHeight * newScale - containerHeight) / 2);
+      newTranslateX = Math.max(-maxTX, Math.min(newTranslateX, maxTX));
+      newTranslateY = Math.max(-maxTY, Math.min(newTranslateY, maxTY));
+    }
+
     this.setData({
       scale: newScale,
-      translateX: this.data.translateX + deltaX + centerMoveX,
-      translateY: this.data.translateY + deltaY + centerMoveY,
+      translateX: newTranslateX,
+      translateY: newTranslateY,
       lastScaleCenterX: currentCenter.x,
       lastScaleCenterY: currentCenter.y,
       // 缩放超过1倍时禁用 swiper
@@ -784,22 +810,9 @@ Page<DetailPageData, WechatMiniprogram.IAnyObject>({
     const maxTranslateX = Math.max(0, (displayWidth * scale - containerWidth) / 2);
     const maxTranslateY = Math.max(0, (displayHeight * scale - containerHeight) / 2);
 
-    // 目标位移
-    let newTranslateX = this.data.initialTranslateX + deltaX;
-    let newTranslateY = this.data.initialTranslateY + deltaY;
-
-    // 边界弹性阻力
-    if (Math.abs(newTranslateX) > maxTranslateX) {
-      const overflow = Math.abs(newTranslateX) - maxTranslateX;
-      const resistance = 1 / (1 + overflow / 30);
-      newTranslateX = Math.sign(newTranslateX) * (maxTranslateX + overflow * resistance * 0.2);
-    }
-
-    if (Math.abs(newTranslateY) > maxTranslateY) {
-      const overflow = Math.abs(newTranslateY) - maxTranslateY;
-      const resistance = 1 / (1 + overflow / 30);
-      newTranslateY = Math.sign(newTranslateY) * (maxTranslateY + overflow * resistance * 0.2);
-    }
+    // 目标位移，限制在边界内
+    const newTranslateX = Math.max(-maxTranslateX, Math.min(this.data.initialTranslateX + deltaX, maxTranslateX));
+    const newTranslateY = Math.max(-maxTranslateY, Math.min(this.data.initialTranslateY + deltaY, maxTranslateY));
 
     this.setData({
       translateX: newTranslateX,
@@ -857,19 +870,22 @@ Page<DetailPageData, WechatMiniprogram.IAnyObject>({
     }
 
     if (needsAnimation) {
-      this.setData({
-        isAnimating: true,
-        scale: targetScale,
-        translateX: targetTranslateX,
-        translateY: targetTranslateY,
+      // 先启用 CSS transition，下一帧再改 transform，避免渲染引擎闪白
+      this.setData({ isAnimating: true });
+      wx.nextTick(() => {
+        this.setData({
+          scale: targetScale,
+          translateX: targetTranslateX,
+          translateY: targetTranslateY,
+        });
+        setTimeout(() => {
+          this.setData({ isAnimating: false });
+          // 如果缩放回弹到 <= 1，恢复 swiper
+          if (targetScale <= 1) {
+            this.setData({ swiperEnabled: true });
+          }
+        }, 300);
       });
-      setTimeout(() => {
-        this.setData({ isAnimating: false });
-        // 如果缩放回弹到 <= 1，恢复 swiper
-        if (targetScale <= 1) {
-          this.setData({ swiperEnabled: true });
-        }
-      }, 300);
     }
   },
 
@@ -877,27 +893,31 @@ Page<DetailPageData, WechatMiniprogram.IAnyObject>({
    * 双击缩放
    */
   onDoubleTap() {
-    const { scale } = this.data;
+    const { scale, isAnimating } = this.data;
+    if (isAnimating) return;
 
-    if (scale < 1.5) {
+    if (scale < 2.0) {
+      // 放大：先显示缩放层，下一帧再改 scale，让 CSS transition 生效
       this.setData({
-        scale: 1.5,
-        translateX: 0,
-        translateY: 0,
         isAnimating: true,
         swiperEnabled: false,
+        translateX: 0,
+        translateY: 0,
+      });
+      wx.nextTick(() => {
+        this.setData({ scale: 2.0 });
+        setTimeout(() => this.setData({ isAnimating: false }), 300);
       });
     } else {
+      // 缩小：直接动画回 scale=1，动画结束后 hidden 生效
       this.setData({
         scale: 1,
         translateX: 0,
         translateY: 0,
         isAnimating: true,
-        swiperEnabled: true,
       });
+      setTimeout(() => this.setData({ isAnimating: false }), 300);
     }
-
-    setTimeout(() => this.setData({ isAnimating: false }), 300);
   },
 
   /**
