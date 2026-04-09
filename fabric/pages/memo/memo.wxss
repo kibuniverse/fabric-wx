@@ -35,7 +35,7 @@
 }
 
 .memo-content {
-  flex: 1;
+  min-height: calc(100vh - 88rpx - 20rpx);
   width: 100%;
   padding: 20rpx 44rpx 16px 44rpx;
   margin: 0;

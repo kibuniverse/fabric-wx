@@ -5,5 +5,5 @@
     </view>
   </view>
   <view class="clear-btn" wx:if="{{content}}" bindtap="handleClear">清空</view>
-  <textarea class="memo-content" placeholder="写下点什么吧......" value="{{content}}" bindinput="handleInput" maxlength="-1" auto-height />
+  <textarea class="memo-content" placeholder="写下点什么吧......" value="{{content}}" bindinput="handleInput" maxlength="-1" auto-height adjust-position="{{true}}" />
 </view>
