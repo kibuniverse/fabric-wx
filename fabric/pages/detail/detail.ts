@@ -559,6 +559,19 @@ Page<DetailPageData, WechatMiniprogram.IAnyObject>({
     const imageSizes = { ...this.data.imageSizes };
     imageSizes[index] = { width, height };
     this.setData({ imageSizes });
+
+    // 日志：图解名称 + 当前图片文件大小
+    const currentPath = this.data.itemPaths[index];
+    if (currentPath) {
+      try {
+        const fs = wx.getFileSystemManager();
+        const stat = fs.statSync(currentPath);
+        const sizeMB = (stat.size / 1024 / 1024).toFixed(2);
+        console.log(`[Detail] 图解: ${this.data.itemName}, 图片 ${index + 1}/${this.data.totalImages}, 大小: ${sizeMB}MB, 路径: ${currentPath}`);
+      } catch (err) {
+        console.log(`[Detail] 图解: ${this.data.itemName}, 图片 ${index + 1}/${this.data.totalImages}, 获取文件大小失败`);
+      }
+    }
   },
 
   /**
