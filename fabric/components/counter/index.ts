@@ -155,12 +155,11 @@ Component({
             },
           };
 
-          // 回填历史记录的 highlight 字段（兼容旧数据）
+          // 回填 highlight（仅兼容旧数据）
           const history = counterData.history;
           const totalItems = history.length;
           for (let i = 0; i < totalItems; i++) {
             if (history[i].highlight === undefined) {
-              // 数组按最新在前排列，创建序号 = totalItems - i
               history[i].highlight = (totalItems - i) % 2 === 1;
             }
           }
@@ -350,8 +349,12 @@ Component({
         isNew: false,
       }));
 
+      // 新记录颜色取上一条的反值
+      const prevHighlight = currentHistory.length > 0
+        ? !!currentHistory[0].highlight
+        : false;
+
       // 创建新的历史记录项
-      // 奇数序号的记录高亮（第1条、第3条…），基于创建顺序
       const newHistoryItem = {
         time: timeString,
         action,
@@ -360,7 +363,7 @@ Component({
         id: timestamp,
         timestamp,
         interval: "", // 稍后计算
-        highlight: currentHistory.length % 2 === 0,
+        highlight: !prevHighlight,
       };
 
       // 计算时间差
