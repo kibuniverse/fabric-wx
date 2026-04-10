@@ -84,6 +84,7 @@ Page({
     imageList: [] as FileItem[], // 图片列表
     fileList: [] as FileItem[], // 文件列表
     allItems: [] as FileItem[], // 合并后的所有项目
+    itemTransforms: {} as Record<string, string>, // FLIP 动画 transform 映射
     
     // ActionSheet相关
     showActionSheet: false, // 是否显示操作菜单
@@ -151,10 +152,91 @@ Page({
   },
 
   /**
+   * 测量所有图解 item 的当前位置
+   */
+  measureItemPositions(): Promise<Record<string, { left: number; top: number }> | null> {
+    return new Promise((resolve) => {
+      const query = wx.createSelectorQuery();
+      query.selectAll('.item').boundingClientRect();
+      query.exec((res) => {
+        if (!res || !res[0]) {
+          resolve(null);
+          return;
+        }
+        const rects = res[0] as { left: number; top: number }[];
+        const positions: Record<string, { left: number; top: number }> = {};
+        const currentItems = this.data.allItems;
+        for (let i = 0; i < rects.length && i < currentItems.length; i++) {
+          if (rects[i]) {
+            positions[currentItems[i].id] = { left: rects[i].left, top: rects[i].top };
+          }
+        }
+        resolve(positions);
+      });
+    });
+  },
+
+  /**
+   * 统一更新 allItems（带 FLIP 动画）
+   * @param newImageList 新的图片列表
+   * @param newFileList 新的文件列表
+   * @param extraData 额外需要 setData 的字段
+   * @param animate 是否启用动画，默认 true
+   */
+  updateAllItems(newImageList: FileItem[], newFileList: FileItem[], extraData?: Record<string, any>, animate = true) {
+    const newAllItems = sortItems([...newImageList, ...newFileList]);
+
+    if (!animate || this.data.allItems.length === 0) {
+      this.setData({ imageList: newImageList, fileList: newFileList, allItems: newAllItems, ...extraData });
+      return;
+    }
+
+    // FLIP: First - 记录旧位置
+    this.measureItemPositions().then(oldPositions => {
+      if (!oldPositions || Object.keys(oldPositions).length === 0) {
+        this.setData({ imageList: newImageList, fileList: newFileList, allItems: newAllItems, ...extraData });
+        return;
+      }
+
+      // FLIP: Last - setData 触发重渲染
+      this.setData({ imageList: newImageList, fileList: newFileList, allItems: newAllItems, itemTransforms: {}, ...extraData });
+
+      // FLIP: Invert + Play
+      wx.nextTick(() => {
+        this.measureItemPositions().then(newPositions => {
+          if (!newPositions) return;
+          const transforms: Record<string, string> = {};
+          for (const id of Object.keys(oldPositions)) {
+            if (!newPositions[id]) continue;
+            const dx = oldPositions[id].left - newPositions[id].left;
+            const dy = oldPositions[id].top - newPositions[id].top;
+            if (Math.abs(dx) < 1 && Math.abs(dy) < 1) continue;
+            transforms[id] = `translate(${dx}px, ${dy}px)`;
+          }
+
+          if (Object.keys(transforms).length === 0) return;
+
+          // Invert: 瞬间跳回旧位置
+          this.setData({ itemTransforms: transforms });
+
+          // Play: 过渡到新位置
+          wx.nextTick(() => {
+            this.setData({ itemTransforms: {} });
+          });
+        });
+      });
+    });
+  },
+
+  /**
    * 从本地存储加载数据
    * 为旧数据添加默认的 syncStatus
    */
-  loadLocalData() {
+  loadLocalData(animate?: boolean) {
+    if (animate === undefined) {
+      animate = !!this._pendingAnimate;
+    }
+    this._pendingAnimate = false;
     const userInfo = wx.getStorageSync('userInfo');
     const isLoggedIn = userInfo && userInfo.isLoggedIn;
 
@@ -184,14 +266,11 @@ Page({
     const firstLocalItem = allItems.find(item => item.syncStatus === 'local' && !item.isBuiltin);
     const showSyncTips = isLoggedIn && firstLocalItem && !hasShownSyncTips;
 
-    this.setData({
+    this.updateAllItems(imageList, fileList, {
       isLoggedIn,
-      imageList,
-      fileList,
-      allItems,
       showSyncTips,
       firstLocalItemId: firstLocalItem?.id || ''
-    });
+    }, animate);
   },
 
   /**
@@ -439,11 +518,8 @@ Page({
 
     // 更新图片列表
     const updatedImageList = [...this.data.imageList, newItem];
-    const allItems = sortItems([...updatedImageList, ...this.data.fileList]);
 
-    this.setData({
-      imageList: updatedImageList,
-      allItems,
+    this.updateAllItems(updatedImageList, this.data.fileList, {
       showNameModal: false,
       nameInputFocus: false,
       pendingImages: [],
@@ -588,16 +664,14 @@ Page({
 
         // 更新文件列表
         const updatedFileList = [...this.data.fileList, newItem];
-        const allItems = sortItems([...this.data.imageList, ...updatedFileList]);
 
         // 检查是否需要显示同步 Tips（已登录、未显示过、且有 local 项目）
         const hasShownSyncTips = wx.getStorageSync('has_shown_sync_tips');
-        const firstLocalItem = allItems.find(item => item.syncStatus === 'local' && !item.isBuiltin);
+        const sortedItems = sortItems([...this.data.imageList, ...updatedFileList]);
+        const firstLocalItem = sortedItems.find(item => item.syncStatus === 'local' && !item.isBuiltin);
         const showSyncTips = this.data.isLoggedIn && firstLocalItem && !hasShownSyncTips;
 
-        this.setData({
-          fileList: updatedFileList,
-          allItems,
+        this.updateAllItems(this.data.imageList, updatedFileList, {
           showSyncTips,
           firstLocalItemId: firstLocalItem?.id || ''
         });
@@ -773,12 +847,7 @@ Page({
         return item;
       });
 
-      const allItems = sortItems([...updatedList, ...this.data.fileList]);
-
-      this.setData({
-        imageList: updatedList,
-        allItems
-      });
+      this.updateAllItems(updatedList, this.data.fileList);
 
       wx.setStorageSync('imageList', updatedList);
     } else {
@@ -789,12 +858,7 @@ Page({
         return item;
       });
 
-      const allItems = sortItems([...this.data.imageList, ...updatedList]);
-
-      this.setData({
-        fileList: updatedList,
-        allItems
-      });
+      this.updateAllItems(this.data.imageList, updatedList);
 
       wx.setStorageSync('fileList', updatedList);
     }
@@ -889,11 +953,7 @@ Page({
       });
 
       // 重新计算合并列表
-      const allItems = sortItems([...updatedList, ...this.data.fileList]);
-
-      this.setData({
-        imageList: updatedList,
-        allItems,
+      this.updateAllItems(updatedList, this.data.fileList, {
         showRenameModal: false,
         renameInputFocus: false
       });
@@ -909,11 +969,7 @@ Page({
       });
 
       // 重新计算合并列表
-      const allItems = sortItems([...this.data.imageList, ...updatedList]);
-
-      this.setData({
-        fileList: updatedList,
-        allItems,
+      this.updateAllItems(this.data.imageList, updatedList, {
         showRenameModal: false,
         renameInputFocus: false
       });
@@ -987,15 +1043,10 @@ Page({
     const finalImageList = this.data.imageList.filter(item => item.id !== currentItemId);
     const finalFileList = this.data.fileList.filter(item => item.id !== currentItemId);
 
-    // 重新计算合并列表
-    const allItems = sortItems([...finalImageList, ...finalFileList]);
-
-    this.setData({
-      imageList: finalImageList,
-      fileList: finalFileList,
-      allItems,
+    // 重新计算合并列表（删除不使用动画）
+    this.updateAllItems(finalImageList, finalFileList, {
       showDeleteModal: false
-    });
+    }, false);
 
     // 更新本地存储
     wx.setStorageSync('imageList', finalImageList);
@@ -1109,6 +1160,9 @@ Page({
   /**
    * 生命周期函数--监听页面显示
    */
+  // 详情页返回标记（用于触发重排动画）
+  _navigatedToDetail: false,
+
   onShow() {
     // 检查登录状态变化
     const userInfo = wx.getStorageSync('userInfo');
@@ -1116,6 +1170,11 @@ Page({
     const wasLoggedIn = this.data.isLoggedIn;
 
     console.log('[Home] onShow - wasLoggedIn:', wasLoggedIn, 'isLoggedIn:', isLoggedIn);
+
+    // 捕获并重置详情页返回标记
+    const shouldAnimate = this._navigatedToDetail;
+    this._navigatedToDetail = false;
+    this._pendingAnimate = shouldAnimate;
 
     if (typeof this.getTabBar === 'function' &&
       this.getTabBar()) {
@@ -1761,6 +1820,8 @@ Page({
     wx.navigateTo({
       url: `/pages/detail/detail?id=${id}`
     });
+
+    this._navigatedToDetail = true;
   },
 
   /**
@@ -1867,16 +1928,11 @@ Page({
         return i;
       });
 
-      const allItems = sortItems([...updatedImageList, ...updatedFileList]);
-
       // 移除同步状态
       const newStatus = { ...this.data.syncingStatus };
       delete newStatus[itemId];
 
-      this.setData({
-        imageList: updatedImageList,
-        fileList: updatedFileList,
-        allItems,
+      this.updateAllItems(updatedImageList, updatedFileList, {
         syncingStatus: newStatus
       });
 

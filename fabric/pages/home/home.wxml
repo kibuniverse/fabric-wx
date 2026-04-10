@@ -38,7 +38,7 @@
       </block>
       <block wx:else>
         <view class="items-grid">
-          <view class="item" wx:for="{{allItems}}" wx:key="id" bindtap="navigateToDetail" data-id="{{item.id}}">
+          <view class="item flip-item" wx:for="{{allItems}}" wx:key="id" style="{{itemTransforms[item.id] ? 'transform:' + itemTransforms[item.id] : ''}}" bindtap="navigateToDetail" data-id="{{item.id}}">
             <view class="cover-wrapper">
               <image class="default-illustration" src="{{item.cover || '/assets/default_Illustration.png'}}" mode="aspectFill"></image>
               <view class="cover-border-overlay {{item.id === highlightItemId ? 'highlight' : ''}}"></view>
