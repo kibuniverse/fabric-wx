@@ -1167,7 +1167,8 @@ Page<DetailPageData, WechatMiniprogram.IAnyObject>({
     const col = index % maxPerRow;
 
     const x = padding + col * (counterWidthPx + gap);
-    const bottomY = sys.windowHeight - padding - counterHeightPx;
+    const bottomMargin = 44; // 距屏幕底部 44dp
+    const bottomY = sys.windowHeight - bottomMargin - counterHeightPx;
     const y = Math.max(minY, bottomY - row * (counterHeightPx + gap));
 
     return { x, y };

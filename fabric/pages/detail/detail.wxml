@@ -61,13 +61,13 @@
 
       <!-- 页码指示器 -->
       <view wx:if="{{totalImages > 1 && scale <= 1}}" class="page-indicator">
-        <text>{{currentImageIndex + 1}}/{{totalImages}}</text>
+        <text>{{currentImageIndex + 1}}/{{totalImages}}页</text>
       </view>
 
       <!-- PDF转换小进度（右上角，不遮挡操作） -->
       <view wx:if="{{pdfConvertProgress}}" class="pdf-convert-progress">
         <view class="pdf-convert-spinner" />
-        <text class="pdf-convert-text">{{pdfConvertProgress}}</text>
+        <text class="pdf-convert-text">{{pdfConvertProgress}}页</text>
       </view>
     </block>
 
