@@ -1035,7 +1035,7 @@ Page<DetailPageData, WechatMiniprogram.IAnyObject>({
       const userInfo = wx.getStorageSync('userInfo');
       if (userInfo && userInfo.isLoggedIn && this.data.itemId) {
         app.globalData.activeDiagramIds = [this.data.itemId];
-        app.startDiagramHeartbeat();
+        // app.startDiagramHeartbeat(); // 心跳同步已禁用
       }
     }
   },
@@ -1056,7 +1056,7 @@ Page<DetailPageData, WechatMiniprogram.IAnyObject>({
     if (app) {
       app.pauseKnittingSession(true);
       // 停止心跳并同步图解数据
-      app.stopDiagramHeartbeat();
+      // app.stopDiagramHeartbeat(); // 心跳同步已禁用
       const userInfo = wx.getStorageSync('userInfo');
       if (userInfo && userInfo.isLoggedIn && this.data.itemId) {
         app.forceSyncDiagramCounterData(this.data.itemId).catch((err: any) => {
@@ -1083,7 +1083,7 @@ Page<DetailPageData, WechatMiniprogram.IAnyObject>({
     if (app) {
       app.pauseKnittingSession(true);
       // 停止心跳并同步图解数据
-      app.stopDiagramHeartbeat();
+      // app.stopDiagramHeartbeat(); // 心跳同步已禁用
       const userInfo = wx.getStorageSync('userInfo');
       if (userInfo && userInfo.isLoggedIn && this.data.itemId) {
         app.forceSyncDiagramCounterData(this.data.itemId).catch((err: any) => {
@@ -1471,7 +1471,7 @@ Page<DetailPageData, WechatMiniprogram.IAnyObject>({
 
     // 重置心跳计时器（用户有操作）
     const app = getApp<IAppOption>();
-    if (app) app.resetDiagramHeartbeat();
+    // if (app) app.resetDiagramHeartbeat(); // 心跳同步已禁用
   },
 
   onShareAppMessage() {

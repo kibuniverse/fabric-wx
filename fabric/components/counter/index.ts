@@ -228,7 +228,7 @@ Component({
       if (app) {
         app.resetKnittingActivity();
         // 重置心跳计时器
-        app.resetCounterHeartbeat();
+        // app.resetCounterHeartbeat(); // 心跳同步已禁用
       }
 
       const { currentCount, targetCount } = this.data.counterData;

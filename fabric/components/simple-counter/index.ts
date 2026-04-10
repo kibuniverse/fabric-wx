@@ -166,7 +166,7 @@ Component({
 
         // 重置图解心跳计时器（用户有操作）
         const app = getApp<IAppOption>();
-        if (app) app.resetDiagramHeartbeat();
+        // if (app) app.resetDiagramHeartbeat(); // 心跳同步已禁用
       } catch (error) {
         console.error("Failed to save counter value:", error);
       }

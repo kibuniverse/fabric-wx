@@ -165,7 +165,7 @@ App<IAppOption>({
 
     // 停止所有计时器和心跳
     this.stopKnittingIdleCheck();
-    this.stopCounterHeartbeat();
+    // this.stopCounterHeartbeat(); // 心跳同步已禁用
 
     // 清除本地数据
     wx.removeStorageSync('userInfo');

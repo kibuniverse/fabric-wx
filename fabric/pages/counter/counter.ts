@@ -385,7 +385,7 @@ Page({
         }).catch(err => {
           console.error('[Counter] 同步计数器数据失败:', err)
         });
-        app.startCounterHeartbeat();
+        // app.startCounterHeartbeat(); // 心跳同步已禁用
       }
     }
   },
@@ -396,7 +396,7 @@ Page({
     if (app) {
       app.pauseKnittingSession(true);
       // 停止心跳并同步计数器数据
-      app.stopCounterHeartbeat();
+      // app.stopCounterHeartbeat(); // 心跳同步已禁用
       const userInfo = wx.getStorageSync('userInfo');
       if (userInfo && userInfo.isLoggedIn) {
         // 强制上传：等待当前同步完成后，再执行上传
@@ -686,7 +686,7 @@ Page({
     // 重置心跳计时器
     const app = getApp<IAppOption>();
     if (app) {
-      app.resetCounterHeartbeat();
+      // app.resetCounterHeartbeat(); // 心跳同步已禁用
     }
 
     wx.nextTick(() => {
@@ -941,7 +941,7 @@ Page({
       app.syncCounterData('upload').catch(err => {
         console.error('[Counter] 同步计数器数据失败:', err)
       });
-      app.resetCounterHeartbeat();
+      // app.resetCounterHeartbeat(); // 心跳同步已禁用
     }
   },
   handleCounterDelete(e: { detail: { id: string } }) {
@@ -1007,7 +1007,7 @@ Page({
             app.syncCounterData('upload').catch(err => {
               console.error('[Counter] 同步计数器数据失败:', err)
             });
-            app.resetCounterHeartbeat();
+            // app.resetCounterHeartbeat(); // 心跳同步已禁用
           }
         } else if (res.cancel) {
           // 用户点击了取消按钮
@@ -1128,7 +1128,7 @@ Page({
       app.syncCounterData('upload').catch(err => {
         console.error('[Counter] 同步计数器名称失败:', err)
       });
-      app.resetCounterHeartbeat();
+      // app.resetCounterHeartbeat(); // 心跳同步已禁用
     }
   },
 

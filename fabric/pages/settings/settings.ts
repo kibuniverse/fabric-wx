@@ -83,7 +83,7 @@ Page({
               // 清除计数器相关缓存，重置为默认计数器
               const app = getApp<IAppOption>();
               if (app) {
-                app.stopCounterHeartbeat();
+                // app.stopCounterHeartbeat(); // 心跳同步已禁用
                 app.globalData.totalKnittingTime = 0;
                 // 设置标志位：主动注销，不触发"登录状态已失效"弹窗
                 app.globalData.accountInvalidatedShown = true;
@@ -192,7 +192,7 @@ Page({
               console.error('同步针织总时长失败:', err);
             });
 
-            app.stopCounterHeartbeat();
+            // app.stopCounterHeartbeat(); // 心跳同步已禁用
           }
 
           // 清理已同步的图解数据（保留未同步数据）
