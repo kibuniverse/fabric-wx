@@ -25,6 +25,10 @@
   </view>
   <!-- 内容区域 -->
   <view class="content-area">
+    <!-- 下拉刷新演示区域（展开时显示文案） -->
+    <view class="refresh-demo-area {{isRefreshDemoPlaying ? 'refresh-demo' : ''}}">
+      <text class="refresh-demo-text">↓ 下拉可同步图解</text>
+    </view>
     <!-- 我的图解内容 -->
     <view class="tab-content">
       <block wx:if="{{allItems.length === 0}}">

@@ -25,6 +25,9 @@ interface FileItem {
   isBuiltin?: boolean;     // 是否为内置图解
 }
 
+const PULL_REFRESH_DEMO_SHOWN_KEY = 'pull_refresh_demo_shown';
+const HOME_TAB_VISIT_COUNT_KEY = 'home_tab_visit_count';
+
 const WELCOME_DIAGRAM_NAME = '知织小信';
 const WELCOME_DIAGRAM_ASSET_PATH = '/assets/zhizhi_letter.png';
 const WELCOME_DIAGRAM_ID = 'builtin_welcome_diagram';
@@ -133,6 +136,10 @@ Page({
 
     // 正在同步的图解（用于显示旋转动画）{ [id]: true }
     syncingStatus: {} as Record<string, boolean>,
+
+    // 下拉刷新演示动画
+    showRefreshDemo: false,
+    isRefreshDemoPlaying: false,
   },
 
   /**
@@ -193,6 +200,36 @@ Page({
   hideSyncTips() {
     wx.setStorageSync('has_shown_sync_tips', true);
     this.setData({ showSyncTips: false });
+  },
+
+  /**
+   * 检查是否需要展示下拉刷新演示动画（设备级别一次性，第2次进入时触发）
+   */
+  _refreshDemoTriggered: false,
+  checkRefreshDemo() {
+    if (this._refreshDemoTriggered) return;
+    const shown = wx.getStorageSync(PULL_REFRESH_DEMO_SHOWN_KEY);
+    if (shown) { this._refreshDemoTriggered = true; return; }
+
+    // 累加访问次数
+    const visitCount = (wx.getStorageSync(HOME_TAB_VISIT_COUNT_KEY) || 0) + 1;
+    wx.setStorageSync(HOME_TAB_VISIT_COUNT_KEY, visitCount);
+
+    // 第 2 次及以上访问且已登录且有图解时触发
+    if (visitCount < 2) return;
+    if (!this.data.isLoggedIn) return;
+    if (this.data.allItems.length === 0) return;
+
+    this._refreshDemoTriggered = true;
+
+    setTimeout(() => {
+      this.setData({ showRefreshDemo: true, isRefreshDemoPlaying: true });
+
+      setTimeout(() => {
+        this.setData({ showRefreshDemo: false, isRefreshDemoPlaying: false });
+        wx.setStorageSync(PULL_REFRESH_DEMO_SHOWN_KEY, true);
+      }, 3200);
+    }, 600);
   },
 
   /**
@@ -1099,6 +1136,9 @@ Page({
       // 未登录用户：只加载本地数据
       this.loadLocalData();
     }
+
+    // 检查是否需要展示下拉刷新演示（第2次进入时触发）
+    this.checkRefreshDemo();
   },
 
   /**
