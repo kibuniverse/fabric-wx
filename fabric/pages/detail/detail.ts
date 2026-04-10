@@ -1588,16 +1588,18 @@ Page<DetailPageData, WechatMiniprogram.IAnyObject>({
           console.log('[Detail] 使用已有图片:', i + 1, cloudImageId.split('/').pop());
         } else {
           // 需要下载
-          wx.showLoading({ title: `下载中 ${i + 1}/${cloudImageIds.length}`, mask: true });
+          if (!this.data.isPageHidden) {
+            wx.showLoading({ title: `下载中 ${i + 1}/${cloudImageIds.length}`, mask: true });
+          }
           console.log('[Detail] 下载新图片:', i + 1, cloudImageId.split('/').pop());
           const localPath = await this.downloadCloudImage(cloudImageId);
           localPaths.push(localPath);
         }
       }
 
-      wx.hideLoading();
-
-      // 3. 更新本地存储（关键：同时保存 cloudImages 保持顺序对应）
+      if (!this.data.isPageHidden) {
+        wx.hideLoading();
+      }
       const imageList = wx.getStorageSync('imageList') || [];
       const fileList = wx.getStorageSync('fileList') || [];
       const updatedImageList = imageList.map((img: any) => {
@@ -1616,33 +1618,39 @@ Page<DetailPageData, WechatMiniprogram.IAnyObject>({
       wx.setStorageSync('fileList', updatedFileList);
 
       // 4. 显示图片
-      this.setData({
-        itemType: item.type,
-        itemName: name,
-        itemPath: localPaths[0],
-        itemPaths: localPaths,
-        currentImageIndex: 0,
-        totalImages: localPaths.length,
-        scale: 1,
-        translateX: 0,
-        translateY: 0,
-        swiperEnabled: true,
-        imageSizes: {},
-        isConverting: false,
-      });
+      if (!this.data.isPageHidden) {
+        this.setData({
+          itemType: item.type,
+          itemName: name,
+          itemPath: localPaths[0],
+          itemPaths: localPaths,
+          currentImageIndex: 0,
+          totalImages: localPaths.length,
+          scale: 1,
+          translateX: 0,
+          translateY: 0,
+          swiperEnabled: true,
+          imageSizes: {},
+          isConverting: false,
+        });
 
-      wx.setNavigationBarTitle({ title: name });
-      this.loadMemoContent();
+        wx.setNavigationBarTitle({ title: name });
+        this.loadMemoContent();
+      } else {
+        this.setData({ isConverting: false });
+      }
 
       // 标记文件已验证，后续 onShow 跳过磁盘检查
       this._verifiedFileItems[id] = localPaths.join(',');
 
     } catch (err: any) {
-      wx.hideLoading();
+      if (!this.data.isPageHidden) {
+        wx.hideLoading();
+        this.showToast(err?.message || '加载失败');
+        setTimeout(() => wx.navigateBack(), 1500);
+      }
       console.error('下载云端图片失败:', err);
       this.setData({ isConverting: false });
-      this.showToast(err?.message || '加载失败');
-      setTimeout(() => wx.navigateBack(), 1500);
     }
   },
 

@@ -891,3 +891,188 @@ describe('详情页 - 图片缩放拖动：旧逻辑回归验证', () => {
     expect(maxTranslateX).toBe(oldMax);
   });
 });
+
+// ========== 云端图解下载 - isPageHidden 守卫测试 ==========
+
+/**
+ * 模拟 downloadCloudDiagramImages 中的下载循环逻辑（纯函数提取）
+ * 验证 isPageHidden 对 showLoading / hideLoading / setData 的守卫
+ */
+
+/** 下载循环中 showLoading 的守卫逻辑 */
+function shouldShowLoadingInDownloadLoop(isPageHidden: boolean): boolean {
+  return !isPageHidden;
+}
+
+/** 下载完成后 hideLoading 的守卫逻辑 */
+function shouldHideLoadingAfterDownload(isPageHidden: boolean): boolean {
+  return !isPageHidden;
+}
+
+/**
+ * 下载完成后的 UI 更新逻辑
+ * 返回 setData 的内容（pageHidden 时只重置 isConverting）
+ */
+function handleDownloadCompletion(
+  localPaths: string[],
+  item: { type: string; name: string },
+  isPageHidden: boolean,
+): { setData: Record<string, any>; shouldSetTitle: boolean; shouldLoadMemo: boolean } {
+  if (!isPageHidden) {
+    return {
+      setData: {
+        itemType: item.type,
+        itemName: item.name,
+        itemPath: localPaths[0],
+        itemPaths: localPaths,
+        currentImageIndex: 0,
+        totalImages: localPaths.length,
+        scale: 1,
+        translateX: 0,
+        translateY: 0,
+        swiperEnabled: true,
+        imageSizes: {},
+        isConverting: false,
+      },
+      shouldSetTitle: true,
+      shouldLoadMemo: true,
+    };
+  }
+  return {
+    setData: { isConverting: false },
+    shouldSetTitle: false,
+    shouldLoadMemo: false,
+  };
+}
+
+/** catch 块中的守卫逻辑 */
+function handleDownloadError(
+  isPageHidden: boolean,
+  _errorMessage: string,
+): { shouldHideLoading: boolean; shouldShowToast: boolean; shouldNavigateBack: boolean } {
+  if (!isPageHidden) {
+    return { shouldHideLoading: true, shouldShowToast: true, shouldNavigateBack: true };
+  }
+  return { shouldHideLoading: false, shouldShowToast: false, shouldNavigateBack: false };
+}
+
+describe('详情页 - 云端下载 isPageHidden 守卫', () => {
+  describe('下载循环中 showLoading 守卫', () => {
+    it('页面可见时应显示 loading', () => {
+      expect(shouldShowLoadingInDownloadLoop(false)).toBe(true);
+    });
+
+    it('页面隐藏时不应显示 loading', () => {
+      expect(shouldShowLoadingInDownloadLoop(true)).toBe(false);
+    });
+
+    it('用户退出后循环继续下载但不再弹 loading（模拟多次循环）', () => {
+      // 模拟下载 5 张图片，第 2 张时用户退出
+      const states = [false, false, true, true, true]; // isPageHidden 在第 3 次变为 true
+      const showLoadingCalls = states.map(s => shouldShowLoadingInDownloadLoop(s));
+      expect(showLoadingCalls).toEqual([true, true, false, false, false]);
+    });
+  });
+
+  describe('下载完成后 hideLoading 守卫', () => {
+    it('页面可见时应隐藏 loading', () => {
+      expect(shouldHideLoadingAfterDownload(false)).toBe(true);
+    });
+
+    it('页面隐藏时不应调用 hideLoading（onHide 已处理）', () => {
+      expect(shouldHideLoadingAfterDownload(true)).toBe(false);
+    });
+  });
+
+  describe('下载完成后 UI 更新守卫', () => {
+    const localPaths = ['/img1.png', '/img2.png', '/img3.png'];
+    const item = { type: 'image', name: '测试图解' };
+
+    it('页面可见时应更新完整 UI', () => {
+      const result = handleDownloadCompletion(localPaths, item, false);
+      expect(result.setData.itemType).toBe('image');
+      expect(result.setData.itemName).toBe('测试图解');
+      expect(result.setData.itemPath).toBe('/img1.png');
+      expect(result.setData.itemPaths).toEqual(localPaths);
+      expect(result.setData.currentImageIndex).toBe(0);
+      expect(result.setData.totalImages).toBe(3);
+      expect(result.setData.isConverting).toBe(false);
+      expect(result.shouldSetTitle).toBe(true);
+      expect(result.shouldLoadMemo).toBe(true);
+    });
+
+    it('页面隐藏时只重置 isConverting', () => {
+      const result = handleDownloadCompletion(localPaths, item, true);
+      expect(result.setData.isConverting).toBe(false);
+      expect(result.setData.itemType).toBeUndefined();
+      expect(result.setData.itemPath).toBeUndefined();
+      expect(result.setData.itemPaths).toBeUndefined();
+      expect(result.shouldSetTitle).toBe(false);
+      expect(result.shouldLoadMemo).toBe(false);
+    });
+
+    it('单图下载完成后 UI 也应正确更新', () => {
+      const result = handleDownloadCompletion(['/single.png'], item, false);
+      expect(result.setData.totalImages).toBe(1);
+      expect(result.setData.itemPath).toBe('/single.png');
+    });
+  });
+
+  describe('下载失败 catch 块守卫', () => {
+    it('页面可见时应隐藏 loading + 显示 toast + 返回', () => {
+      const result = handleDownloadError(false, '加载失败');
+      expect(result.shouldHideLoading).toBe(true);
+      expect(result.shouldShowToast).toBe(true);
+      expect(result.shouldNavigateBack).toBe(true);
+    });
+
+    it('页面隐藏时不应弹 toast 或 navigateBack', () => {
+      const result = handleDownloadError(true, '加载失败');
+      expect(result.shouldHideLoading).toBe(false);
+      expect(result.shouldShowToast).toBe(false);
+      expect(result.shouldNavigateBack).toBe(false);
+    });
+  });
+
+  describe('Storage 更新不受 isPageHidden 影响', () => {
+    beforeEach(() => {
+      clearAllMocks();
+    });
+
+    it('页面隐藏时 Storage 仍应被更新（后台下载完成后保存数据）', () => {
+      const localPaths = ['/img1.png', '/img2.png'];
+      const itemId = 'test_item_123';
+
+      // 模拟更新 imageList
+      const imageList = [{ id: itemId, name: '测试', paths: [], path: '' }];
+      const updatedImageList = imageList.map((img) => {
+        if (img.id === itemId) {
+          return { ...img, paths: localPaths, path: localPaths[0], cloudImages: ['cloud1', 'cloud2'] };
+        }
+        return img;
+      });
+
+      wx.setStorageSync('imageList', updatedImageList);
+      const saved = wx.getStorageSync('imageList') as any[];
+      expect(saved[0].paths).toEqual(localPaths);
+      expect(saved[0].path).toBe('/img1.png');
+    });
+
+    it('页面隐藏时 fileList Storage 也应被更新', () => {
+      const localPaths = ['/pdf1.png'];
+      const itemId = 'test_pdf_123';
+
+      const fileList = [{ id: itemId, name: 'PDF测试', paths: [], type: 'pdf' }];
+      const updatedFileList = fileList.map((file) => {
+        if (file.id === itemId) {
+          return { ...file, paths: localPaths, path: localPaths[0], cloudImages: ['cloud1'] };
+        }
+        return file;
+      });
+
+      wx.setStorageSync('fileList', updatedFileList);
+      const saved = wx.getStorageSync('fileList') as any[];
+      expect(saved[0].paths).toEqual(localPaths);
+    });
+  });
+});

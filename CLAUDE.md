@@ -110,7 +110,18 @@ this.triggerEvent('showTargetInput', { key, currentTarget });
 
 ## Testing
 
-No formal test framework configured. Manual testing via WeChat DevTools simulator.
+Jest (`npm test`) with TypeScript support. Tests cover:
+
+- **Frontend** (`fabric/__tests__/`): detail, home, edit, counter-highlight, timer-resume
+- **Utilities** (`fabric/utils/__tests__/`): account, counter, diagram, event_bus, pdf_converter, time
+- **Cloud functions** (`cloudfunctions/*/__tests__/`): deleteUser, login, syncCounterData, syncData, syncDiagramData
+
+Run `npm test` in these scenarios:
+- Changed a module that has test coverage (counter, sync, login, etc.)
+- Before committing or releasing
+- When changes may have side effects
+
+Manual testing via WeChat DevTools for UI changes.
 
 
 
