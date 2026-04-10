@@ -892,148 +892,288 @@ describe('详情页 - 图片缩放拖动：旧逻辑回归验证', () => {
   });
 });
 
-// ========== 云端图解下载 - isPageHidden 守卫测试 ==========
+// ========== 云端图解渐进式下载测试 ==========
+
+type DownloadResult = { localPath: string } | { error: true };
+type CloudToLocalMap = Record<string, string>;
 
 /**
- * 模拟 downloadCloudDiagramImages 中的下载循环逻辑（纯函数提取）
- * 验证 isPageHidden 对 showLoading / hideLoading / setData 的守卫
+ * 模拟 downloadCloudDiagramImages 的渐进式下载循环（纯函数提取）
+ * 返回每次迭代产生的 UI 更新操作序列
  */
+function simulateProgressiveDownload(
+  cloudImageIds: string[],
+  cloudIdToLocalPath: CloudToLocalMap,
+  downloadResults: DownloadResult[],
+  isPageHiddenSequence: boolean[],  // 每次迭代对应的 isPageHidden 状态
+): {
+  operations: Array<{
+    type: 'show_first_image' | 'incremental_update' | 'skip_ui';
+    validPaths: string[];
+    progress: string;
+  }>;
+  finalPaths: string[];
+  failedCount: number;
+  firstImageShown: boolean;
+} {
+  const localPaths: string[] = [];
+  let firstImageShown = false;
+  let failedCount = 0;
+  const operations: Array<{
+    type: 'show_first_image' | 'incremental_update' | 'skip_ui';
+    validPaths: string[];
+    progress: string;
+  }> = [];
 
-/** 下载循环中 showLoading 的守卫逻辑 */
-function shouldShowLoadingInDownloadLoop(isPageHidden: boolean): boolean {
-  return !isPageHidden;
-}
+  for (let i = 0; i < cloudImageIds.length; i++) {
+    const cloudImageId = cloudImageIds[i];
+    const existingLocalPath = cloudIdToLocalPath[cloudImageId];
 
-/** 下载完成后 hideLoading 的守卫逻辑 */
-function shouldHideLoadingAfterDownload(isPageHidden: boolean): boolean {
-  return !isPageHidden;
-}
+    if (existingLocalPath) {
+      localPaths.push(existingLocalPath);
+    } else {
+      const result = downloadResults[i];
+      if (result && 'error' in result && result.error) {
+        failedCount++;
+        localPaths.push('');
+      } else if (result && 'localPath' in result) {
+        localPaths.push(result.localPath);
+      }
+    }
 
-/**
- * 下载完成后的 UI 更新逻辑
- * 返回 setData 的内容（pageHidden 时只重置 isConverting）
- */
-function handleDownloadCompletion(
-  localPaths: string[],
-  item: { type: string; name: string },
-  isPageHidden: boolean,
-): { setData: Record<string, any>; shouldSetTitle: boolean; shouldLoadMemo: boolean } {
-  if (!isPageHidden) {
-    return {
-      setData: {
-        itemType: item.type,
-        itemName: item.name,
-        itemPath: localPaths[0],
-        itemPaths: localPaths,
-        currentImageIndex: 0,
-        totalImages: localPaths.length,
-        scale: 1,
-        translateX: 0,
-        translateY: 0,
-        swiperEnabled: true,
-        imageSizes: {},
-        isConverting: false,
-      },
-      shouldSetTitle: true,
-      shouldLoadMemo: true,
-    };
+    const isPageHidden = isPageHiddenSequence[Math.min(i, isPageHiddenSequence.length - 1)];
+    if (isPageHidden) {
+      operations.push({ type: 'skip_ui', validPaths: [], progress: '' });
+      continue;
+    }
+
+    const validPaths = localPaths.filter((p) => p);
+
+    if (!firstImageShown && validPaths.length >= 1) {
+      firstImageShown = true;
+      operations.push({
+        type: 'show_first_image',
+        validPaths: [...validPaths],
+        progress: `${i + 1}/${cloudImageIds.length}`,
+      });
+    } else if (firstImageShown) {
+      operations.push({
+        type: 'incremental_update',
+        validPaths: [...validPaths],
+        progress: `${i + 1}/${cloudImageIds.length}`,
+      });
+    } else {
+      operations.push({ type: 'skip_ui', validPaths: [], progress: '' });
+    }
   }
-  return {
-    setData: { isConverting: false },
-    shouldSetTitle: false,
-    shouldLoadMemo: false,
-  };
+
+  const finalPaths = localPaths.filter((p) => p);
+  return { operations, finalPaths, failedCount, firstImageShown };
 }
 
-/** catch 块中的守卫逻辑 */
-function handleDownloadError(
-  isPageHidden: boolean,
-  _errorMessage: string,
-): { shouldHideLoading: boolean; shouldShowToast: boolean; shouldNavigateBack: boolean } {
-  if (!isPageHidden) {
-    return { shouldHideLoading: true, shouldShowToast: true, shouldNavigateBack: true };
-  }
-  return { shouldHideLoading: false, shouldShowToast: false, shouldNavigateBack: false };
-}
+describe('详情页 - 云端图片渐进式下载', () => {
+  describe('正常下载：3 张图片', () => {
+    const cloudIds = ['cloud://img1', 'cloud://img2', 'cloud://img3'];
+    const downloads: DownloadResult[] = [
+      { localPath: '/local/img1.png' },
+      { localPath: '/local/img2.png' },
+      { localPath: '/local/img3.png' },
+    ];
+    const result = simulateProgressiveDownload(cloudIds, {}, downloads, [false, false, false]);
 
-describe('详情页 - 云端下载 isPageHidden 守卫', () => {
-  describe('下载循环中 showLoading 守卫', () => {
-    it('页面可见时应显示 loading', () => {
-      expect(shouldShowLoadingInDownloadLoop(false)).toBe(true);
+    it('第 1 张完成时应触发 show_first_image', () => {
+      expect(result.operations[0].type).toBe('show_first_image');
+      expect(result.operations[0].validPaths).toEqual(['/local/img1.png']);
+      expect(result.operations[0].progress).toBe('1/3');
     });
 
-    it('页面隐藏时不应显示 loading', () => {
-      expect(shouldShowLoadingInDownloadLoop(true)).toBe(false);
+    it('第 2 张完成时应触发 incremental_update', () => {
+      expect(result.operations[1].type).toBe('incremental_update');
+      expect(result.operations[1].validPaths).toEqual(['/local/img1.png', '/local/img2.png']);
+      expect(result.operations[1].progress).toBe('2/3');
     });
 
-    it('用户退出后循环继续下载但不再弹 loading（模拟多次循环）', () => {
-      // 模拟下载 5 张图片，第 2 张时用户退出
-      const states = [false, false, true, true, true]; // isPageHidden 在第 3 次变为 true
-      const showLoadingCalls = states.map(s => shouldShowLoadingInDownloadLoop(s));
-      expect(showLoadingCalls).toEqual([true, true, false, false, false]);
-    });
-  });
-
-  describe('下载完成后 hideLoading 守卫', () => {
-    it('页面可见时应隐藏 loading', () => {
-      expect(shouldHideLoadingAfterDownload(false)).toBe(true);
+    it('第 3 张完成时应包含全部路径', () => {
+      expect(result.operations[2].type).toBe('incremental_update');
+      expect(result.operations[2].validPaths).toEqual(['/local/img1.png', '/local/img2.png', '/local/img3.png']);
+      expect(result.operations[2].progress).toBe('3/3');
     });
 
-    it('页面隐藏时不应调用 hideLoading（onHide 已处理）', () => {
-      expect(shouldHideLoadingAfterDownload(true)).toBe(false);
+    it('finalPaths 应包含全部路径且无失败', () => {
+      expect(result.finalPaths).toEqual(['/local/img1.png', '/local/img2.png', '/local/img3.png']);
+      expect(result.failedCount).toBe(0);
+      expect(result.firstImageShown).toBe(true);
     });
   });
 
-  describe('下载完成后 UI 更新守卫', () => {
-    const localPaths = ['/img1.png', '/img2.png', '/img3.png'];
-    const item = { type: 'image', name: '测试图解' };
+  describe('部分本地已有图片', () => {
+    it('本地已有的图片直接使用，不触发下载', () => {
+      const cloudIds = ['cloud://img1', 'cloud://img2', 'cloud://img3'];
+      const localMap: CloudToLocalMap = { 'cloud://img1': '/local/img1.png' };
+      // 只有 img2 和 img3 需要下载，但 downloadResults 按索引对齐所有 cloudIds
+      const downloads: DownloadResult[] = [
+        { localPath: '/local/img1.png' },  // 会被 localMap 跳过
+        { localPath: '/local/img2.png' },
+        { localPath: '/local/img3.png' },
+      ];
+      const result = simulateProgressiveDownload(cloudIds, localMap, downloads, [false, false, false]);
 
-    it('页面可见时应更新完整 UI', () => {
-      const result = handleDownloadCompletion(localPaths, item, false);
-      expect(result.setData.itemType).toBe('image');
-      expect(result.setData.itemName).toBe('测试图解');
-      expect(result.setData.itemPath).toBe('/img1.png');
-      expect(result.setData.itemPaths).toEqual(localPaths);
-      expect(result.setData.currentImageIndex).toBe(0);
-      expect(result.setData.totalImages).toBe(3);
-      expect(result.setData.isConverting).toBe(false);
-      expect(result.shouldSetTitle).toBe(true);
-      expect(result.shouldLoadMemo).toBe(true);
-    });
-
-    it('页面隐藏时只重置 isConverting', () => {
-      const result = handleDownloadCompletion(localPaths, item, true);
-      expect(result.setData.isConverting).toBe(false);
-      expect(result.setData.itemType).toBeUndefined();
-      expect(result.setData.itemPath).toBeUndefined();
-      expect(result.setData.itemPaths).toBeUndefined();
-      expect(result.shouldSetTitle).toBe(false);
-      expect(result.shouldLoadMemo).toBe(false);
-    });
-
-    it('单图下载完成后 UI 也应正确更新', () => {
-      const result = handleDownloadCompletion(['/single.png'], item, false);
-      expect(result.setData.totalImages).toBe(1);
-      expect(result.setData.itemPath).toBe('/single.png');
+      // 第 1 张来自本地 → 直接触发首屏
+      expect(result.operations[0].type).toBe('show_first_image');
+      expect(result.operations[0].validPaths).toEqual(['/local/img1.png']);
+      expect(result.finalPaths).toEqual(['/local/img1.png', '/local/img2.png', '/local/img3.png']);
     });
   });
 
-  describe('下载失败 catch 块守卫', () => {
-    it('页面可见时应隐藏 loading + 显示 toast + 返回', () => {
-      const result = handleDownloadError(false, '加载失败');
-      expect(result.shouldHideLoading).toBe(true);
-      expect(result.shouldShowToast).toBe(true);
-      expect(result.shouldNavigateBack).toBe(true);
+  describe('部分图片下载失败', () => {
+    it('第 2 张失败时应 continue，不影响首屏和后续', () => {
+      const cloudIds = ['cloud://img1', 'cloud://img2', 'cloud://img3'];
+      const downloads: DownloadResult[] = [
+        { localPath: '/local/img1.png' },
+        { error: true },
+        { localPath: '/local/img3.png' },
+      ];
+      const result = simulateProgressiveDownload(cloudIds, {}, downloads, [false, false, false]);
+
+      expect(result.operations[0].type).toBe('show_first_image');
+      // 第 2 张失败，validPaths 仍只有 img1
+      expect(result.operations[1].type).toBe('incremental_update');
+      expect(result.operations[1].validPaths).toEqual(['/local/img1.png']);
+      // 第 3 张成功后 validPaths 追加 img3
+      expect(result.operations[2].validPaths).toEqual(['/local/img1.png', '/local/img3.png']);
+      expect(result.failedCount).toBe(1);
     });
 
-    it('页面隐藏时不应弹 toast 或 navigateBack', () => {
-      const result = handleDownloadError(true, '加载失败');
-      expect(result.shouldHideLoading).toBe(false);
-      expect(result.shouldShowToast).toBe(false);
-      expect(result.shouldNavigateBack).toBe(false);
+    it('finalPaths 应过滤掉空占位', () => {
+      const cloudIds = ['cloud://img1', 'cloud://img2'];
+      const downloads: DownloadResult[] = [
+        { error: true },
+        { localPath: '/local/img2.png' },
+      ];
+      const result = simulateProgressiveDownload(cloudIds, {}, downloads, [false, false]);
+
+      expect(result.finalPaths).toEqual(['/local/img2.png']);
+      expect(result.failedCount).toBe(1);
+    });
+
+    it('最终 toast 应显示已加载 x/y 格式', () => {
+      const cloudIds = ['cloud://img1', 'cloud://img2', 'cloud://img3'];
+      const downloads: DownloadResult[] = [
+        { localPath: '/local/img1.png' },
+        { error: true },
+        { error: true },
+      ];
+      const result = simulateProgressiveDownload(cloudIds, {}, downloads, [false, false, false]);
+
+      const toast = `已加载 ${result.finalPaths.length}/${cloudIds.length} 张，部分图片加载失败`;
+      expect(toast).toBe('已加载 1/3 张，部分图片加载失败');
     });
   });
 
+  describe('全部下载失败', () => {
+    it('firstImageShown 应为 false，触发兜底 navigateBack', () => {
+      const cloudIds = ['cloud://img1', 'cloud://img2'];
+      const downloads: DownloadResult[] = [
+        { error: true },
+        { error: true },
+      ];
+      const result = simulateProgressiveDownload(cloudIds, {}, downloads, [false, false]);
+
+      expect(result.firstImageShown).toBe(false);
+      expect(result.finalPaths).toEqual([]);
+      expect(result.failedCount).toBe(2);
+      // 所有操作都是 skip_ui（无可用图片时不会触发 show_first_image 或 incremental_update）
+      expect(result.operations.every(op => op.type === 'skip_ui')).toBe(true);
+    });
+  });
+
+  describe('单张图片下载', () => {
+    it('成功时直接 show_first_image + 完成', () => {
+      const result = simulateProgressiveDownload(
+        ['cloud://img1'],
+        {},
+        [{ localPath: '/local/img1.png' }],
+        [false],
+      );
+
+      expect(result.operations).toHaveLength(1);
+      expect(result.operations[0].type).toBe('show_first_image');
+      expect(result.operations[0].validPaths).toEqual(['/local/img1.png']);
+      expect(result.finalPaths).toEqual(['/local/img1.png']);
+    });
+
+    it('失败时 firstImageShown 为 false', () => {
+      const result = simulateProgressiveDownload(
+        ['cloud://img1'],
+        {},
+        [{ error: true }],
+        [false],
+      );
+
+      expect(result.firstImageShown).toBe(false);
+      expect(result.finalPaths).toEqual([]);
+    });
+  });
+
+  describe('isPageHidden 守卫', () => {
+    it('下载中途页面隐藏，UI 更新跳过但下载继续', () => {
+      const cloudIds = ['cloud://img1', 'cloud://img2', 'cloud://img3'];
+      const downloads: DownloadResult[] = [
+        { localPath: '/local/img1.png' },
+        { localPath: '/local/img2.png' },
+        { localPath: '/local/img3.png' },
+      ];
+      // 第 1 张可见，第 2 张时用户退出，第 3 张时页面隐藏
+      const result = simulateProgressiveDownload(cloudIds, {}, downloads, [false, true, true]);
+
+      // 第 1 张：显示首屏
+      expect(result.operations[0].type).toBe('show_first_image');
+      // 第 2 张：页面隐藏，跳过 UI
+      expect(result.operations[1].type).toBe('skip_ui');
+      // 第 3 张：页面隐藏，跳过 UI
+      expect(result.operations[2].type).toBe('skip_ui');
+
+      // 但下载仍完成，finalPaths 正确
+      expect(result.finalPaths).toEqual(['/local/img1.png', '/local/img2.png', '/local/img3.png']);
+    });
+
+    it('页面始终隐藏时 firstImageShown 为 false，但下载完成', () => {
+      const cloudIds = ['cloud://img1', 'cloud://img2'];
+      const downloads: DownloadResult[] = [
+        { localPath: '/local/img1.png' },
+        { localPath: '/local/img2.png' },
+      ];
+      const result = simulateProgressiveDownload(cloudIds, {}, downloads, [true, true]);
+
+      expect(result.firstImageShown).toBe(false);
+      expect(result.finalPaths).toEqual(['/local/img1.png', '/local/img2.png']);
+    });
+  });
+
+  describe('进度格式', () => {
+    it('首张完成时应显示 1/N', () => {
+      const result = simulateProgressiveDownload(
+        ['c1', 'c2', 'c3', 'c4', 'c5'],
+        {},
+        Array.from({ length: 5 }, (_, i) => ({ localPath: `/p${i}.png` })),
+        [false, false, false, false, false],
+      );
+      expect(result.operations[0].progress).toBe('1/5');
+    });
+
+    it('最后一张完成时应显示 N/N', () => {
+      const result = simulateProgressiveDownload(
+        ['c1', 'c2', 'c3'],
+        {},
+        Array.from({ length: 3 }, (_, i) => ({ localPath: `/p${i}.png` })),
+        [false, false, false],
+      );
+      expect(result.operations[2].progress).toBe('3/3');
+    });
+  });
+});
+
+describe('详情页 - 云端下载完成后状态', () => {
   describe('Storage 更新不受 isPageHidden 影响', () => {
     beforeEach(() => {
       clearAllMocks();
@@ -1043,7 +1183,6 @@ describe('详情页 - 云端下载 isPageHidden 守卫', () => {
       const localPaths = ['/img1.png', '/img2.png'];
       const itemId = 'test_item_123';
 
-      // 模拟更新 imageList
       const imageList = [{ id: itemId, name: '测试', paths: [], path: '' }];
       const updatedImageList = imageList.map((img) => {
         if (img.id === itemId) {
@@ -1074,5 +1213,74 @@ describe('详情页 - 云端下载 isPageHidden 守卫', () => {
       const saved = wx.getStorageSync('fileList') as any[];
       expect(saved[0].paths).toEqual(localPaths);
     });
+
+    it('部分失败时 storage 应只存成功的路径', () => {
+      const finalPaths = ['/img1.png', '/img3.png']; // img2 失败被过滤
+      const cloudImageIds = ['cloud1', 'cloud2', 'cloud3'];
+      const itemId = 'test_partial';
+
+      const imageList = [{ id: itemId, name: '测试', paths: [] }];
+      const updatedImageList = imageList.map((img) => {
+        if (img.id === itemId) {
+          return { ...img, paths: finalPaths, path: finalPaths[0], cloudImages: cloudImageIds };
+        }
+        return img;
+      });
+
+      wx.setStorageSync('imageList', updatedImageList);
+      const saved = wx.getStorageSync('imageList') as any[];
+      expect(saved[0].paths).toEqual(['/img1.png', '/img3.png']);
+      expect(saved[0].cloudImages).toEqual(cloudImageIds); // 云端引用保留
+    });
+  });
+
+  describe('最终 UI 更新：preserveIndex', () => {
+    it('用户当前 index 不超过 finalPaths 长度时保持不变', () => {
+      const currentIndex = 1;
+      const finalPaths = ['/p1.png', '/p2.png', '/p3.png'];
+      const preserved = Math.min(currentIndex, finalPaths.length - 1);
+      expect(preserved).toBe(1);
+    });
+
+    it('用户当前 index 超过 finalPaths 长度时回退到最后一张', () => {
+      const currentIndex = 5;
+      const finalPaths = ['/p1.png', '/p2.png'];
+      const preserved = Math.min(currentIndex, finalPaths.length - 1);
+      expect(preserved).toBe(1);
+    });
+
+    it('finalPaths 只剩 1 张时 index 强制为 0', () => {
+      const currentIndex = 3;
+      const finalPaths = ['/p1.png'];
+      const preserved = Math.min(currentIndex, finalPaths.length - 1);
+      expect(preserved).toBe(0);
+    });
+  });
+});
+
+/** catch 块中的守卫逻辑（整体异常） */
+function handleDownloadError(
+  isPageHidden: boolean,
+  _errorMessage: string,
+): { shouldHideLoading: boolean; shouldShowToast: boolean; shouldNavigateBack: boolean } {
+  if (!isPageHidden) {
+    return { shouldHideLoading: true, shouldShowToast: true, shouldNavigateBack: true };
+  }
+  return { shouldHideLoading: false, shouldShowToast: false, shouldNavigateBack: false };
+}
+
+describe('详情页 - 云端下载 catch 块守卫', () => {
+  it('页面可见时应隐藏 loading + 显示 toast + 返回', () => {
+    const result = handleDownloadError(false, '加载失败');
+    expect(result.shouldHideLoading).toBe(true);
+    expect(result.shouldShowToast).toBe(true);
+    expect(result.shouldNavigateBack).toBe(true);
+  });
+
+  it('页面隐藏时不应弹 toast 或 navigateBack', () => {
+    const result = handleDownloadError(true, '加载失败');
+    expect(result.shouldHideLoading).toBe(false);
+    expect(result.shouldShowToast).toBe(false);
+    expect(result.shouldNavigateBack).toBe(false);
   });
 });
