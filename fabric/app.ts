@@ -971,12 +971,16 @@ App<IAppOption>({
 
     // 5. 上传数据
     if (finalKeys.length > 0) {
-      await wx.cloud.callFunction({
-        name: 'syncCounterData',
-        data: { action: 'upload', counterKeys: finalKeys, counters: finalCounters }
-      });
+      try {
+        await wx.cloud.callFunction({
+          name: 'syncCounterData',
+          data: { action: 'upload', counterKeys: finalKeys, counters: finalCounters }
+        });
+      } catch (error) {
+        console.error('[handleOldUserMigration] 上传计数器数据失败:', error);
+      }
 
-      // 6. 更新本地数据
+      // 6. 更新本地数据（无论上传是否成功，都更新本地）
       wx.setStorageSync('counter_keys', finalKeys);
       for (const key of Object.keys(finalCounters)) {
         wx.setStorageSync(key, finalCounters[key]);

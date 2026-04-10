@@ -400,8 +400,12 @@ Page({
           app.preloadDiagrams().catch(err => {
             console.error('[Me] 预加载图解失败:', err);
           });
-          // 处理计数器数据合并
-          await app.handleLoginDataMerge();
+          // 处理计数器数据合并（不阻塞登录流程）
+          try {
+            await app.handleLoginDataMerge();
+          } catch (mergeError) {
+            console.error('[Me] 计数器数据合并失败:', mergeError);
+          }
         }
 
         wx.showToast({ title: '欢迎回来', icon: 'success' });
@@ -420,10 +424,16 @@ Page({
           zhizhiId: '',
         });
       }
-    } catch (error) {
+    } catch (error: any) {
       wx.hideLoading();
-      console.error('检查用户状态失败:', error);
-      wx.showToast({ title: '网络异常，请检查网络连接', icon: 'none' });
+      const errorMsg = error?.message || String(error);
+      console.error('[Me] 检查用户状态失败:', errorMsg, error);
+
+      if (errorMsg === 'timeout') {
+        wx.showToast({ title: '请求超时，请重试', icon: 'none' });
+      } else {
+        wx.showToast({ title: '登录遇到问题，请重试', icon: 'none' });
+      }
     }
   },
 
@@ -531,8 +541,12 @@ Page({
           app.preloadDiagrams().catch(err => {
             console.error('[Me] 预加载图解失败:', err);
           });
-          // 处理计数器数据合并（新用户可能本地有默认计数器的修改）
-          await app.handleLoginDataMerge();
+          // 处理计数器数据合并（不阻塞登录流程）
+          try {
+            await app.handleLoginDataMerge();
+          } catch (mergeError) {
+            console.error('[Me] 计数器数据合并失败:', mergeError);
+          }
         }
 
         wx.showToast({
