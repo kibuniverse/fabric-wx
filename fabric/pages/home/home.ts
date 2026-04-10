@@ -57,7 +57,11 @@ const TOAST_CONFIG = {
 const STORAGE_KEYS = {
   LAST_SYNC_TIME: "lastDiagramSyncTime",  // 最后同步时间戳
   SYNCED_DIAGRAM_COUNT: "syncedDiagramCount",  // 上次同步时云端图解数量
+  LAST_CHECK_UPDATE_TIME: "lastCheckUpdateTime",  // 上次 checkUpdate 调用时间
 };
+
+// checkUpdate 最小间隔（毫秒），5 分钟内不重复调用
+const CHECK_UPDATE_INTERVAL = 5 * 60 * 1000;
 
 // 排序函数：优先 lastAccessTime，其次 createTime
 const sortItems = (items: FileItem[]) => items.sort((a, b) => {
@@ -1101,10 +1105,12 @@ Page({
    * 检查云端是否有更新并同步（跨设备同步）
    * 使用轻量级检查，只在有更新时才拉取数据
    */
-  async checkCloudUpdateAndSync() {
+  async checkCloudUpdateAndSync(forceCheck: boolean = false) {
     try {
       const lastSyncTime = wx.getStorageSync(STORAGE_KEYS.LAST_SYNC_TIME) || 0;
       const localDiagramCount = wx.getStorageSync(STORAGE_KEYS.SYNCED_DIAGRAM_COUNT);
+      const lastCheckTime = wx.getStorageSync(STORAGE_KEYS.LAST_CHECK_UPDATE_TIME) || 0;
+      const now = Date.now();
       console.log('[Home] checkUpdate - 本地 lastSyncTime:', lastSyncTime, new Date(lastSyncTime).toISOString());
       console.log('[Home] checkUpdate - 本地 syncedDiagramCount:', localDiagramCount);
 
@@ -1113,6 +1119,14 @@ Page({
       if (localDiagramCount === '' || localDiagramCount === undefined || localDiagramCount === null) {
         console.log('[Home] SYNCED_DIAGRAM_COUNT 未初始化，强制全量同步');
         await this.syncDiagramDataFromCloud();
+        return;
+      }
+
+      // 距离上次 checkUpdate 未超过间隔时间，跳过云端检查，直接使用本地数据
+      // forceCheck=true 时跳过缓存（下拉刷新场景）
+      if (!forceCheck && now - lastCheckTime < CHECK_UPDATE_INTERVAL) {
+        console.log('[Home] checkUpdate - 跳过云端检查，距上次检查仅', Math.round((now - lastCheckTime) / 1000), '秒');
+        this.loadLocalData();
         return;
       }
 
@@ -1127,6 +1141,9 @@ Page({
       }) as any;
 
       console.log('[Home] checkUpdate - 云端返回:', JSON.stringify(res.result));
+
+      // 记录本次检查时间（无论结果如何，避免频繁调用）
+      wx.setStorageSync(STORAGE_KEYS.LAST_CHECK_UPDATE_TIME, Date.now());
 
       if (res.result && res.result.success) {
         const { hasUpdate, cloudUpdateTime } = res.result.data;
@@ -1631,8 +1648,8 @@ Page({
     const isLoggedIn = userInfo && userInfo.isLoggedIn;
 
     if (isLoggedIn) {
-      // 已登录用户：刷新时触发云端同步
-      this.checkCloudUpdateAndSync().then(() => {
+      // 已登录用户：刷新时触发云端同步（强制跳过缓存）
+      this.checkCloudUpdateAndSync(true).then(() => {
         wx.stopPullDownRefresh();
       });
     } else {

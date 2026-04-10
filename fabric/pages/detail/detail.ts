@@ -55,6 +55,7 @@ interface DetailPageData {
   // PDF转换状态
   isConverting: boolean;     // 是否正在转换PDF
   isPageHidden: boolean;     // 页面是否已隐藏（用户返回）
+  isFirstShow: boolean;      // 是否首次 onShow（用于 getUserData 去重）
   pdfConvertProgress: string; // PDF转换进度文案（如 "3/10"），空串表示不显示
 
   // ========== 临时计数器 ==========
@@ -93,6 +94,9 @@ const DETAIL_TOAST_CONFIG = {
 };
 
 Page<DetailPageData, WechatMiniprogram.IAnyObject>({
+  // 内存缓存：已验证文件完整性的图解 { itemId: pathsKey }
+  _verifiedFileItems: {} as Record<string, string>,
+
   data: {
     itemId: "",
     itemType: "",
@@ -127,6 +131,7 @@ Page<DetailPageData, WechatMiniprogram.IAnyObject>({
     swiperEnabled: true,
     isConverting: false,
     isPageHidden: false,
+    isFirstShow: true,  // 标记是否首次 onShow
     pdfConvertProgress: '',
     tempCounters: [],
     draggingCounterId: '',
@@ -175,7 +180,12 @@ Page<DetailPageData, WechatMiniprogram.IAnyObject>({
       if (item.syncStatus === 'synced') {
         const paths = item.paths || [];
         const cloudImages = item.cloudImages || [];
-        const hasValidPaths = paths.length > 0 && this.checkLocalFilesExist(paths);
+
+        // preserveIndex=true 表示 onShow 触发，且之前已成功加载过，跳过文件完整性检查
+        // 每次重新读取 storage 中的 item 以检测 paths 变化（如同步后新增了图片）
+        const pathsKey = paths.join(',');
+        const skipFileCheck = preserveIndex && this._verifiedFileItems[id] === pathsKey;
+        const hasValidPaths = skipFileCheck || (paths.length > 0 && this.checkLocalFilesExist(paths));
 
         // 检查是否有新图片需要下载（云端图片数 > 本地图片数）
         const hasNewImages = cloudImages.length > paths.filter((p: string) => p).length;
@@ -246,6 +256,11 @@ Page<DetailPageData, WechatMiniprogram.IAnyObject>({
         swiperEnabled: true,
         imageSizes: {},
       });
+
+      // 标记该图解的文件已验证通过，后续 onShow 跳过磁盘检查
+      if (item.syncStatus === 'synced') {
+        this._verifiedFileItems[id] = (item.paths || []).join(',');
+      }
 
       wx.setNavigationBarTitle({ title: item.name });
       this.loadMemoContent();
@@ -1025,10 +1040,13 @@ Page<DetailPageData, WechatMiniprogram.IAnyObject>({
     // 开始针织总时长计时
     const app = getApp<IAppOption>();
     if (app) {
-      // 先从云端同步最新数据（多设备同步），再开始计时
-      app.syncFromCloud().catch(err => {
-        console.error('[Detail] 同步云端数据失败:', err)
-      })
+      // 仅首次进入时同步云端数据，避免 onShow 每次重复调用 getUserData
+      if (this.data.isFirstShow) {
+        this.setData({ isFirstShow: false });
+        app.syncFromCloud().catch(err => {
+          console.error('[Detail] 同步云端数据失败:', err)
+        })
+      }
       app.startKnittingSession();
 
       // 已登录时启动图解心跳同步
@@ -1615,6 +1633,9 @@ Page<DetailPageData, WechatMiniprogram.IAnyObject>({
 
       wx.setNavigationBarTitle({ title: name });
       this.loadMemoContent();
+
+      // 标记文件已验证，后续 onShow 跳过磁盘检查
+      this._verifiedFileItems[id] = localPaths.join(',');
 
     } catch (err: any) {
       wx.hideLoading();

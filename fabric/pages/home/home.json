@@ -1,5 +1,6 @@
 {
-  "disableScroll": true,
+  "disableScroll": false,
+  "enablePullDownRefresh": true,
   "navigationBarTitleText": "知织",
   "usingComponents": {
     "action-sheet": "weui-miniprogram/actionsheet/actionsheet",
