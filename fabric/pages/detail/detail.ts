@@ -79,6 +79,11 @@ interface DetailPageData {
   // 新手引导 tips
   showTempCounterTipStep: number;  // 0=不显示, 1=同步开关tip, 2=长按删除tip
   tempCounterTipTargetId: string;  // tip 指向的计数器 id
+  // fab 收起状态
+  isFabCollapsed: boolean;
+  // 标记工具栏
+  showPaintToolbar: boolean;
+  paintActiveTool: 'highlighter' | 'eraser' | 'ruler';
 }
 
 // 缩放范围常量
@@ -143,6 +148,9 @@ Page<DetailPageData, WechatMiniprogram.IAnyObject>({
     isVoiceOn: false,
     showTempCounterTipStep: 0,
     tempCounterTipTargetId: '',
+    isFabCollapsed: false,
+    showPaintToolbar: false,
+    paintActiveTool: 'highlighter',
   },
 
   onLoad(options: Record<string, string>) {
@@ -807,6 +815,11 @@ Page<DetailPageData, WechatMiniprogram.IAnyObject>({
   _longPressId: '',
   _longPressTouchX: 0,
   _longPressTouchY: 0,
+  // fab 滑动检测起始坐标
+  _fabTouchStartX: 0,
+  _fabTouchStartY: 0,
+  // 标记工具栏下滑关闭检测
+  _sheetTouchStartY: 0,
 
   /**
    * 单指拖动处理
@@ -1487,6 +1500,38 @@ Page<DetailPageData, WechatMiniprogram.IAnyObject>({
     });
   },
 
+  onMemoFabTap() {
+    this.onMemoTap();
+  },
+
+  onPaintFabTap() {
+    this.setData({ showPaintToolbar: !this.data.showPaintToolbar });
+  },
+
+  onPaintToolSelect(e: WechatMiniprogram.TapEvent) {
+    const tool = e.currentTarget.dataset.tool as 'highlighter' | 'eraser' | 'ruler';
+    this.setData({ paintActiveTool: tool });
+  },
+
+  onPaintUndo() {
+    // 撤销（后续实现绘图功能时接入）
+  },
+
+  onPaintRedo() {
+    // 重做（后续实现绘图功能时接入）
+  },
+
+  onPaintSheetTouchStart(e: WechatMiniprogram.TouchEvent) {
+    this._sheetTouchStartY = e.touches[0].clientY;
+  },
+
+  onPaintSheetTouchEnd(e: WechatMiniprogram.TouchEvent) {
+    const dy = e.changedTouches[0].clientY - this._sheetTouchStartY;
+    if (dy > 40) {
+      this.setData({ showPaintToolbar: false });
+    }
+  },
+
   loadMemoContent() {
     const itemId = this.data.itemId;
     if (!itemId) return;
@@ -1711,6 +1756,36 @@ Page<DetailPageData, WechatMiniprogram.IAnyObject>({
       console.error('下载云端图片失败:', err);
       this.setData({ isConverting: false, pdfConvertProgress: '' });
     }
+  },
+
+  // ========== FAB 收起/展开 ==========
+
+  /** 记录 fab 触摸起始位置 */
+  onFabTouchStart(e: WechatMiniprogram.TouchEvent) {
+    const touch = e.touches[0];
+    this._fabTouchStartX = touch.clientX;
+    this._fabTouchStartY = touch.clientY;
+  },
+
+  /** 触摸结束：向右滑 >40px 且纵向偏移 <60px 则收起 */
+  onFabTouchEnd(e: WechatMiniprogram.TouchEvent) {
+    if (!e.changedTouches.length) return;
+    const touch = e.changedTouches[0];
+    const dx = touch.clientX - this._fabTouchStartX;
+    const dy = touch.clientY - this._fabTouchStartY;
+    if (dx > 40 && Math.abs(dy) < 60) {
+      this.setData({ isFabCollapsed: true });
+    }
+  },
+
+  /** 点击左侧装饰条收起 */
+  onFabCollapse() {
+    this.setData({ isFabCollapsed: true });
+  },
+
+  /** 点击展开图标展开 */
+  onFabExpand() {
+    this.setData({ isFabCollapsed: false });
   },
 
   /**

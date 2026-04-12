@@ -1,0 +1,17 @@
+<svg viewBox="0 0 18 52" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- 尺体 -->
+  <rect x="0.5" y="0.5" width="17" height="51" rx="3" fill="#FFF8E7" stroke="#8B6BAD" stroke-width="1"/>
+  <!-- 刻度线（右侧，长短交替） -->
+  <line x1="9"  y1="5"  x2="17" y2="5"  stroke="#8B6BAD" stroke-width="1"/>
+  <line x1="12" y1="9"  x2="17" y2="9"  stroke="#8B6BAD" stroke-width="0.7"/>
+  <line x1="12" y1="13" x2="17" y2="13" stroke="#8B6BAD" stroke-width="0.7"/>
+  <line x1="9"  y1="17" x2="17" y2="17" stroke="#8B6BAD" stroke-width="1"/>
+  <line x1="12" y1="21" x2="17" y2="21" stroke="#8B6BAD" stroke-width="0.7"/>
+  <line x1="12" y1="25" x2="17" y2="25" stroke="#8B6BAD" stroke-width="0.7"/>
+  <line x1="9"  y1="29" x2="17" y2="29" stroke="#8B6BAD" stroke-width="1"/>
+  <line x1="12" y1="33" x2="17" y2="33" stroke="#8B6BAD" stroke-width="0.7"/>
+  <line x1="12" y1="37" x2="17" y2="37" stroke="#8B6BAD" stroke-width="0.7"/>
+  <line x1="9"  y1="41" x2="17" y2="41" stroke="#8B6BAD" stroke-width="1"/>
+  <line x1="12" y1="45" x2="17" y2="45" stroke="#8B6BAD" stroke-width="0.7"/>
+  <line x1="9"  y1="49" x2="17" y2="49" stroke="#8B6BAD" stroke-width="1"/>
+</svg>

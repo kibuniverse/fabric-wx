@@ -80,14 +80,38 @@
     <view wx:else class="loading-state">
       <text>加载中...</text>
     </view>
-  </view>
 
-  <!-- 临时计数浮动按钮 -->
-  <view class="temp-counter-fab" bindtap="onTempCounterTap">
-    <view class="temp-counter-icon-wrap" hover-class="temp-counter-icon-hover" hover-stay-time="150">
-      <image class="temp-counter-icon" src="/assets/temp_counter.svg" mode="aspectFit" />
+    <!-- 浮动按钮组 -->
+    <view
+      class="detail-fab-group {{isFabCollapsed ? 'fab-collapsed' : ''}}"
+      bindtouchstart="onFabTouchStart"
+      bindtouchend="onFabTouchEnd"
+    >
+      <image class="detail-fab-bar" src="/assets/fab_bar.svg" mode="aspectFit" catchtap="onFabCollapse" />
+      <!-- 临时计数 -->
+      <view class="detail-fab-item" hover-class="detail-fab-item-hover" hover-stay-time="150" bindtap="onTempCounterTap">
+        <image class="detail-fab-icon detail-fab-icon-counter" src="/assets/temp_counter.svg" mode="aspectFit" />
+        <text class="detail-fab-label">临时计数</text>
+      </view>
+      <!-- 图解笔记 -->
+      <view class="detail-fab-item" hover-class="detail-fab-item-hover" hover-stay-time="150" bindtap="onMemoFabTap">
+        <image class="detail-fab-icon detail-fab-icon-note" src="/assets/note.svg" mode="aspectFit" />
+        <text class="detail-fab-label">图解笔记</text>
+      </view>
+      <!-- 标记工具 -->
+      <view class="detail-fab-item" hover-class="detail-fab-item-hover" hover-stay-time="150" bindtap="onPaintFabTap">
+        <image class="detail-fab-icon detail-fab-icon-paint" src="/assets/paint.svg" mode="aspectFit" />
+        <text class="detail-fab-label">标记工具</text>
+      </view>
     </view>
-    <text class="temp-counter-label">临时计数</text>
+
+    <!-- 收起时展开按钮 -->
+    <view
+      class="fab-expand-btn {{isFabCollapsed ? 'fab-expand-visible' : ''}}"
+      catchtap="onFabExpand"
+    >
+      <image src="/assets/expand.svg" mode="aspectFit" style="width:54rpx;height:80rpx;" />
+    </view>
   </view>
 
   <!-- 临时计数器底部栏 -->
@@ -144,6 +168,53 @@
       <text class="temp-counter-tip-text-inline">长按可以删除临时计数器</text>
       <text class="temp-counter-tip-btn-inline" catchtap="onTempCounterTipDismiss" data-step="{{2}}">我知道了</text>
       <view class="temp-counter-tip-arrow tip-delete-arrow"></view>
+    </view>
+  </view>
+
+  <!-- 标记工具栏（流式布局，出现在预览区下方） -->
+  <view
+    wx:if="{{showPaintToolbar}}"
+    class="paint-sheet"
+    bindtouchstart="onPaintSheetTouchStart"
+    bindtouchend="onPaintSheetTouchEnd"
+  >
+    <!-- 下滑关闭把手 -->
+    <view class="paint-drag-handle"></view>
+    <!-- 工具栏主体 -->
+    <view class="paint-toolbar">
+      <!-- 三个工具（水平居中） -->
+      <view class="paint-tools">
+        <view class="paint-tool-item" bindtap="onPaintToolSelect" data-tool="highlighter">
+          <image
+            src="/assets/tool_highlighter.svg"
+            mode="aspectFit"
+            class="paint-tool-icon {{paintActiveTool === 'highlighter' ? 'paint-tool-active' : ''}}"
+          />
+        </view>
+        <view class="paint-tool-item" bindtap="onPaintToolSelect" data-tool="eraser">
+          <image
+            src="/assets/tool_eraser.svg"
+            mode="aspectFit"
+            class="paint-tool-icon {{paintActiveTool === 'eraser' ? 'paint-tool-active' : ''}}"
+          />
+        </view>
+        <view class="paint-tool-item" bindtap="onPaintToolSelect" data-tool="ruler">
+          <image
+            src="/assets/tool_ruler.svg"
+            mode="aspectFit"
+            class="paint-tool-icon {{paintActiveTool === 'ruler' ? 'paint-tool-active' : ''}}"
+          />
+        </view>
+      </view>
+      <!-- 右侧：redo在左，undo在右 -->
+      <view class="paint-history-btns">
+        <view class="paint-history-btn" hover-class="paint-history-btn-hover" hover-stay-time="100" bindtap="onPaintRedo">
+          <image src="/assets/redo.svg" mode="aspectFit" style="width:32rpx;height:32rpx;" />
+        </view>
+        <view class="paint-history-btn" hover-class="paint-history-btn-hover" hover-stay-time="100" bindtap="onPaintUndo">
+          <image src="/assets/undo.svg" mode="aspectFit" style="width:32rpx;height:32rpx;" />
+        </view>
+      </view>
     </view>
   </view>
 

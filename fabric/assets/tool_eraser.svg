@@ -1,0 +1,15 @@
+<svg viewBox="0 0 18 52" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- 彩色标签区（上段） -->
+  <rect x="0" y="0" width="18" height="22" rx="3" fill="#A889C8"/>
+  <!-- 橡皮主体（白色区） -->
+  <rect x="0" y="19" width="18" height="33" rx="3" fill="#F2EEFF"/>
+  <!-- 外边框 -->
+  <rect x="0.5" y="0.5" width="17" height="51" rx="3" stroke="#8B6BAD" stroke-width="1" fill="none"/>
+  <!-- 分割线 -->
+  <line x1="0" y1="19" x2="18" y2="19" stroke="#8B6BAD" stroke-width="1"/>
+  <!-- 标签文字模拟线 -->
+  <rect x="3" y="5" width="12" height="2" rx="1" fill="rgba(255,255,255,0.35)"/>
+  <rect x="3" y="10" width="8" height="2" rx="1" fill="rgba(255,255,255,0.25)"/>
+  <!-- 橡皮主体高光 -->
+  <rect x="3" y="22" width="5" height="26" rx="2.5" fill="rgba(255,255,255,0.55)"/>
+</svg>
