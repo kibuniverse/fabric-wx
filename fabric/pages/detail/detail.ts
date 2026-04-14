@@ -927,6 +927,7 @@ Page<DetailPageData, WechatMiniprogram.IAnyObject>({
   _rulerRotatePivotY: 0,
   _rulerRotateInitRulerX: 0, // 旋转开始时标尺中心位置
   _rulerRotateInitRulerY: 0,
+  _rulerAngleLocalOffset: 0, // 旋转开始时角度标签在标尺轴上的本地偏移（相对标尺中心，预变换 px）
   // 端点手柄固定端（用于拖动时不依赖 stale data）
   _rulerFixedEndX: 0,
   _rulerFixedEndY: 0,
@@ -1853,22 +1854,24 @@ Page<DetailPageData, WechatMiniprogram.IAnyObject>({
       const touchAngle = Math.atan2(t2.clientY - t1.clientY, t2.clientX - t1.clientX);
       const midScreenX = (t1.clientX + t2.clientX) / 2;
       const midScreenY = (t1.clientY + t2.clientY) / 2;
-      const { scale, containerWidth, containerHeight, translateX, translateY, rulerX, rulerY } = this.data;
+      const { scale, containerWidth, containerHeight, translateX, translateY, rulerX, rulerY, rulerAngle, rulerLength } = this.data;
       // 旋转中心 = 双指中点（转换为预变换坐标）
       this._rulerHandleType = 'bodyRotate';
-      this._rulerInitialAngle = this.data.rulerAngle;
+      this._rulerInitialAngle = rulerAngle;
       this._rulerTouchStartAngle = touchAngle;
       this._rulerRotatePivotX = (midScreenX - containerWidth / 2 - translateX) / scale;
       this._rulerRotatePivotY = (midScreenY - containerHeight / 2 - translateY) / scale;
       this._rulerRotateInitRulerX = rulerX;
       this._rulerRotateInitRulerY = rulerY;
       this._rulerDidDrag = false;
-      // 角度显示位置 = 双指中点的屏幕坐标（pivot 在旋转过程中不变）
+      // 角度显示位置 = 标尺可视部分中心（preview-area 坐标），旋转期间保持同一本地位置
+      const anglePos = this._computeRulerAnglePositionWith(rulerX, rulerY, rulerAngle, rulerLength, scale, containerWidth, containerHeight, translateX, translateY);
+      this._rulerAngleLocalOffset = anglePos.localOffset;
       this.setData({
         rulerShowAngle: true,
-        rulerAngleDisplay: this._formatRulerAngle(this.data.rulerAngle),
-        rulerAngleScreenLeft: midScreenX + 'px',
-        rulerAngleScreenTop: midScreenY + 'px',
+        rulerAngleDisplay: this._formatRulerAngle(rulerAngle),
+        rulerAngleScreenLeft: anglePos.left + 'px',
+        rulerAngleScreenTop: anglePos.top + 'px',
       });
       return;
     }
@@ -2070,11 +2073,15 @@ Page<DetailPageData, WechatMiniprogram.IAnyObject>({
     const newRulerY = this._rulerRotatePivotY + dx * sinD + dy * cosD;
 
     const iconPos = this._computeLinkIconLocalWith(newRulerX, newRulerY, newAngle, rulerLength, rulerThickness, scale, containerWidth, containerHeight, translateX, translateY);
+    // 角度标签：使用旋转开始时确定的本地偏移，跟随标尺移动，无需重新裁剪
+    const anglePos = this._computeAnglePosFromLocalOffset(newRulerX, newRulerY, newAngle, this._rulerAngleLocalOffset, scale, containerWidth, containerHeight, translateX, translateY);
     this.setData({
       rulerAngle: newAngle,
       rulerX: newRulerX,
       rulerY: newRulerY,
       rulerAngleDisplay: this._formatRulerAngle(newAngle),
+      rulerAngleScreenLeft: anglePos.left + 'px',
+      rulerAngleScreenTop: anglePos.top + 'px',
       rulerLinkIconLeft: iconPos.left,
       rulerLinkIconTop: iconPos.top,
     });
@@ -2251,6 +2258,58 @@ Page<DetailPageData, WechatMiniprogram.IAnyObject>({
     // 可视线段的中点参数 → 换算到标尺本地坐标（0 = 左端，length = 右端）
     const tMid = (tMin + tMax) / 2;
     return Math.max(100, Math.min(length - 100, tMid * length));
+  },
+
+  /**
+   * 计算旋转角度标签在 preview-area 中的初始位置（px），定位在标尺可视部分中央。
+   * 同时返回标尺轴本地偏移（localOffset），供后续旋转帧跟踪同一位置。
+   */
+  _computeRulerAnglePositionWith(rx: number, ry: number, angle: number, length: number, sc: number, cw: number, ch: number, tx: number, ty: number): { left: number; top: number; localOffset: number } {
+    if (!cw || !ch) return { left: cw / 2, top: ch / 2, localOffset: 0 };
+    const angleRad = angle * Math.PI / 180;
+    const cosA = Math.cos(angleRad);
+    const sinA = Math.sin(angleRad);
+    const halfLen = length / 2;
+    const startScreenX = cw / 2 + (rx - halfLen * cosA) * sc + tx;
+    const startScreenY = ch / 2 + (ry - halfLen * sinA) * sc + ty;
+    const endScreenX   = cw / 2 + (rx + halfLen * cosA) * sc + tx;
+    const endScreenY   = ch / 2 + (ry + halfLen * sinA) * sc + ty;
+    let tMin = 0, tMax = 1;
+    const dsx = endScreenX - startScreenX;
+    const dsy = endScreenY - startScreenY;
+    const clip = (p: number, q: number) => {
+      if (Math.abs(p) < 0.001) return q >= 0;
+      const t = q / p;
+      if (p < 0) { if (t > tMax) return false; if (t > tMin) tMin = t; }
+      else        { if (t < tMin) return false; if (t < tMax) tMax = t; }
+      return true;
+    };
+    const inside =
+      clip(-dsx, startScreenX) &&
+      clip( dsx, cw - startScreenX) &&
+      clip(-dsy, startScreenY) &&
+      clip( dsy, ch - startScreenY);
+    if (!inside || tMin >= tMax) return { left: cw / 2, top: ch / 2, localOffset: 0 };
+    const tMid = (tMin + tMax) / 2;
+    // localOffset：标尺轴上相对中心的偏移（tMid=0.5 → offset=0，即标尺正中心）
+    const localOffset = (tMid - 0.5) * length;
+    return {
+      left: startScreenX + tMid * dsx,
+      top:  startScreenY + tMid * dsy,
+      localOffset,
+    };
+  },
+
+  /**
+   * 根据旋转开始时确定的标尺轴本地偏移，计算当前帧的角度标签屏幕位置。
+   * 仅做直线映射，无 Liang-Barsky，性能开销极小。
+   */
+  _computeAnglePosFromLocalOffset(rx: number, ry: number, angle: number, localOffset: number, sc: number, cw: number, ch: number, tx: number, ty: number): { left: number; top: number } {
+    const angleRad = angle * Math.PI / 180;
+    return {
+      left: cw / 2 + (rx + localOffset * Math.cos(angleRad)) * sc + tx,
+      top:  ch / 2 + (ry + localOffset * Math.sin(angleRad)) * sc + ty,
+    };
   },
 
   /** 计算联动 icon 在 wrapper 本地坐标系中的位置（px），定位到标尺右上角并限制在可视区内 */

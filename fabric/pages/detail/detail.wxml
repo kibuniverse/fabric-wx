@@ -122,13 +122,13 @@
         </view>
       </view>
 
-      <!-- 双指旋转角度显示（独立层，直接用屏幕坐标定位，不受 transform 影响） -->
+      <!-- 双指旋转角度显示（独立层，preview-area 坐标定位，不受 transform 影响） -->
       <view
         wx:if="{{rulerVisible && rulerShowAngle}}"
         class="ruler-angle-display"
-        style="left:{{rulerAngleScreenLeft}};top:{{rulerAngleScreenTop}};width:{{rulerThickness*0.5}}px;height:{{rulerThickness*0.5}}px;"
+        style="left:{{rulerAngleScreenLeft}};top:{{rulerAngleScreenTop}};"
       >
-        <text class="ruler-angle-text" style="font-size:{{rulerThickness*0.2}}px;">{{rulerAngleDisplay}}</text>
+        <text class="ruler-angle-text">{{rulerAngleDisplay}}</text>
       </view>
 
       <!-- 页码指示器 -->
