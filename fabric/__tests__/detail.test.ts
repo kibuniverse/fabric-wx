@@ -1375,14 +1375,14 @@ const RULER_STATE_KEY = 'rulerState';
 /** 模拟保存标尺状态到 storage */
 function saveRulerState(
   itemId: string,
-  state: { rulerX: number; rulerY: number; rulerAngle: number; rulerLength: number; rulerThickness: number; rulerType: 'ticked' | 'plain'; rulerCounterLinked: boolean },
+  state: { rulerX: number; rulerY: number; rulerAngle: number; rulerThickness: number; rulerType: 'ticked' | 'plain'; rulerCounterLinked: boolean },
 ): Record<string, any> {
   const storage: Record<string, any> = {};
   storage[itemId] = state;
   return storage;
 }
 
-/** 模拟加载标尺状态（含默认值填充） */
+/** 模拟加载标尺状态（含默认值填充，rulerLength 始终由容器尺寸决定） */
 function loadRulerState(
   itemId: string,
   storage: Record<string, any>,
@@ -1394,7 +1394,7 @@ function loadRulerState(
     rulerX: state.rulerX ?? 0,
     rulerY: state.rulerY ?? 0,
     rulerAngle: state.rulerAngle ?? 0,
-    rulerLength: state.rulerLength ?? minRulerLength,
+    rulerLength: minRulerLength, // 不从 storage 恢复，始终由容器尺寸决定
     rulerThickness: state.rulerThickness ?? 60,
     rulerType: state.rulerType ?? 'ticked',
     rulerCounterLinked: state.rulerCounterLinked ?? false,
@@ -1694,12 +1694,11 @@ describe('详情页 - 标尺状态持久化', () => {
     clearAllMocks();
   });
 
-  it('saveRulerState 应生成正确的 storage 对象', () => {
+  it('saveRulerState 应生成正确的 storage 对象（不含 rulerLength）', () => {
     const storage = saveRulerState('item1', {
       rulerX: 10,
       rulerY: 20,
       rulerAngle: 45,
-      rulerLength: 5000,
       rulerThickness: 60,
       rulerType: 'ticked',
       rulerCounterLinked: true,
@@ -1708,26 +1707,25 @@ describe('详情页 - 标尺状态持久化', () => {
       rulerX: 10,
       rulerY: 20,
       rulerAngle: 45,
-      rulerLength: 5000,
       rulerThickness: 60,
       rulerType: 'ticked',
       rulerCounterLinked: true,
     });
   });
 
-  it('loadRulerState 应正确读取保存的状态', () => {
+  it('loadRulerState 应正确读取保存的状态（rulerLength 由容器决定）', () => {
     const storage = saveRulerState('item1', {
-      rulerX: 10, rulerY: 20, rulerAngle: 45, rulerLength: 5000, rulerThickness: 80, rulerType: 'plain', rulerCounterLinked: true,
+      rulerX: 10, rulerY: 20, rulerAngle: 45, rulerThickness: 80, rulerType: 'plain', rulerCounterLinked: true,
     });
-    const state = loadRulerState('item1', storage, 5000);
+    const state = loadRulerState('item1', storage, 4000);
     expect(state).toEqual({
-      rulerX: 10, rulerY: 20, rulerAngle: 45, rulerLength: 5000, rulerThickness: 80, rulerType: 'plain', rulerCounterLinked: true,
+      rulerX: 10, rulerY: 20, rulerAngle: 45, rulerLength: 4000, rulerThickness: 80, rulerType: 'plain', rulerCounterLinked: true,
     });
   });
 
   it('loadRulerState 不存在的 itemId 应返回 null', () => {
     const storage = saveRulerState('item1', {
-      rulerX: 0, rulerY: 0, rulerAngle: 0, rulerLength: 5000, rulerThickness: 60, rulerType: 'ticked', rulerCounterLinked: false,
+      rulerX: 0, rulerY: 0, rulerAngle: 0, rulerThickness: 60, rulerType: 'ticked', rulerCounterLinked: false,
     });
     expect(loadRulerState('nonexistent', storage, 5000)).toBeNull();
   });
@@ -1748,7 +1746,7 @@ describe('详情页 - 标尺状态持久化', () => {
 
   it('wx storage 应正确保存和读取标尺状态', () => {
     const state = {
-      rulerX: 10, rulerY: 20, rulerAngle: 45, rulerLength: 5000, rulerThickness: 60, rulerType: 'ticked', rulerCounterLinked: false,
+      rulerX: 10, rulerY: 20, rulerAngle: 45, rulerThickness: 60, rulerType: 'ticked', rulerCounterLinked: false,
     };
     const storage: Record<string, any> = {};
     storage['item1'] = state;
@@ -1761,7 +1759,7 @@ describe('详情页 - 标尺状态持久化', () => {
 
   it('联动开关状态应被持久化', () => {
     const storage = saveRulerState('item1', {
-      rulerX: 0, rulerY: 0, rulerAngle: 0, rulerLength: 5000, rulerThickness: 60, rulerType: 'ticked', rulerCounterLinked: true,
+      rulerX: 0, rulerY: 0, rulerAngle: 0, rulerThickness: 60, rulerType: 'ticked', rulerCounterLinked: true,
     });
     expect(storage['item1'].rulerCounterLinked).toBe(true);
   });
@@ -1948,40 +1946,6 @@ describe('详情页 - 联动 icon 显示/隐藏条件', () => {
     const rulerShowAngle = true;
     const shouldShow = !rulerIsEditMode && !rulerShowAngle;
     expect(shouldShow).toBe(false);
-  });
-});
-
-describe('详情页 - 端点手柄拖动：固定端计算', () => {
-  it('0° 角度下左端固定 → 新中心 = 固定端 + projOnAxis/2', () => {
-    const angle = 0;
-    const rulerLength = 200;
-    const rulerX = 0;
-    const rulerY = 0;
-    const angleRad = angle * Math.PI / 180;
-    const cosA = Math.cos(angleRad);
-    const sinA = Math.sin(angleRad);
-    // 左端 = 中心 - length/2 沿轴方向
-    const fixedEndX = rulerX - (rulerLength / 2) * cosA;
-    const fixedEndY = rulerY - (rulerLength / 2) * sinA;
-
-    // 触摸点在固定端右侧 300px 处
-    const touchPreX = fixedEndX + 300;
-    const touchPreY = fixedEndY;
-    const projOnAxis = (touchPreX - fixedEndX) * cosA + (touchPreY - fixedEndY) * sinA;
-
-    expect(projOnAxis).toBe(300);
-    const newRulerX = fixedEndX + (projOnAxis / 2) * cosA;
-    expect(newRulerX).toBe(fixedEndX + 150);
-  });
-
-  it('90° 角度下投影沿 Y 方向', () => {
-    const angle = 90;
-    const angleRad = angle * Math.PI / 180;
-    const cosA = Math.cos(angleRad);
-    const sinA = Math.sin(angleRad);
-    // cos(90°) ≈ 0, sin(90°) = 1
-    expect(Math.abs(cosA)).toBeLessThan(1e-10);
-    expect(sinA).toBeCloseTo(1, 10);
   });
 });
 

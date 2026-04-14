@@ -94,7 +94,7 @@
           <!-- 刻度线（CSS repeating-gradient 实现，无刻度模式下隐藏） -->
           <view wx:if="{{rulerType === 'ticked'}}" class="ruler-ticks" />
 
-          <!-- 编辑态：端点手柄 + 侧边手柄（上下各一个，动态定位在可视区） -->
+          <!-- 编辑态：侧边手柄（上下各一个，动态定位在可视区，用于调整标尺厚度） -->
           <view wx:if="{{rulerIsEditMode}}">
             <view class="ruler-handle-hit ruler-handle-hit-side-top" style="left:{{rulerSideHandleLeft}}px;" catchtouchstart="onRulerHandleTouchStart" data-handle="sideTop">
               <view class="ruler-handle" />

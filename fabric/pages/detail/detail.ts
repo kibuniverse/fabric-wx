@@ -654,8 +654,8 @@ Page<DetailPageData, WechatMiniprogram.IAnyObject>({
           containerWidth: rect.width,
           containerHeight: rect.height,
         };
-        // 容器尺寸已知后，确保标尺长度足够
-        if (this.data.rulerVisible && this.data.rulerLength < this._getMinRulerLength()) {
+        // 容器尺寸变化后同步更新标尺长度（始终保持无限延伸）
+        if (this.data.rulerVisible) {
           updateData.rulerLength = this._getMinRulerLength();
         }
         // 容器尺寸已知后，重新计算联动 icon 位置
@@ -913,11 +913,10 @@ Page<DetailPageData, WechatMiniprogram.IAnyObject>({
   _sheetDragStarted: false,
   _sheetCurrentOffset: 0,
   // 标尺触摸临时状态
-  _rulerHandleType: null as 'body' | 'endLeft' | 'endRight' | 'side' | 'bodyRotate' | null,
+  _rulerHandleType: null as 'body' | 'sideTop' | 'sideBottom' | 'bodyRotate' | null,
   _rulerDragOffsetX: 0,      // 触摸点相对标尺中心的偏移（屏幕坐标）
   _rulerDragOffsetY: 0,
   _rulerDidDrag: false,
-  _rulerInitialLength: 0,
   _rulerInitialThickness: 0,
   _rulerInitialAngle: 0,
   _rulerTouchStartAngle: 0,  // 双指旋转开始时两指连线角度（弧度）
@@ -928,9 +927,6 @@ Page<DetailPageData, WechatMiniprogram.IAnyObject>({
   _rulerRotateInitRulerX: 0, // 旋转开始时标尺中心位置
   _rulerRotateInitRulerY: 0,
   _rulerAngleLocalOffset: 0, // 旋转开始时角度标签在标尺轴上的本地偏移（相对标尺中心，预变换 px）
-  // 端点手柄固定端（用于拖动时不依赖 stale data）
-  _rulerFixedEndX: 0,
-  _rulerFixedEndY: 0,
   // 侧边手柄：触摸增量追踪
   _rulerSideStartTouchX: 0,
   _rulerSideStartTouchY: 0,
@@ -1624,10 +1620,10 @@ Page<DetailPageData, WechatMiniprogram.IAnyObject>({
   // ========== 标尺状态持久化 ==========
 
   saveRulerState() {
-    const { itemId, rulerX, rulerY, rulerAngle, rulerLength, rulerThickness, rulerType, rulerCounterLinked } = this.data;
+    const { itemId, rulerX, rulerY, rulerAngle, rulerThickness, rulerType, rulerCounterLinked } = this.data;
     if (!itemId) return;
     const storage = wx.getStorageSync(RULER_STATE_KEY) || {};
-    storage[itemId] = { rulerX, rulerY, rulerAngle, rulerLength, rulerThickness, rulerType, rulerCounterLinked };
+    storage[itemId] = { rulerX, rulerY, rulerAngle, rulerThickness, rulerType, rulerCounterLinked };
     wx.setStorageSync(RULER_STATE_KEY, storage);
   },
 
@@ -1636,19 +1632,19 @@ Page<DetailPageData, WechatMiniprogram.IAnyObject>({
     if (!itemId) return;
     const storage = wx.getStorageSync(RULER_STATE_KEY) || {};
     const state = storage[itemId];
+    const rulerLength = this._getMinRulerLength();
     if (state) {
       const rx = state.rulerX ?? 0;
       const ry = state.rulerY ?? 0;
       const angle = state.rulerAngle ?? 0;
-      const length = state.rulerLength ?? this._getMinRulerLength();
       const thickness = state.rulerThickness ?? 60;
       const { scale, containerWidth, containerHeight, translateX, translateY } = this.data;
-      const iconPos = this._computeLinkIconLocalWith(rx, ry, angle, length, thickness, scale, containerWidth, containerHeight, translateX, translateY);
+      const iconPos = this._computeLinkIconLocalWith(rx, ry, angle, rulerLength, thickness, scale, containerWidth, containerHeight, translateX, translateY);
       this.setData({
         rulerX: rx,
         rulerY: ry,
         rulerAngle: angle,
-        rulerLength: length,
+        rulerLength,
         rulerThickness: thickness,
         rulerType: state.rulerType ?? 'ticked',
         rulerCounterLinked: state.rulerCounterLinked ?? false,
@@ -1659,7 +1655,7 @@ Page<DetailPageData, WechatMiniprogram.IAnyObject>({
       // 首次使用：设置默认长度
       const iconPos = this._computeLinkIconLocal();
       this.setData({
-        rulerLength: this._getMinRulerLength(),
+        rulerLength,
         rulerLinkIconLeft: iconPos.left,
         rulerLinkIconTop: iconPos.top,
       });
@@ -1732,20 +1728,16 @@ Page<DetailPageData, WechatMiniprogram.IAnyObject>({
     const tool = e.currentTarget.dataset.tool as 'highlighter' | 'eraser' | 'ruler';
     if (tool === 'ruler') {
       const showRuler = !this.data.rulerVisible;
-      const newLength = showRuler && this.data.rulerLength < this._getMinRulerLength()
-        ? this._getMinRulerLength() : this.data.rulerLength;
+      const rulerLength = this._getMinRulerLength();
       const iconPos = showRuler ? this._computeLinkIconLocalWith(
-        this.data.rulerX, this.data.rulerY, this.data.rulerAngle, newLength,
+        this.data.rulerX, this.data.rulerY, this.data.rulerAngle, rulerLength,
         this.data.rulerThickness, this.data.scale, this.data.containerWidth, this.data.containerHeight,
         this.data.translateX, this.data.translateY
       ) : { left: this.data.rulerLinkIconLeft, top: this.data.rulerLinkIconTop };
       this.setData({
         rulerVisible: showRuler,
         paintActiveTool: 'ruler',
-        ...(showRuler && this.data.rulerLength < this._getMinRulerLength()
-          ? { rulerLength: this._getMinRulerLength() }
-          : {}),
-        ...(showRuler ? { rulerLinkIconLeft: iconPos.left, rulerLinkIconTop: iconPos.top } : {}),
+        ...(showRuler ? { rulerLength, rulerLinkIconLeft: iconPos.left, rulerLinkIconTop: iconPos.top } : {}),
       });
       // 选中→未选中切换动画：短暂激活后恢复
       setTimeout(() => {
@@ -1892,44 +1884,29 @@ Page<DetailPageData, WechatMiniprogram.IAnyObject>({
   },
 
   /**
-   * 标尺手柄 touchstart：端点/侧边手柄
+   * 标尺手柄 touchstart：侧边手柄（调整厚度）
    */
   onRulerHandleTouchStart(e: WechatMiniprogram.TouchEvent) {
-    const handle = e.currentTarget.dataset.handle as 'endLeft' | 'endRight' | 'side';
+    const handle = e.currentTarget.dataset.handle as 'sideTop' | 'sideBottom';
     const touch = e.touches[0];
-    const { rulerAngle, rulerLength, rulerThickness, rulerX, rulerY } = this.data;
+    const { rulerAngle, rulerThickness } = this.data;
 
     this._rulerHandleType = handle;
     this._rulerTouchStartX = touch.clientX;
     this._rulerTouchStartY = touch.clientY;
-    this._rulerInitialLength = rulerLength;
     this._rulerInitialThickness = rulerThickness;
     this._rulerInitialAngle = rulerAngle;
     this._rulerDidDrag = false;
 
-    // 端点手柄：记录对侧固定端位置
+    // 侧边手柄：记录初始触摸位置 + 法线方向 + 上下标识
     const angleRad = rulerAngle * Math.PI / 180;
-    const cosA = Math.cos(angleRad);
-    const sinA = Math.sin(angleRad);
-    if (handle === 'endRight') {
-      // 左端固定
-      this._rulerFixedEndX = rulerX - (rulerLength / 2) * cosA;
-      this._rulerFixedEndY = rulerY - (rulerLength / 2) * sinA;
-    } else if (handle === 'endLeft') {
-      // 右端固定
-      this._rulerFixedEndX = rulerX + (rulerLength / 2) * cosA;
-      this._rulerFixedEndY = rulerY + (rulerLength / 2) * sinA;
-    } else if (handle === 'sideTop' || handle === 'sideBottom') {
-      // 侧边手柄：记录初始触摸位置 + 法线方向 + 上下标识
-      const angleRad = rulerAngle * Math.PI / 180;
-      this._rulerSideNormalX = -Math.sin(angleRad);
-      this._rulerSideNormalY = Math.cos(angleRad);
-      this._rulerSideScale = this.data.scale;
-      this._rulerSideStartTouchX = touch.clientX;
-      this._rulerSideStartTouchY = touch.clientY;
-      // 上侧手柄法线方向反转（远离中心 = 负法线方向）
-      this._rulerSideSign = handle === 'sideBottom' ? 1 : -1;
-    }
+    this._rulerSideNormalX = -Math.sin(angleRad);
+    this._rulerSideNormalY = Math.cos(angleRad);
+    this._rulerSideScale = this.data.scale;
+    this._rulerSideStartTouchX = touch.clientX;
+    this._rulerSideStartTouchY = touch.clientY;
+    // 上侧手柄法线方向反转（远离中心 = 负法线方向）
+    this._rulerSideSign = handle === 'sideBottom' ? 1 : -1;
   },
 
   /**
@@ -1941,8 +1918,6 @@ Page<DetailPageData, WechatMiniprogram.IAnyObject>({
 
     if (handle === 'body') {
       this._handleRulerBodyDrag(e);
-    } else if (handle === 'endLeft' || handle === 'endRight') {
-      this._handleRulerEndDrag(e);
     } else if (handle === 'sideTop' || handle === 'sideBottom') {
       this._handleRulerSideDrag(e);
     } else if (handle === 'bodyRotate') {
@@ -1955,11 +1930,35 @@ Page<DetailPageData, WechatMiniprogram.IAnyObject>({
    */
   _handleRulerBodyDrag(e: WechatMiniprogram.TouchEvent) {
     const touch = e.touches[0];
-    const { scale, containerWidth, containerHeight, translateX, translateY, rulerAngle, rulerLength, rulerIsEditMode } = this.data;
+    const { scale, containerWidth, containerHeight, translateX, translateY, rulerAngle, rulerLength, rulerIsEditMode, rulerThickness } = this.data;
 
     // 直接从触摸位置计算标尺中心（不依赖 stale data）
-    const newCenterScreenX = touch.clientX - this._rulerDragOffsetX;
-    const newCenterScreenY = touch.clientY - this._rulerDragOffsetY;
+    const rawCenterX = touch.clientX - this._rulerDragOffsetX;
+    const rawCenterY = touch.clientY - this._rulerDragOffsetY;
+
+    // 在标尺本地坐标系（轴方向 / 法线方向）中做约束，比屏幕 X/Y 更准确
+    const angleRad = rulerAngle * Math.PI / 180;
+    const cosA = Math.cos(angleRad);
+    const sinA = Math.sin(angleRad);
+    const relX = rawCenterX - containerWidth / 2;
+    const relY = rawCenterY - containerHeight / 2;
+    let alongAxis = relX * cosA + relY * sinA;
+    let alongPerp = -relX * sinA + relY * cosA;
+
+    // 轴方向：端点可以到达视口边缘（安全约束，无限标尺下几乎不触发）
+    const axisExtent = rulerLength / 2 * scale;
+    const viewportAxisHalf = containerWidth / 2 * Math.abs(cosA) + containerHeight / 2 * Math.abs(sinA);
+    const maxAxisOffset = viewportAxisHalf + axisExtent;
+    alongAxis = Math.max(-maxAxisOffset, Math.min(alongAxis, maxAxisOffset));
+    // 法线方向：标尺长边不超出视口（thickness 边缘贴边为止）
+    const perpExtent = rulerThickness / 2 * scale;
+    const viewportPerpHalf = containerWidth / 2 * Math.abs(sinA) + containerHeight / 2 * Math.abs(cosA);
+    const maxPerpOffset = Math.max(0, viewportPerpHalf - perpExtent);
+    alongPerp = Math.max(-maxPerpOffset, Math.min(alongPerp, maxPerpOffset));
+
+    // 从约束后的本地坐标反算屏幕坐标
+    const newCenterScreenX = containerWidth / 2 + alongAxis * cosA - alongPerp * sinA;
+    const newCenterScreenY = containerHeight / 2 + alongAxis * sinA + alongPerp * cosA;
     const newRulerX = (newCenterScreenX - containerWidth / 2 - translateX) / scale;
     const newRulerY = (newCenterScreenY - containerHeight / 2 - translateY) / scale;
 
@@ -1983,50 +1982,6 @@ Page<DetailPageData, WechatMiniprogram.IAnyObject>({
     if (Math.sqrt(dx * dx + dy * dy) > 5) {
       this._rulerDidDrag = true;
     }
-  },
-
-  /**
-   * 端点手柄拖动（左端/右端）
-   */
-  _handleRulerEndDrag(e: WechatMiniprogram.TouchEvent) {
-    const touch = e.touches[0];
-    const { scale, containerWidth, containerHeight, translateX, translateY, rulerAngle, rulerThickness } = this.data;
-    const handle = this._rulerHandleType!;
-
-    const angleRad = rulerAngle * Math.PI / 180;
-    const cosA = Math.cos(angleRad);
-    const sinA = Math.sin(angleRad);
-
-    // 触摸点在预变换坐标系中的位置
-    const touchPreX = (touch.clientX - containerWidth / 2 - translateX) / scale;
-    const touchPreY = (touch.clientY - containerHeight / 2 - translateY) / scale;
-
-    // 触摸点相对于固定端的投影
-    const dx = touchPreX - this._rulerFixedEndX;
-    const dy = touchPreY - this._rulerFixedEndY;
-    const projOnAxis = dx * cosA + dy * sinA;
-
-    const minLen = this._getMinRulerLength();
-
-    if (handle === 'endRight') {
-      // 右端拖动：固定左端，新长度 = 投影距离
-      if (projOnAxis > minLen) {
-        const newRulerX = this._rulerFixedEndX + (projOnAxis / 2) * cosA;
-        const newRulerY = this._rulerFixedEndY + (projOnAxis / 2) * sinA;
-        const iconPos = this._computeLinkIconLocalWith(newRulerX, newRulerY, rulerAngle, projOnAxis, rulerThickness, scale, containerWidth, containerHeight, translateX, translateY);
-        this.setData({ rulerLength: projOnAxis, rulerX: newRulerX, rulerY: newRulerY, rulerLinkIconLeft: iconPos.left, rulerLinkIconTop: iconPos.top });
-      }
-    } else {
-      // 左端拖动：固定右端，投影取反
-      const newLength = -projOnAxis;
-      if (newLength > minLen) {
-        const newRulerX = this._rulerFixedEndX - (newLength / 2) * cosA;
-        const newRulerY = this._rulerFixedEndY - (newLength / 2) * sinA;
-        const iconPos = this._computeLinkIconLocalWith(newRulerX, newRulerY, rulerAngle, newLength, rulerThickness, scale, containerWidth, containerHeight, translateX, translateY);
-        this.setData({ rulerLength: newLength, rulerX: newRulerX, rulerY: newRulerY, rulerLinkIconLeft: iconPos.left, rulerLinkIconTop: iconPos.top });
-      }
-    }
-    this._rulerDidDrag = true;
   },
 
   /**
@@ -2133,13 +2088,10 @@ Page<DetailPageData, WechatMiniprogram.IAnyObject>({
       }).exec();
     } else {
       // 标尺未激活：视为单击，开启标尺
-      const showRuler = true;
       this.setData({
-        rulerVisible: showRuler,
+        rulerVisible: true,
         paintActiveTool: 'ruler',
-        ...(showRuler && this.data.rulerLength < this._getMinRulerLength()
-          ? { rulerLength: this._getMinRulerLength() }
-          : {}),
+        rulerLength: this._getMinRulerLength(),
       });
       setTimeout(() => {
         if (this.data.paintActiveTool === 'ruler') {
@@ -2211,7 +2163,7 @@ Page<DetailPageData, WechatMiniprogram.IAnyObject>({
     return `${Math.round(a)}°`;
   },
 
-  /** 标尺最小长度 = 容器对角线 × 8（确保两端远超可视区，拖动时永远看不到边界） */
+  /** 标尺渲染长度 = 容器对角线 × 8（两端始终远超可视区，实现无限延伸效果） */
   _getMinRulerLength(): number {
     const { containerWidth, containerHeight } = this.data;
     if (!containerWidth || !containerHeight) return 500;

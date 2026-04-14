@@ -770,18 +770,6 @@
   z-index: 10;
 }
 
-.ruler-handle-hit-left {
-  top: 50%;
-  left: -32rpx;
-  transform: translateY(-50%);
-}
-
-.ruler-handle-hit-right {
-  top: 50%;
-  right: -32rpx;
-  transform: translateY(-50%);
-}
-
 .ruler-handle-hit-side-top {
   top: -32rpx;
   transform: translateX(-50%);
