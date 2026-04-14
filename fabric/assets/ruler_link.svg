@@ -1,0 +1,12 @@
+<svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Up arrow head -->
+  <path d="M10 2L6 6H14L10 2Z" fill="currentColor"/>
+  <!-- Up arrow shaft -->
+  <rect x="9" y="5.5" width="2" height="3" fill="currentColor"/>
+  <!-- Center bar -->
+  <rect x="6" y="8.5" width="8" height="3" rx="1.5" fill="currentColor"/>
+  <!-- Down arrow shaft -->
+  <rect x="9" y="11.5" width="2" height="3" fill="currentColor"/>
+  <!-- Down arrow head -->
+  <path d="M10 18L6 14H14L10 18Z" fill="currentColor"/>
+</svg>

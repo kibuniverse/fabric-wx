@@ -142,7 +142,7 @@ App<IAppOption>({
       });
       wx.setStorageSync('simpleCounters', countersStorage);
       wx.setStorageSync('itemMemos', memosStorage);
-      console.log('[App] 已恢复云端计数器和备忘录数据');
+      console.log('[App] 已恢复云端计数针织笔记数据');
 
       console.log('[App] 预加载图解完成:', this.globalData.preloadedDiagrams.length);
     } catch (error) {
@@ -663,7 +663,15 @@ App<IAppOption>({
               if (!counterData.name) {
                 counterData.name = '默认计数器';
               }
-              wx.setStorageSync(key, counterData);
+              // 【修复】比较 updatedAt，避免云同步响应覆盖用户的最新操作
+              // 场景：onShow 触发 syncCounterData → 网络请求期间用户点击 +1 →
+              // 响应返回后用旧数据覆盖了用户的新操作（表现为 +1 后快速 -1）
+              const currentLocalData = wx.getStorageSync(key);
+              const currentLocalTime = currentLocalData?.updatedAt || 0;
+              const cloudTime = counterData.updatedAt || 0;
+              if (cloudTime >= currentLocalTime) {
+                wx.setStorageSync(key, counterData);
+              }
             }
           }
         }

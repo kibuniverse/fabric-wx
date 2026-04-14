@@ -1,24 +1,31 @@
 <!-- components/simple-counter/index.wxml -->
 <view class="counter-container" style="background-color: {{backgroundColor}};">
   <view class="counter-main">
-    <view class="counter-btn decrease-btn" hover-class="counter-btn-hover" bindtap="decreaseCount">
+    <view class="counter-btn decrease-btn {{linked ? 'counter-btn-linked' : ''}}" hover-class="counter-btn-hover" bindtap="decreaseCount">
       <image src="/assets/minus.svg" mode="aspectFit"></image>
     </view>
-    <view class="counter-center" bindtap="onCountTap">
+    <view class="counter-center" bindtap="onCountTap" bindlongpress="onCountLongPress">
       <animate-numbers value="{{count}}" min='{{0}}' max='{{999}}' options='{{options}}' />
+      <!-- 首次操作提示：长按可以重置计数 -->
+      <view wx:if="{{showResetTip}}" class="reset-tip" catchtap="">
+        <text class="reset-tip-text">长按可以重置计数哦～</text>
+        <text class="reset-tip-dismiss" catchtap="onResetTipDismiss">我知道了</text>
+        <view class="reset-tip-arrow"></view>
+      </view>
     </view>
-    <view class="counter-btn increase-btn" hover-class="counter-btn-hover" bindtap="increaseCount">
+    <view class="counter-btn increase-btn {{linked ? 'counter-btn-linked' : ''}}" hover-class="counter-btn-hover" bindtap="increaseCount">
       <image src="/assets/plus.svg" mode="aspectFit"></image>
     </view>
   </view>
-  <!-- 备忘录按钮（左下角） -->
-  <view wx:if="{{showMemoBtn}}" class="memo-btn" hover-class="btn-hover" bindtap="onMemoTap">
-    <image src="{{memoContent ? '/assets/memorandum_colorful.svg' : '/assets/memorandum.svg'}}" mode="aspectFit"></image>
+  <!-- 上箭头按钮（左下角） -->
+  <view class="nav-btn {{linked ? 'nav-btn-linked' : ''}}" hover-class="btn-hover" bindtap="onUpTap">
+    <image src="/assets/up.svg" mode="aspectFit"></image>
   </view>
-  <!-- 重置按钮（右下角） -->
-  <view class="reset-btn" hover-class="btn-hover" bindtap="resetCount">
-    <image src="/assets/reset.svg" mode="aspectFit"></image>
+  <!-- 下箭头按钮（右下角） -->
+  <view class="nav-btn nav-btn-right {{linked ? 'nav-btn-linked' : ''}}" hover-class="btn-hover" bindtap="onDownTap">
+    <image src="/assets/down.svg" mode="aspectFit"></image>
   </view>
+
 </view>
 
 <!-- 修改当前行数弹窗 -->

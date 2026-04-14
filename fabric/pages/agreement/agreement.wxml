@@ -32,7 +32,7 @@
         本服务为编织/钩针爱好者提供以下功能：
       </view>
       <view class="list-item">图解管理：导入、存储和管理编织图解图片及PDF文件</view>
-      <view class="list-item">计数器功能：多计数器管理、目标行数设定、计时器、备忘录、操作历史记录</view>
+      <view class="list-item">计数器功能：多计数器管理、目标行数设定、计时器、针织笔记、操作历史记录</view>
       <view class="list-item">用户中心：微信登录、个人资料管理、针织时长统计、数据云同步</view>
       <view class="subsection-title">2.2 服务变更、中断或终止</view>
       <view class="paragraph">
@@ -185,7 +185,7 @@
       <view class="paragraph">
         为提供和改进服务，我们会收集以下信息：
       </view>
-      <view class="list-item">计数数据：包括计数器当前值、目标值、操作历史、计时器状态、备忘录内容</view>
+      <view class="list-item">计数数据：包括计数器当前值、目标值、操作历史、计时器状态、针织笔记内容</view>
       <view class="list-item">时长统计：您使用计数器的累计时长</view>
       <view class="list-item">设置偏好：震动反馈、语音反馈、屏幕常亮等设置状态</view>
       <view class="list-item">用户标识：微信OpenID，用于识别您的账号</view>

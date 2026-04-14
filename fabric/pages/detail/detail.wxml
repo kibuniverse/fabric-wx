@@ -1,6 +1,14 @@
 <!-- pages/detail/detail.wxml -->
 <view class="detail-container">
 
+  <!-- 编辑态全屏退出遮罩（覆盖计数器区域等 preview-area 以外的区域） -->
+  <view
+    wx:if="{{rulerVisible && rulerIsEditMode}}"
+    class="ruler-edit-fullscreen-overlay"
+    catchtap="onRulerExitEditMode"
+    catchtouchmove=""
+  />
+
   <!-- 计数器区域 -->
   <view class="counter-section">
     <simple-counter
@@ -9,9 +17,11 @@
       backgroundColor="transparent"
       enableVibration="{{isVibrationOn}}"
       enableVoice="{{isVoiceOn}}"
-      showMemoBtn="{{true}}"
-      memoContent="{{memoContent}}"
-      bind:memotap="onMemoTap"
+      linked="{{rulerCounterLinked && rulerVisible}}"
+      bind:increase="onCounterIncrease"
+      bind:decrease="onCounterDecrease"
+      bind:up="onCounterUp"
+      bind:down="onCounterDown"
     ></simple-counter>
   </view>
 
@@ -33,7 +43,7 @@
           duration="{{300}}"
           bindchange="onSwiperChange"
           hidden="{{scale > 1 || isAnimating}}"
-          style="pointer-events: {{scale > 1 ? 'none' : 'auto'}};"
+          style="pointer-events: {{scale > 1 || (rulerVisible && rulerIsEditMode) ? 'none' : 'auto'}};"
         >
           <swiper-item wx:for="{{itemPaths}}" wx:key="index">
             <view class="image-container">
@@ -57,6 +67,74 @@
             bindload="onImageLoad"
           />
         </view>
+      </view>
+
+      <!-- 编辑态：preview-area 内退出遮罩（拦截图片手势，标尺变换层 z-index 15 在其上方仍可操作） -->
+      <view
+        wx:if="{{rulerVisible && rulerIsEditMode}}"
+        class="ruler-edit-overlay"
+        catchtap="onRulerExitEditMode"
+        catchtouchmove=""
+      />
+
+      <!-- 标尺变换层（与图片共享 transform，跟随缩放/平移） -->
+      <view
+        wx:if="{{rulerVisible}}"
+        class="ruler-transform-layer"
+        style="transform: translate({{translateX}}px, {{translateY}}px) scale({{scale}});"
+      >
+        <!-- 标尺主体 -->
+        <view
+          class="ruler-body {{rulerIsEditMode ? 'ruler-body-editing' : ''}} {{rulerType === 'plain' ? 'ruler-body-plain' : ''}} {{rulerAnimating ? 'ruler-animating' : ''}}"
+          style="left:{{containerWidth/2 + rulerX}}px;top:{{containerHeight/2 + rulerY}}px;width:{{rulerLength}}px;height:{{rulerThickness}}px;transform:translate(-50%,-50%) rotate({{rulerAngle}}deg);"
+          catchtouchstart="onRulerBodyTouchStart"
+          catchtouchmove="onRulerTouchMove"
+          catchtouchend="onRulerTouchEnd"
+        >
+          <!-- 刻度线（CSS repeating-gradient 实现，无刻度模式下隐藏） -->
+          <view wx:if="{{rulerType === 'ticked'}}" class="ruler-ticks" />
+
+          <!-- 编辑态：端点手柄 + 侧边手柄（上下各一个，动态定位在可视区） -->
+          <view wx:if="{{rulerIsEditMode}}">
+            <view class="ruler-handle-hit ruler-handle-hit-left" catchtouchstart="onRulerHandleTouchStart" data-handle="endLeft">
+              <view class="ruler-handle" />
+            </view>
+            <view class="ruler-handle-hit ruler-handle-hit-right" catchtouchstart="onRulerHandleTouchStart" data-handle="endRight">
+              <view class="ruler-handle" />
+            </view>
+            <view class="ruler-handle-hit ruler-handle-hit-side-top" style="left:{{rulerSideHandleLeft}}px;" catchtouchstart="onRulerHandleTouchStart" data-handle="sideTop">
+              <view class="ruler-handle" />
+            </view>
+            <view class="ruler-handle-hit ruler-handle-hit-side-bottom" style="left:{{rulerSideHandleLeft}}px;" catchtouchstart="onRulerHandleTouchStart" data-handle="sideBottom">
+              <view class="ruler-handle" />
+            </view>
+          </view>
+        </view>
+
+        <!-- 计数器-标尺联动开关 icon（编辑态/旋转时隐藏） -->
+        <view
+          wx:if="{{!rulerIsEditMode && !rulerShowAngle}}"
+          class="ruler-link-icon-wrapper {{rulerAnimating ? 'ruler-animating' : ''}}"
+          style="left:{{containerWidth/2 + rulerX}}px;top:{{containerHeight/2 + rulerY}}px;width:{{rulerLength}}px;height:{{rulerThickness}}px;transform:translate(-50%,-50%) rotate({{rulerAngle}}deg);"
+        >
+          <view
+            class="ruler-link-icon {{rulerCounterLinked ? 'ruler-link-icon-active' : ''}} {{rulerAnimating ? 'ruler-animating' : ''}}"
+            style="left:{{rulerLinkIconLeft}}px;top:{{rulerLinkIconTop}}px;"
+            catchtap="onRulerLinkToggle"
+          >
+            <image src="/assets/ruler_link.svg" mode="aspectFit" class="ruler-link-img" binderror="onRulerLinkIconError" wx:if="{{!rulerLinkIconFallback}}" />
+            <view wx:if="{{rulerLinkIconFallback}}" class="ruler-link-fallback">⇔</view>
+          </view>
+        </view>
+      </view>
+
+      <!-- 双指旋转角度显示（独立层，直接用屏幕坐标定位，不受 transform 影响） -->
+      <view
+        wx:if="{{rulerVisible && rulerShowAngle}}"
+        class="ruler-angle-display"
+        style="left:{{rulerAngleScreenLeft}};top:{{rulerAngleScreenTop}};width:{{rulerThickness*0.5}}px;height:{{rulerThickness*0.5}}px;"
+      >
+        <text class="ruler-angle-text" style="font-size:{{rulerThickness*0.2}}px;">{{rulerAngleDisplay}}</text>
       </view>
 
       <!-- 页码指示器 -->
@@ -83,23 +161,32 @@
 
     <!-- 浮动按钮组 -->
     <view
-      class="detail-fab-group {{isFabCollapsed ? 'fab-collapsed' : ''}}"
+      class="detail-fab-group {{isFabCollapsed && !isFabDragging ? 'fab-collapsed' : ''}}"
+      style="{{fabAnimStyle || ''}}"
       bindtouchstart="onFabTouchStart"
+      catchtouchmove="onFabTouchMove"
       bindtouchend="onFabTouchEnd"
     >
-      <image class="detail-fab-bar" src="/assets/fab_bar.svg" mode="aspectFit" catchtap="onFabCollapse" />
+      <view class="detail-fab-handle" catchtap="onFabCollapse">
+        <view class="detail-fab-handle-dot" />
+        <view class="detail-fab-handle-dot" />
+        <view class="detail-fab-handle-dot" />
+        <view class="detail-fab-handle-dot" />
+        <view class="detail-fab-handle-dot" />
+        <view class="detail-fab-handle-dot" />
+      </view>
       <!-- 临时计数 -->
-      <view class="detail-fab-item" hover-class="detail-fab-item-hover" hover-stay-time="150" bindtap="onTempCounterTap">
+      <view class="detail-fab-item" bindtap="onTempCounterTap">
         <image class="detail-fab-icon detail-fab-icon-counter" src="/assets/temp_counter.svg" mode="aspectFit" />
         <text class="detail-fab-label">临时计数</text>
       </view>
-      <!-- 图解笔记 -->
-      <view class="detail-fab-item" hover-class="detail-fab-item-hover" hover-stay-time="150" bindtap="onMemoFabTap">
+      <!-- 针织笔记 -->
+      <view class="detail-fab-item" bindtap="onMemoFabTap">
         <image class="detail-fab-icon detail-fab-icon-note" src="/assets/note.svg" mode="aspectFit" />
-        <text class="detail-fab-label">图解笔记</text>
+        <text class="detail-fab-label">针织笔记</text>
       </view>
       <!-- 标记工具 -->
-      <view class="detail-fab-item" hover-class="detail-fab-item-hover" hover-stay-time="150" bindtap="onPaintFabTap">
+      <view class="detail-fab-item" bindtap="onPaintFabTap">
         <image class="detail-fab-icon detail-fab-icon-paint" src="/assets/paint.svg" mode="aspectFit" />
         <text class="detail-fab-label">标记工具</text>
       </view>
@@ -116,12 +203,12 @@
 
   <!-- 临时计数器底部栏 -->
   <!-- 拖拽时透明遮罩，点击关闭删除按钮 -->
-  <view wx:if="{{showDeleteForId}}" class="temp-counter-overlay" bindtap="onDismissDelete" />
+  <view wx:if="{{showDeleteForId}}" class="temp-counter-overlay {{showPaintToolbar ? 'temp-counter-overlay-hidden' : ''}}" bindtap="onDismissDelete" />
 
   <view
     wx:for="{{tempCounters}}"
     wx:key="id"
-    class="temp-counter-item {{draggingCounterId === item.id && didDrag ? 'dragging' : ''}}"
+    class="temp-counter-item {{draggingCounterId === item.id && didDrag ? 'dragging' : ''}} {{showPaintToolbar ? 'temp-counter-hidden' : ''}}"
     style="left:{{item.x}}px;top:{{item.y}}px;z-index:{{draggingCounterId === item.id && didDrag ? 999 : (200 + item.zOrder)}};"
     bindtouchstart="onTempCounterTouchStart"
     catchtouchmove="onTempCounterDragMove"
@@ -171,19 +258,22 @@
     </view>
   </view>
 
-  <!-- 标记工具栏（流式布局，出现在预览区下方） -->
+  <!-- 标记工具栏 -->
   <view
     wx:if="{{showPaintToolbar}}"
     class="paint-sheet"
+    style="{{paintSheetStyle || ''}}"
     bindtouchstart="onPaintSheetTouchStart"
+    catchtouchmove="onPaintSheetTouchMove"
     bindtouchend="onPaintSheetTouchEnd"
+    bind:transitionend="onPaintSheetTransitionEnd"
   >
-    <!-- 下滑关闭把手 -->
-    <view class="paint-drag-handle"></view>
-    <!-- 工具栏主体 -->
     <view class="paint-toolbar">
+      <!-- 下滑关闭把手（内嵌在工具栏顶部） -->
+      <view class="paint-drag-handle"></view>
       <!-- 三个工具（水平居中） -->
       <view class="paint-tools">
+        <!-- 记号笔（暂时注释）
         <view class="paint-tool-item" bindtap="onPaintToolSelect" data-tool="highlighter">
           <image
             src="/assets/tool_highlighter.svg"
@@ -191,6 +281,8 @@
             class="paint-tool-icon {{paintActiveTool === 'highlighter' ? 'paint-tool-active' : ''}}"
           />
         </view>
+        -->
+        <!-- 橡皮擦（暂时注释）
         <view class="paint-tool-item" bindtap="onPaintToolSelect" data-tool="eraser">
           <image
             src="/assets/tool_eraser.svg"
@@ -198,7 +290,8 @@
             class="paint-tool-icon {{paintActiveTool === 'eraser' ? 'paint-tool-active' : ''}}"
           />
         </view>
-        <view class="paint-tool-item" bindtap="onPaintToolSelect" data-tool="ruler">
+        -->
+        <view class="paint-tool-item paint-tool-ruler" bindtap="onPaintToolSelect" data-tool="ruler" bindlongpress="onRulerToolLongPress">
           <image
             src="/assets/tool_ruler.svg"
             mode="aspectFit"
@@ -206,16 +299,29 @@
           />
         </view>
       </view>
-      <!-- 右侧：redo在左，undo在右 -->
+      <!-- 右侧：redo在左，undo在右（暂时注释）
       <view class="paint-history-btns">
-        <view class="paint-history-btn" hover-class="paint-history-btn-hover" hover-stay-time="100" bindtap="onPaintRedo">
-          <image src="/assets/redo.svg" mode="aspectFit" style="width:32rpx;height:32rpx;" />
+        <view class="paint-history-btn {{!hasHighlighterHistory ? 'paint-history-btn-disabled' : ''}}" hover-class="{{hasHighlighterHistory ? 'paint-history-btn-hover' : ''}}" hover-stay-time="100" bindtap="onPaintRedo">
+          <image src="/assets/redo.svg" mode="aspectFit" style="width:40rpx;height:40rpx;" />
         </view>
-        <view class="paint-history-btn" hover-class="paint-history-btn-hover" hover-stay-time="100" bindtap="onPaintUndo">
-          <image src="/assets/undo.svg" mode="aspectFit" style="width:32rpx;height:32rpx;" />
+        <view class="paint-history-btn {{!hasHighlighterHistory ? 'paint-history-btn-disabled' : ''}}" hover-class="{{hasHighlighterHistory ? 'paint-history-btn-hover' : ''}}" hover-stay-time="100" bindtap="onPaintUndo">
+          <image src="/assets/undo.svg" mode="aspectFit" style="width:40rpx;height:40rpx;" />
         </view>
       </view>
+      -->
     </view>
+  </view>
+
+  <!-- 标尺类型切换 Tips 遮罩（触摸外部关闭） -->
+  <view wx:if="{{showRulerTypeTip}}" class="ruler-type-dismiss-overlay" catchtouchstart="onRulerTypeTipDismiss" catchtouchmove="" />
+  <!-- 标尺类型切换 Tips -->
+  <view wx:if="{{showRulerTypeTip}}" class="ruler-type-tip" style="left:{{rulerTypeTipX}};top:{{rulerTypeTipY}};transform:translate(-50%,-100%);" catchtouchstart="" catchtouchmove="" catchtap="">
+    <view class="ruler-type-track">
+      <view class="ruler-type-slider" style="transform: translateX({{rulerType === 'plain' ? '100%' : '0'}});" />
+      <view class="ruler-type-option" catchtap="onRulerTypeSelect" data-type="ticked">有刻度</view>
+      <view class="ruler-type-option" catchtap="onRulerTypeSelect" data-type="plain">无刻度</view>
+    </view>
+    <view class="ruler-type-tip-arrow" />
   </view>
 
 </view>

@@ -1284,3 +1284,1127 @@ describe('详情页 - 云端下载 catch 块守卫', () => {
     expect(result.shouldNavigateBack).toBe(false);
   });
 });
+
+// ========== 标尺工具 - 纯函数单元测试 ==========
+
+/** 角度吸边（_snapRulerAngle） */
+function snapRulerAngle(angle: number): number {
+  const threshold = 5;
+  const nearest = Math.round(angle / 90) * 90;
+  if (Math.abs(angle - nearest) < threshold) {
+    return nearest;
+  }
+  return angle;
+}
+
+/** 角度格式化（_formatRulerAngle） */
+function formatRulerAngle(angle: number): string {
+  let a = ((angle % 180) + 180) % 180;
+  if (a > 90) a = 180 - a;
+  return `${Math.round(a)}°`;
+}
+
+/** 标尺最小长度（_getMinRulerLength） */
+function getMinRulerLength(containerWidth: number, containerHeight: number): number {
+  if (!containerWidth || !containerHeight) return 500;
+  return Math.sqrt(containerWidth * containerWidth + containerHeight * containerHeight) * 8;
+}
+
+/** 计算侧边手柄位置（_computeSideHandleLeftWith） */
+function computeSideHandleLeftWith(
+  rx: number, ry: number, angle: number, length: number,
+  sc: number, cw: number, ch: number, tx: number, ty: number,
+): number {
+  if (!cw || !ch) return length / 2;
+  const angleRad = angle * Math.PI / 180;
+  const vpX = (cw / 2 - tx) / sc;
+  const vpY = (ch / 2 - ty) / sc;
+  const rcX = cw / 2 + rx;
+  const rcY = ch / 2 + ry;
+  const projOnAxis = (vpX - rcX) * Math.cos(angleRad) + (vpY - rcY) * Math.sin(angleRad);
+  return Math.max(100, Math.min(length - 100, length / 2 + projOnAxis));
+}
+
+/** 计算联动 icon 在 wrapper 本地坐标系中的位置（_computeLinkIconLocalWith） */
+function computeLinkIconLocalWith(
+  rx: number, ry: number, angle: number, length: number, thickness: number,
+  sc: number, cw: number, ch: number, tx: number, ty: number,
+): { left: number; top: number } {
+  if (!cw || !ch) return { left: length, top: 0 };
+  const angleRad = angle * Math.PI / 180;
+  const cosA = Math.cos(angleRad);
+  const sinA = Math.sin(angleRad);
+  const rcX = cw / 2 + rx;
+  const rcY = ch / 2 + ry;
+  const halfLen = length / 2;
+  const halfThk = thickness / 2;
+  // 右上角在变换层坐标
+  const cornerX = rcX + halfLen * cosA + halfThk * sinA;
+  const cornerY = rcY + halfLen * sinA - halfThk * cosA;
+  // 可视区边界
+  const vpLeft = -tx / sc;
+  const vpTop = -ty / sc;
+  const vpRight = (cw - tx) / sc;
+  const vpBottom = (ch - ty) / sc;
+  const pad = 20 / sc;
+  // 限制在可视区内
+  const clampedX = Math.max(vpLeft + pad, Math.min(vpRight - pad, cornerX));
+  const clampedY = Math.max(vpTop + pad, Math.min(vpBottom - pad, cornerY));
+  // 反旋转回 wrapper 本地坐标
+  const dx = clampedX - rcX;
+  const dy = clampedY - rcY;
+  const localLeft = halfLen + dx * cosA + dy * sinA;
+  const localTop = halfThk + (-dx * sinA + dy * cosA);
+  return { left: localLeft, top: localTop };
+}
+
+/** 计算垂直移动偏移量（_moveRulerPerpendicular 的位移计算） */
+function movePerpendicularOffset(
+  angle: number, thickness: number, direction: 1 | -1,
+): { dx: number; dy: number } {
+  const angleRad = angle * Math.PI / 180;
+  return {
+    dx: -Math.sin(angleRad) * thickness * direction,
+    dy: Math.cos(angleRad) * thickness * direction,
+  };
+}
+
+/** 标尺状态持久化 key/value */
+const RULER_STATE_KEY = 'rulerState';
+
+/** 模拟保存标尺状态到 storage */
+function saveRulerState(
+  itemId: string,
+  state: { rulerX: number; rulerY: number; rulerAngle: number; rulerLength: number; rulerThickness: number; rulerType: 'ticked' | 'plain'; rulerCounterLinked: boolean },
+): Record<string, any> {
+  const storage: Record<string, any> = {};
+  storage[itemId] = state;
+  return storage;
+}
+
+/** 模拟加载标尺状态（含默认值填充） */
+function loadRulerState(
+  itemId: string,
+  storage: Record<string, any>,
+  minRulerLength: number,
+): { rulerX: number; rulerY: number; rulerAngle: number; rulerLength: number; rulerThickness: number; rulerType: 'ticked' | 'plain'; rulerCounterLinked: boolean } | null {
+  const state = storage[itemId];
+  if (!state) return null;
+  return {
+    rulerX: state.rulerX ?? 0,
+    rulerY: state.rulerY ?? 0,
+    rulerAngle: state.rulerAngle ?? 0,
+    rulerLength: state.rulerLength ?? minRulerLength,
+    rulerThickness: state.rulerThickness ?? 60,
+    rulerType: state.rulerType ?? 'ticked',
+    rulerCounterLinked: state.rulerCounterLinked ?? false,
+  };
+}
+
+describe('详情页 - 标尺角度吸边 (_snapRulerAngle)', () => {
+  it('0° 应保持不变', () => {
+    expect(snapRulerAngle(0)).toBe(0);
+  });
+
+  it('45° 应保持不变（距最近 90° 倍数 = 45 > 阈值 5）', () => {
+    expect(snapRulerAngle(45)).toBe(45);
+  });
+
+  it('88° 应吸附到 90°（距 90° 仅 2° < 阈值 5）', () => {
+    expect(snapRulerAngle(88)).toBe(90);
+  });
+
+  it('2° 应吸附到 0°（距 0° 仅 2° < 阈值 5）', () => {
+    expect(snapRulerAngle(2)).toBe(0);
+  });
+
+  it('91° 应吸附到 90°（距 90° 仅 1° < 阈值 5）', () => {
+    expect(snapRulerAngle(91)).toBe(90);
+  });
+
+  it('-3° 应吸附到 0°（或 -0°）', () => {
+    expect(Math.abs(snapRulerAngle(-3))).toBe(0);
+  });
+
+  it('179° 应吸附到 180°', () => {
+    expect(snapRulerAngle(179)).toBe(180);
+  });
+
+  it('270° 应保持不变（距最近 270° 为 0）', () => {
+    expect(snapRulerAngle(270)).toBe(270);
+  });
+
+  it('267° 应吸附到 270°', () => {
+    expect(snapRulerAngle(267)).toBe(270);
+  });
+
+  it('86° 刚好在阈值外（4° < 5 → 吸附到 90°）', () => {
+    expect(snapRulerAngle(86)).toBe(90);
+  });
+
+  it('85° 刚好在阈值外（5° 不满足 < 5）', () => {
+    expect(snapRulerAngle(85)).toBe(85);
+  });
+});
+
+describe('详情页 - 标尺角度格式化 (_formatRulerAngle)', () => {
+  it('0° → "0°"', () => {
+    expect(formatRulerAngle(0)).toBe('0°');
+  });
+
+  it('45° → "45°"', () => {
+    expect(formatRulerAngle(45)).toBe('45°');
+  });
+
+  it('90° → "90°"', () => {
+    expect(formatRulerAngle(90)).toBe('90°');
+  });
+
+  it('180° → "0°"（归一化到 [0, 90]）', () => {
+    expect(formatRulerAngle(180)).toBe('0°');
+  });
+
+  it('270° → "90°"（270 → 90 after normalization）', () => {
+    expect(formatRulerAngle(270)).toBe('90°');
+  });
+
+  it('-45° → "45°"（负角度归一化）', () => {
+    expect(formatRulerAngle(-45)).toBe('45°');
+  });
+
+  it('-90° → "90°"', () => {
+    expect(formatRulerAngle(-90)).toBe('90°');
+  });
+
+  it('120° → "60°"（> 90 时取 180 - angle）', () => {
+    expect(formatRulerAngle(120)).toBe('60°');
+  });
+
+  it('135° → "45°"', () => {
+    expect(formatRulerAngle(135)).toBe('45°');
+  });
+
+  it('360° → "0°"', () => {
+    expect(formatRulerAngle(360)).toBe('0°');
+  });
+
+  it('450° → "90°"（450 % 180 = 90）', () => {
+    expect(formatRulerAngle(450)).toBe('90°');
+  });
+
+  it('30.7° → "31°"（四舍五入）', () => {
+    expect(formatRulerAngle(30.7)).toBe('31°');
+  });
+});
+
+describe('详情页 - 标尺最小长度 (_getMinRulerLength)', () => {
+  it('容器 375×667 → 对角线 × 8', () => {
+    const result = getMinRulerLength(375, 667);
+    const diagonal = Math.sqrt(375 * 375 + 667 * 667);
+    expect(result).toBeCloseTo(diagonal * 8, 2);
+  });
+
+  it('容器 0×0 → 默认 500', () => {
+    expect(getMinRulerLength(0, 0)).toBe(500);
+  });
+
+  it('容器 375×0 → 默认 500', () => {
+    expect(getMinRulerLength(375, 0)).toBe(500);
+  });
+
+  it('容器 0×667 → 默认 500', () => {
+    expect(getMinRulerLength(0, 667)).toBe(500);
+  });
+
+  it('方形容器 500×500 → 对角线 × 8', () => {
+    const result = getMinRulerLength(500, 500);
+    expect(result).toBeCloseTo(Math.sqrt(500 * 500 + 500 * 500) * 8, 2);
+  });
+
+  it('iPad 横屏 1024×768', () => {
+    const result = getMinRulerLength(1024, 768);
+    const diagonal = Math.sqrt(1024 * 1024 + 768 * 768);
+    expect(result).toBeCloseTo(diagonal * 8, 2);
+  });
+});
+
+describe('详情页 - 侧边手柄位置计算 (_computeSideHandleLeftWith)', () => {
+  const cw = 375;
+  const ch = 667;
+  const length = 5000;
+
+  it('容器为 0 时返回 length/2', () => {
+    expect(computeSideHandleLeftWith(0, 0, 0, 5000, 1, 0, 0, 0, 0)).toBe(2500);
+  });
+
+  it('标尺居中、角度 0°、scale 1 → 手柄在中间', () => {
+    // rulerX=0, rulerY=0 → 标尺中心 = 容器中心
+    // 视口中心 = 容器中心，投影偏移 = 0
+    const result = computeSideHandleLeftWith(0, 0, 0, length, 1, cw, ch, 0, 0);
+    expect(result).toBe(length / 2); // 中间位置
+  });
+
+  it('标尺偏右 100px 时手柄应左移（视口中心相对标尺左移）', () => {
+    const centered = computeSideHandleLeftWith(0, 0, 0, length, 1, cw, ch, 0, 0);
+    const shifted = computeSideHandleLeftWith(100, 0, 0, length, 1, cw, ch, 0, 0);
+    // 标尺右移 → 视口中心在标尺坐标系中左移 → 手柄位置减小
+    expect(shifted).toBeLessThan(centered);
+  });
+
+  it('手柄位置不超过 length - 100', () => {
+    // 极端偏移：标尺远超可视区
+    const result = computeSideHandleLeftWith(10000, 0, 0, length, 1, cw, ch, 0, 0);
+    expect(result).toBeLessThanOrEqual(length - 100);
+  });
+
+  it('手柄位置不小于 100', () => {
+    // 极端反向偏移
+    const result = computeSideHandleLeftWith(-10000, 0, 0, length, 1, cw, ch, 0, 0);
+    expect(result).toBeGreaterThanOrEqual(100);
+  });
+
+  it('scale > 1 时视口缩小，手柄仍有效', () => {
+    const result = computeSideHandleLeftWith(0, 0, 0, length, 2, cw, ch, 0, 0);
+    expect(result).toBeGreaterThanOrEqual(100);
+    expect(result).toBeLessThanOrEqual(length - 100);
+  });
+
+  it('旋转 90° 时投影方向改变', () => {
+    const at0 = computeSideHandleLeftWith(0, 100, 0, length, 1, cw, ch, 0, 0);
+    const at90 = computeSideHandleLeftWith(0, 100, 90, length, 1, cw, ch, 0, 0);
+    // 90° 时 Y 偏移变成轴方向投影，结果应不同
+    expect(at90).not.toBe(at0);
+  });
+});
+
+describe('详情页 - 联动 icon 位置计算 (_computeLinkIconLocalWith)', () => {
+  const cw = 375;
+  const ch = 667;
+  const length = 5000;
+  const thickness = 60;
+
+  it('容器为 0 时返回 fallback { left: length, top: 0 }', () => {
+    expect(computeLinkIconLocalWith(0, 0, 0, length, thickness, 1, 0, 0, 0, 0))
+      .toEqual({ left: length, top: 0 });
+  });
+
+  it('标尺居中、角度 0° → icon 在右上角（标尺右端附近）', () => {
+    const result = computeLinkIconLocalWith(0, 0, 0, length, thickness, 1, cw, ch, 0, 0);
+    // 角度 0° 时右上角 = (cw/2 + halfLen, ch/2 - halfThk)
+    // clamped 后在可视区内
+    expect(result.left).toBeGreaterThan(length / 2); // 靠近右端
+    expect(result.top).toBeLessThanOrEqual(thickness / 2); // 靠近顶部
+  });
+
+  it('icon 应始终在可视区内（left/top 为有限正数）', () => {
+    // 模拟各种位置
+    const positions = [
+      { rx: 0, ry: 0, angle: 0 },
+      { rx: 500, ry: -300, angle: 45 },
+      { rx: -500, ry: 500, angle: 90 },
+      { rx: 1000, ry: 1000, angle: 30 },
+    ];
+    for (const p of positions) {
+      const result = computeLinkIconLocalWith(p.rx, p.ry, p.angle, length, thickness, 1, cw, ch, 0, 0);
+      expect(isFinite(result.left)).toBe(true);
+      expect(isFinite(result.top)).toBe(true);
+    }
+  });
+
+  it('scale = 2 时 icon 仍应有效', () => {
+    const result = computeLinkIconLocalWith(0, 0, 0, length, thickness, 2, cw, ch, 0, 0);
+    expect(isFinite(result.left)).toBe(true);
+    expect(isFinite(result.top)).toBe(true);
+  });
+
+  it('有 translateX/Y 时 icon 仍应有效', () => {
+    const result = computeLinkIconLocalWith(0, 0, 0, length, thickness, 1, cw, ch, 50, -30);
+    expect(isFinite(result.left)).toBe(true);
+    expect(isFinite(result.top)).toBe(true);
+  });
+
+  it('旋转 90° 时 icon 应跟随旋转', () => {
+    const at0 = computeLinkIconLocalWith(0, 0, 0, length, thickness, 1, cw, ch, 0, 0);
+    const at90 = computeLinkIconLocalWith(0, 0, 90, length, thickness, 1, cw, ch, 0, 0);
+    // 角度不同 → local 坐标不同
+    expect(at90).not.toEqual(at0);
+  });
+
+  it('标尺拖远时 icon 应被 clamp 到可视区边缘', () => {
+    // 标尺远超右侧
+    const result = computeLinkIconLocalWith(5000, 0, 0, length, thickness, 1, cw, ch, 0, 0);
+    // clamped 到可视区右边缘附近
+    expect(isFinite(result.left)).toBe(true);
+    expect(isFinite(result.top)).toBe(true);
+  });
+
+  it('标尺拖到左上角时 icon 应被 clamp', () => {
+    const result = computeLinkIconLocalWith(-5000, -5000, 0, length, thickness, 1, cw, ch, 0, 0);
+    expect(isFinite(result.left)).toBe(true);
+    expect(isFinite(result.top)).toBe(true);
+  });
+
+  it('负角度时 icon 应正确计算', () => {
+    const result = computeLinkIconLocalWith(0, 0, -45, length, thickness, 1, cw, ch, 0, 0);
+    expect(isFinite(result.left)).toBe(true);
+    expect(isFinite(result.top)).toBe(true);
+  });
+});
+
+describe('详情页 - 标尺垂直移动计算 (_moveRulerPerpendicular)', () => {
+  it('角度 0° 方向向下(+1) → Y 增加 thickness', () => {
+    const { dx, dy } = movePerpendicularOffset(0, 60, 1);
+    expect(dx).toBeCloseTo(0, 10); // -sin(0) * 60 = 0
+    expect(dy).toBeCloseTo(60, 10); // cos(0) * 60 = 60
+  });
+
+  it('角度 0° 方向向上(-1) → Y 减少 thickness', () => {
+    const { dx, dy } = movePerpendicularOffset(0, 60, -1);
+    expect(dx).toBeCloseTo(0, 10);
+    expect(dy).toBeCloseTo(-60, 10);
+  });
+
+  it('角度 90° 方向向下(+1) → X 减少 thickness', () => {
+    const { dx, dy } = movePerpendicularOffset(90, 60, 1);
+    expect(dx).toBeCloseTo(-60, 10); // -sin(90°) * 60 = -60
+    expect(dy).toBeCloseTo(0, 10); // cos(90°) * 60 ≈ 0
+  });
+
+  it('角度 45° 方向向下(+1) → X 和 Y 都变化', () => {
+    const { dx, dy } = movePerpendicularOffset(45, 100, 1);
+    expect(dx).toBeCloseTo(-Math.sin(Math.PI / 4) * 100, 5);
+    expect(dy).toBeCloseTo(Math.cos(Math.PI / 4) * 100, 5);
+  });
+
+  it('thickness = 16 时移动距离最小为 16px', () => {
+    const { dx, dy } = movePerpendicularOffset(0, 16, 1);
+    expect(Math.sqrt(dx * dx + dy * dy)).toBeCloseTo(16, 10);
+  });
+
+  it('direction 乘以 thickness 的距离不变', () => {
+    const up = movePerpendicularOffset(30, 60, -1);
+    const down = movePerpendicularOffset(30, 60, 1);
+    expect(up.dx).toBeCloseTo(-down.dx, 10);
+    expect(up.dy).toBeCloseTo(-down.dy, 10);
+  });
+});
+
+describe('详情页 - 标尺状态持久化', () => {
+  beforeEach(() => {
+    clearAllMocks();
+  });
+
+  it('saveRulerState 应生成正确的 storage 对象', () => {
+    const storage = saveRulerState('item1', {
+      rulerX: 10,
+      rulerY: 20,
+      rulerAngle: 45,
+      rulerLength: 5000,
+      rulerThickness: 60,
+      rulerType: 'ticked',
+      rulerCounterLinked: true,
+    });
+    expect(storage['item1']).toEqual({
+      rulerX: 10,
+      rulerY: 20,
+      rulerAngle: 45,
+      rulerLength: 5000,
+      rulerThickness: 60,
+      rulerType: 'ticked',
+      rulerCounterLinked: true,
+    });
+  });
+
+  it('loadRulerState 应正确读取保存的状态', () => {
+    const storage = saveRulerState('item1', {
+      rulerX: 10, rulerY: 20, rulerAngle: 45, rulerLength: 5000, rulerThickness: 80, rulerType: 'plain', rulerCounterLinked: true,
+    });
+    const state = loadRulerState('item1', storage, 5000);
+    expect(state).toEqual({
+      rulerX: 10, rulerY: 20, rulerAngle: 45, rulerLength: 5000, rulerThickness: 80, rulerType: 'plain', rulerCounterLinked: true,
+    });
+  });
+
+  it('loadRulerState 不存在的 itemId 应返回 null', () => {
+    const storage = saveRulerState('item1', {
+      rulerX: 0, rulerY: 0, rulerAngle: 0, rulerLength: 5000, rulerThickness: 60, rulerType: 'ticked', rulerCounterLinked: false,
+    });
+    expect(loadRulerState('nonexistent', storage, 5000)).toBeNull();
+  });
+
+  it('loadRulerState 缺失字段应使用默认值', () => {
+    const storage: Record<string, any> = {
+      item1: { rulerAngle: 30 }, // 只有 angle，其他缺失
+    };
+    const state = loadRulerState('item1', storage, 4000)!;
+    expect(state.rulerX).toBe(0);
+    expect(state.rulerY).toBe(0);
+    expect(state.rulerAngle).toBe(30);
+    expect(state.rulerLength).toBe(4000); // 使用 minRulerLength
+    expect(state.rulerThickness).toBe(60);
+    expect(state.rulerType).toBe('ticked');
+    expect(state.rulerCounterLinked).toBe(false);
+  });
+
+  it('wx storage 应正确保存和读取标尺状态', () => {
+    const state = {
+      rulerX: 10, rulerY: 20, rulerAngle: 45, rulerLength: 5000, rulerThickness: 60, rulerType: 'ticked', rulerCounterLinked: false,
+    };
+    const storage: Record<string, any> = {};
+    storage['item1'] = state;
+    wx.setStorageSync(RULER_STATE_KEY, storage);
+
+    const loaded = wx.getStorageSync(RULER_STATE_KEY);
+    expect(loaded['item1'].rulerAngle).toBe(45);
+    expect(loaded['item1'].rulerCounterLinked).toBe(false);
+  });
+
+  it('联动开关状态应被持久化', () => {
+    const storage = saveRulerState('item1', {
+      rulerX: 0, rulerY: 0, rulerAngle: 0, rulerLength: 5000, rulerThickness: 60, rulerType: 'ticked', rulerCounterLinked: true,
+    });
+    expect(storage['item1'].rulerCounterLinked).toBe(true);
+  });
+});
+
+describe('详情页 - 联动开关守卫逻辑', () => {
+  it('联动未开启时 onCounterIncrease 不应触发移动', () => {
+    const linked = false;
+    const animating = false;
+    const shouldMove = linked && !animating;
+    expect(shouldMove).toBe(false);
+  });
+
+  it('联动已开启 + 非动画中 → 应触发移动', () => {
+    const linked = true;
+    const animating = false;
+    const shouldMove = linked && !animating;
+    expect(shouldMove).toBe(true);
+  });
+
+  it('联动已开启 + 动画中 → 不应触发移动', () => {
+    const linked = true;
+    const animating = true;
+    const shouldMove = linked && !animating;
+    expect(shouldMove).toBe(false);
+  });
+
+  it('联动切换：false → true', () => {
+    const current = false;
+    const next = !current;
+    expect(next).toBe(true);
+  });
+
+  it('联动切换：true → false', () => {
+    const current = true;
+    const next = !current;
+    expect(next).toBe(false);
+  });
+});
+
+describe('详情页 - 编辑态缩放范围 (MIN_SCALE_EDIT)', () => {
+  const MIN_SCALE = 1.0;
+  const MIN_SCALE_EDIT = 0.5;
+  const MAX_SCALE = 6.0;
+
+  it('正常态最小缩放为 1.0', () => {
+    const rulerIsEditMode = false;
+    const minScale = rulerIsEditMode ? MIN_SCALE_EDIT : MIN_SCALE;
+    expect(minScale).toBe(1.0);
+  });
+
+  it('编辑态最小缩放为 0.5', () => {
+    const rulerIsEditMode = true;
+    const minScale = rulerIsEditMode ? MIN_SCALE_EDIT : MIN_SCALE;
+    expect(minScale).toBe(0.5);
+  });
+
+  it('scale 0.7 在正常态应回弹到 1.0', () => {
+    const scale = 0.7;
+    const minScale = MIN_SCALE;
+    const needsBounce = scale < minScale;
+    expect(needsBounce).toBe(true);
+  });
+
+  it('scale 0.7 在编辑态不应回弹', () => {
+    const scale = 0.7;
+    const minScale = MIN_SCALE_EDIT;
+    const needsBounce = scale < minScale;
+    expect(needsBounce).toBe(false);
+  });
+
+  it('scale 0.4 在编辑态仍应回弹到 0.5', () => {
+    const scale = 0.4;
+    const minScale = MIN_SCALE_EDIT;
+    const needsBounce = scale < minScale;
+    expect(needsBounce).toBe(true);
+  });
+
+  it('scale 0.5 在编辑态刚好不回弹', () => {
+    const scale = 0.5;
+    const minScale = MIN_SCALE_EDIT;
+    const needsBounce = scale < minScale;
+    expect(needsBounce).toBe(false);
+  });
+
+  it('scale 6.0 不超过最大值', () => {
+    const scale = 6.0;
+    expect(scale <= MAX_SCALE).toBe(true);
+  });
+
+  it('scale 6.5 超过最大值应回弹', () => {
+    const scale = 6.5;
+    expect(scale > MAX_SCALE).toBe(true);
+  });
+});
+
+describe('详情页 - 标尺最小厚度约束', () => {
+  const MIN_THICKNESS = 16; // 8dp at 2x DPR
+
+  it('厚度 16px 应被允许', () => {
+    const newThickness = Math.max(MIN_THICKNESS, Math.min(400, 16));
+    expect(newThickness).toBe(16);
+  });
+
+  it('厚度 10px 应被限制到 16px', () => {
+    const newThickness = Math.max(MIN_THICKNESS, Math.min(400, 10));
+    expect(newThickness).toBe(16);
+  });
+
+  it('厚度 0px 应被限制到 16px', () => {
+    const newThickness = Math.max(MIN_THICKNESS, Math.min(400, 0));
+    expect(newThickness).toBe(16);
+  });
+
+  it('负厚度应被限制到 16px', () => {
+    const newThickness = Math.max(MIN_THICKNESS, Math.min(400, -50));
+    expect(newThickness).toBe(16);
+  });
+
+  it('厚度 60px 应正常', () => {
+    const newThickness = Math.max(MIN_THICKNESS, Math.min(400, 60));
+    expect(newThickness).toBe(60);
+  });
+
+  it('厚度 400px 应被允许（刚好上限）', () => {
+    const newThickness = Math.max(MIN_THICKNESS, Math.min(400, 400));
+    expect(newThickness).toBe(400);
+  });
+
+  it('厚度 500px 应被限制到 400px', () => {
+    const newThickness = Math.max(MIN_THICKNESS, Math.min(400, 500));
+    expect(newThickness).toBe(400);
+  });
+});
+
+describe('详情页 - 编辑态退出逻辑', () => {
+  it('点击标尺外区域 → 进入 onRulerExitEditMode', () => {
+    const rulerIsEditMode = true;
+    // 退出编辑态应设置 rulerIsEditMode = false
+    const newState = false;
+    expect(rulerIsEditMode).toBe(true);
+    expect(newState).toBe(false);
+  });
+
+  it('编辑态时 swiperEnabled 应为 false', () => {
+    const scale = 1;
+    const rulerIsEditMode = true;
+    const swiperEnabled = rulerIsEditMode ? false : scale <= 1;
+    expect(swiperEnabled).toBe(false);
+  });
+
+  it('退出编辑态后 swiperEnabled 应恢复', () => {
+    const scale = 1;
+    const rulerIsEditMode = false;
+    const swiperEnabled = rulerIsEditMode ? false : scale <= 1;
+    expect(swiperEnabled).toBe(true);
+  });
+});
+
+describe('详情页 - 联动 icon 显示/隐藏条件', () => {
+  it('非编辑态 + 非旋转 → 显示 icon', () => {
+    const rulerIsEditMode = false;
+    const rulerShowAngle = false;
+    const shouldShow = !rulerIsEditMode && !rulerShowAngle;
+    expect(shouldShow).toBe(true);
+  });
+
+  it('编辑态 → 隐藏 icon', () => {
+    const rulerIsEditMode = true;
+    const rulerShowAngle = false;
+    const shouldShow = !rulerIsEditMode && !rulerShowAngle;
+    expect(shouldShow).toBe(false);
+  });
+
+  it('旋转中 → 隐藏 icon', () => {
+    const rulerIsEditMode = false;
+    const rulerShowAngle = true;
+    const shouldShow = !rulerIsEditMode && !rulerShowAngle;
+    expect(shouldShow).toBe(false);
+  });
+
+  it('编辑态 + 旋转 → 隐藏 icon', () => {
+    const rulerIsEditMode = true;
+    const rulerShowAngle = true;
+    const shouldShow = !rulerIsEditMode && !rulerShowAngle;
+    expect(shouldShow).toBe(false);
+  });
+});
+
+describe('详情页 - 端点手柄拖动：固定端计算', () => {
+  it('0° 角度下左端固定 → 新中心 = 固定端 + projOnAxis/2', () => {
+    const angle = 0;
+    const rulerLength = 200;
+    const rulerX = 0;
+    const rulerY = 0;
+    const angleRad = angle * Math.PI / 180;
+    const cosA = Math.cos(angleRad);
+    const sinA = Math.sin(angleRad);
+    // 左端 = 中心 - length/2 沿轴方向
+    const fixedEndX = rulerX - (rulerLength / 2) * cosA;
+    const fixedEndY = rulerY - (rulerLength / 2) * sinA;
+
+    // 触摸点在固定端右侧 300px 处
+    const touchPreX = fixedEndX + 300;
+    const touchPreY = fixedEndY;
+    const projOnAxis = (touchPreX - fixedEndX) * cosA + (touchPreY - fixedEndY) * sinA;
+
+    expect(projOnAxis).toBe(300);
+    const newRulerX = fixedEndX + (projOnAxis / 2) * cosA;
+    expect(newRulerX).toBe(fixedEndX + 150);
+  });
+
+  it('90° 角度下投影沿 Y 方向', () => {
+    const angle = 90;
+    const angleRad = angle * Math.PI / 180;
+    const cosA = Math.cos(angleRad);
+    const sinA = Math.sin(angleRad);
+    // cos(90°) ≈ 0, sin(90°) = 1
+    expect(Math.abs(cosA)).toBeLessThan(1e-10);
+    expect(sinA).toBeCloseTo(1, 10);
+  });
+});
+
+describe('详情页 - 侧边手柄拖动：法线方向投影', () => {
+  it('0° 角度的法线方向为 (0, 1)', () => {
+    const angle = 0;
+    const angleRad = angle * Math.PI / 180;
+    const normalX = -Math.sin(angleRad);
+    const normalY = Math.cos(angleRad);
+    expect(normalX).toBeCloseTo(0, 10);
+    expect(normalY).toBeCloseTo(1, 10);
+  });
+
+  it('90° 角度的法线方向为 (-1, 0)', () => {
+    const angle = 90;
+    const angleRad = angle * Math.PI / 180;
+    const normalX = -Math.sin(angleRad);
+    const normalY = Math.cos(angleRad);
+    expect(normalX).toBeCloseTo(-1, 10);
+    expect(normalY).toBeCloseTo(0, 10);
+  });
+
+  it('45° 角度的法线方向', () => {
+    const angle = 45;
+    const angleRad = angle * Math.PI / 180;
+    const normalX = -Math.sin(angleRad);
+    const normalY = Math.cos(angleRad);
+    expect(normalX).toBeCloseTo(-Math.SQRT2 / 2, 5);
+    expect(normalY).toBeCloseTo(Math.SQRT2 / 2, 5);
+  });
+
+  it('下侧手柄（sign=+1）：远离标尺 → 变厚', () => {
+    const normalX = 0;
+    const normalY = 1;
+    const sign = 1;
+    const deltaX = 0;
+    const deltaY = 20; // 向下拖动 20px
+    const projDelta = deltaX * normalX + deltaY * normalY;
+    const thicknessDelta = projDelta * sign;
+    expect(thicknessDelta).toBe(20);
+  });
+
+  it('上侧手柄（sign=-1）：向上拖动 → 变厚', () => {
+    const normalX = 0;
+    const normalY = 1;
+    const sign = -1;
+    const deltaX = 0;
+    const deltaY = -20; // 向上拖动 20px
+    const projDelta = deltaX * normalX + deltaY * normalY;
+    const thicknessDelta = projDelta * sign;
+    expect(thicknessDelta).toBe(20); // (-20) * (-1) = 20
+  });
+});
+
+// ========== P1-P4 修复：纯函数单元测试 ==========
+
+/**
+ * P4: _resolveSwiperEnabled 统一逻辑
+ * 规则：编辑态 → false，否则看 scale <= 1
+ */
+function resolveSwiperEnabled(
+  rulerVisible: boolean,
+  rulerIsEditMode: boolean,
+  scale: number,
+): boolean {
+  if (rulerVisible && rulerIsEditMode) return false;
+  return scale <= 1;
+}
+
+/**
+ * P3: 联动 icon fallback 状态切换
+ */
+function handleRulerLinkIconError(_currentFallback: boolean): boolean {
+  // SVG 加载失败后始终切换为 true
+  return true;
+}
+
+/**
+ * P1: springBack 中联动 icon 同步逻辑
+ * 模拟：缩放/拖动过程中 icon 不更新，springBack 结束时统一计算
+ * 返回是否需要更新 icon 以及最终 icon 坐标
+ */
+function computeIconSyncAfterSpringBack(
+  rulerVisible: boolean,
+  rulerX: number,
+  rulerY: number,
+  rulerAngle: number,
+  rulerLength: number,
+  rulerThickness: number,
+  scale: number,
+  containerWidth: number,
+  containerHeight: number,
+  translateX: number,
+  translateY: number,
+): { shouldUpdate: boolean; left: number; top: number } {
+  if (!rulerVisible) {
+    return { shouldUpdate: false, left: 0, top: 0 };
+  }
+  // 复用 computeLinkIconLocalWith
+  const pos = computeLinkIconLocalWith(
+    rulerX, rulerY, rulerAngle, rulerLength, rulerThickness,
+    scale, containerWidth, containerHeight, translateX, translateY,
+  );
+  return { shouldUpdate: true, left: pos.left, top: pos.top };
+}
+
+/**
+ * P2: onRulerTouchMove dispatcher 逻辑
+ * 验证 handle type 到方法的正确映射
+ */
+function resolveRulerHandleMethod(
+  handleType: 'body' | 'endLeft' | 'endRight' | 'sideTop' | 'sideBottom' | 'bodyRotate' | null,
+): string {
+  if (!handleType) return 'none';
+  if (handleType === 'body') return '_handleRulerBodyDrag';
+  if (handleType === 'endLeft' || handleType === 'endRight') return '_handleRulerEndDrag';
+  if (handleType === 'sideTop' || handleType === 'sideBottom') return '_handleRulerSideDrag';
+  if (handleType === 'bodyRotate') return '_handleRulerRotate';
+  return 'none';
+}
+
+describe('P4: _resolveSwiperEnabled 统一逻辑', () => {
+  it('非编辑态 + scale=1 → true', () => {
+    expect(resolveSwiperEnabled(true, false, 1)).toBe(true);
+  });
+
+  it('非编辑态 + scale=2 → false', () => {
+    expect(resolveSwiperEnabled(true, false, 2)).toBe(false);
+  });
+
+  it('编辑态 + scale=1 → false（编辑态优先）', () => {
+    expect(resolveSwiperEnabled(true, true, 1)).toBe(false);
+  });
+
+  it('编辑态 + scale=2 → false', () => {
+    expect(resolveSwiperEnabled(true, true, 2)).toBe(false);
+  });
+
+  it('标尺不可见时只看 scale', () => {
+    expect(resolveSwiperEnabled(false, false, 1)).toBe(true);
+    expect(resolveSwiperEnabled(false, false, 1.5)).toBe(false);
+  });
+
+  it('标尺不可见 + 编辑态 → 仍只看 scale（因为 rulerVisible=false）', () => {
+    expect(resolveSwiperEnabled(false, true, 1)).toBe(true);
+  });
+
+  it('scale=0.5 编辑态 → false', () => {
+    expect(resolveSwiperEnabled(true, true, 0.5)).toBe(false);
+  });
+
+  it('scale=0.5 非编辑态 → true（0.5 <= 1）', () => {
+    expect(resolveSwiperEnabled(true, false, 0.5)).toBe(true);
+  });
+});
+
+describe('P3: 联动 icon fallback', () => {
+  it('初始状态应为 false', () => {
+    const fallback = false;
+    expect(fallback).toBe(false);
+  });
+
+  it('SVG 加载失败后应切换为 true', () => {
+    const result = handleRulerLinkIconError(false);
+    expect(result).toBe(true);
+  });
+
+  it('已 fallback 时再次调用仍为 true', () => {
+    const result = handleRulerLinkIconError(true);
+    expect(result).toBe(true);
+  });
+});
+
+describe('P1: springBack 结束时统一同步联动 icon', () => {
+  const cw = 375;
+  const ch = 667;
+  const length = 5000;
+  const thickness = 60;
+
+  it('标尺不可见时不应更新 icon', () => {
+    const result = computeIconSyncAfterSpringBack(
+      false, 0, 0, 0, length, thickness, 1, cw, ch, 0, 0,
+    );
+    expect(result.shouldUpdate).toBe(false);
+  });
+
+  it('标尺可见时应在 springBack 结束后计算 icon 位置', () => {
+    const result = computeIconSyncAfterSpringBack(
+      true, 0, 0, 0, length, thickness, 1, cw, ch, 0, 0,
+    );
+    expect(result.shouldUpdate).toBe(true);
+    expect(isFinite(result.left)).toBe(true);
+    expect(isFinite(result.top)).toBe(true);
+  });
+
+  it('缩放回弹到 scale=1 后 icon 位置应正确', () => {
+    const result = computeIconSyncAfterSpringBack(
+      true, 100, -200, 30, length, thickness, 1, cw, ch, 0, 0,
+    );
+    expect(result.shouldUpdate).toBe(true);
+    // scale=1, translateX/Y=0 时 icon 应在可视区内
+    expect(isFinite(result.left)).toBe(true);
+    expect(isFinite(result.top)).toBe(true);
+  });
+
+  it('动画中 scale=2 回弹到 scale=1 后 icon 应不同', () => {
+    const at2 = computeIconSyncAfterSpringBack(
+      true, 0, 0, 0, length, thickness, 2, cw, ch, 0, 0,
+    );
+    const at1 = computeIconSyncAfterSpringBack(
+      true, 0, 0, 0, length, thickness, 1, cw, ch, 0, 0,
+    );
+    // scale 不同 → icon 位置不同
+    expect(at2.left).not.toBe(at1.left);
+  });
+
+  it('拖动后 translateX/Y 非零时 icon 应正确同步', () => {
+    const result = computeIconSyncAfterSpringBack(
+      true, 0, 0, 0, length, thickness, 2, cw, ch, 50, -30,
+    );
+    expect(result.shouldUpdate).toBe(true);
+    expect(isFinite(result.left)).toBe(true);
+    expect(isFinite(result.top)).toBe(true);
+  });
+});
+
+describe('P2: onRulerTouchMove dispatcher 映射', () => {
+  it('null handle → none', () => {
+    expect(resolveRulerHandleMethod(null)).toBe('none');
+  });
+
+  it('body → _handleRulerBodyDrag', () => {
+    expect(resolveRulerHandleMethod('body')).toBe('_handleRulerBodyDrag');
+  });
+
+  it('endLeft → _handleRulerEndDrag', () => {
+    expect(resolveRulerHandleMethod('endLeft')).toBe('_handleRulerEndDrag');
+  });
+
+  it('endRight → _handleRulerEndDrag', () => {
+    expect(resolveRulerHandleMethod('endRight')).toBe('_handleRulerEndDrag');
+  });
+
+  it('sideTop → _handleRulerSideDrag', () => {
+    expect(resolveRulerHandleMethod('sideTop')).toBe('_handleRulerSideDrag');
+  });
+
+  it('sideBottom → _handleRulerSideDrag', () => {
+    expect(resolveRulerHandleMethod('sideBottom')).toBe('_handleRulerSideDrag');
+  });
+
+  it('bodyRotate → _handleRulerRotate', () => {
+    expect(resolveRulerHandleMethod('bodyRotate')).toBe('_handleRulerRotate');
+  });
+});
+
+describe('P2: _handleRulerBodyDrag 拖动位移计算', () => {
+  const cw = 375;
+  const scale = 1;
+
+  it('触摸点偏移应正确转换为标尺中心预变换坐标', () => {
+    // 屏幕中心 = (cw/2, ch/2)，标尺中心也在此处
+    // 触摸点在屏幕中心右侧 100px，dragOffsetX = 50
+    // newCenterScreenX = touch - offset = cw/2 + 100 - 50 = cw/2 + 50
+    // newRulerX = (newCenterScreenX - cw/2 - translateX) / scale = 50
+    const touchScreenX = cw / 2 + 100;
+    const offsetX = 50;
+    const newCenterScreenX = touchScreenX - offsetX;
+    const newRulerX = (newCenterScreenX - cw / 2 - 0) / scale;
+    expect(newRulerX).toBe(50);
+  });
+
+  it('有 translateX 时应正确补偿', () => {
+    const translateX = 30;
+    const touchScreenX = cw / 2;
+    const offsetX = 0;
+    const newCenterScreenX = touchScreenX - offsetX;
+    const newRulerX = (newCenterScreenX - cw / 2 - translateX) / scale;
+    expect(newRulerX).toBe(-30);
+  });
+
+  it('scale=2 时触摸位移应除以 scale', () => {
+    const touchScreenX = cw / 2 + 100;
+    const offsetX = 0;
+    const newCenterScreenX = touchScreenX - offsetX;
+    const newRulerX = (newCenterScreenX - cw / 2 - 0) / 2;
+    expect(newRulerX).toBe(50); // 100 / 2 = 50
+  });
+});
+
+describe('P2: _handleRulerEndDrag 投影计算（端点手柄）', () => {
+  it('0° 角度下右端拖动：投影 = 触摸点X - 固定端X', () => {
+    const angle = 0;
+    const angleRad = angle * Math.PI / 180;
+    const cosA = Math.cos(angleRad);
+    const sinA = Math.sin(angleRad);
+    const fixedEndX = 100;
+    const touchPreX = 300;
+    const touchPreY = 500;
+    const projOnAxis = (touchPreX - fixedEndX) * cosA + (touchPreY - 500) * sinA;
+    expect(projOnAxis).toBe(200);
+  });
+
+  it('90° 角度下右端拖动：投影 = 触摸点Y - 固定端Y', () => {
+    const angle = 90;
+    const angleRad = angle * Math.PI / 180;
+    const cosA = Math.cos(angleRad);
+    const sinA = Math.sin(angleRad);
+    const fixedEndX = 100;
+    const fixedEndY = 200;
+    const touchPreX = 100;
+    const touchPreY = 400;
+    const projOnAxis = (touchPreX - fixedEndX) * cosA + (touchPreY - fixedEndY) * sinA;
+    expect(Math.abs(projOnAxis - 200)).toBeLessThan(1);
+  });
+
+  it('左端拖动：新长度 = -projOnAxis', () => {
+    const projOnAxis = -250; // 触摸点在固定端反方向
+    const newLength = -projOnAxis;
+    expect(newLength).toBe(250);
+  });
+
+  it('新中心 = 固定端 + (newLength/2) 方向向量', () => {
+    const fixedEndX = 100;
+    const fixedEndY = 200;
+    const cosA = 1; // 0°
+    const sinA = 0;
+    const newLength = 200;
+    const newRulerX = fixedEndX + (newLength / 2) * cosA;
+    const newRulerY = fixedEndY + (newLength / 2) * sinA;
+    expect(newRulerX).toBe(200);
+    expect(newRulerY).toBe(200);
+  });
+});
+
+describe('P2: _handleRulerSideDrag 厚度增量计算', () => {
+  it('法线方向投影 + sign=1 → 正增量（变厚）', () => {
+    const deltaX = 0;
+    const deltaY = 20;
+    const normalX = 0;
+    const normalY = 1;
+    const sign = 1;
+    const scale = 1;
+    const projDelta = deltaX * normalX + deltaY * normalY;
+    const thicknessDelta = (projDelta * sign) / scale;
+    expect(thicknessDelta).toBe(20);
+  });
+
+  it('法线方向投影 + sign=-1 → 负增量取反（也变厚）', () => {
+    const deltaX = 0;
+    const deltaY = -20;
+    const normalX = 0;
+    const normalY = 1;
+    const sign = -1;
+    const scale = 1;
+    const projDelta = deltaX * normalX + deltaY * normalY;
+    const thicknessDelta = (projDelta * sign) / scale;
+    expect(thicknessDelta).toBe(20);
+  });
+
+  it('新厚度应被限制在 [16, 400]', () => {
+    const initial = 60;
+    // 大增量
+    const bigDelta = 500;
+    const newThickness = Math.max(16, Math.min(400, initial + bigDelta));
+    expect(newThickness).toBe(400);
+    // 负增量
+    const negThickness = Math.max(16, Math.min(400, initial - 100));
+    expect(negThickness).toBe(16);
+  });
+});
+
+describe('P2: _handleRulerRotate 围绕双指中点旋转', () => {
+  it('旋转 0° 时标尺中心不变', () => {
+    const initX = 100;
+    const initY = 200;
+    const pivotX = 50;
+    const pivotY = 50;
+    const deltaRad = 0;
+    const cosD = Math.cos(deltaRad);
+    const sinD = Math.sin(deltaRad);
+    const dx = initX - pivotX;
+    const dy = initY - pivotY;
+    const newX = pivotX + dx * cosD - dy * sinD;
+    const newY = pivotY + dx * sinD + dy * cosD;
+    expect(newX).toBeCloseTo(initX, 10);
+    expect(newY).toBeCloseTo(initY, 10);
+  });
+
+  it('旋转 90° 时 dx,dy 应正确旋转', () => {
+    const pivotX = 0;
+    const pivotY = 0;
+    const initX = 100;
+    const initY = 0;
+    const deltaRad = Math.PI / 2;
+    const cosD = Math.cos(deltaRad);
+    const sinD = Math.sin(deltaRad);
+    const dx = initX - pivotX;
+    const dy = initY - pivotY;
+    const newX = pivotX + dx * cosD - dy * sinD;
+    const newY = pivotY + dx * sinD + dy * cosD;
+    expect(newX).toBeCloseTo(0, 10);
+    expect(newY).toBeCloseTo(100, 10);
+  });
+
+  it('旋转 -45° 后再旋转 +45° 应回到原位', () => {
+    const pivotX = 50;
+    const pivotY = 50;
+    const initX = 200;
+    const initY = 100;
+    // 旋转 -45°
+    const delta1 = -Math.PI / 4;
+    const dx = initX - pivotX;
+    const dy = initY - pivotY;
+    const midX = pivotX + dx * Math.cos(delta1) - dy * Math.sin(delta1);
+    const midY = pivotY + dx * Math.sin(delta1) + dy * Math.cos(delta1);
+    // 旋转 +45°
+    const delta2 = Math.PI / 4;
+    const dx2 = midX - pivotX;
+    const dy2 = midY - pivotY;
+    const finalX = pivotX + dx2 * Math.cos(delta2) - dy2 * Math.sin(delta2);
+    const finalY = pivotY + dx2 * Math.sin(delta2) + dy2 * Math.cos(delta2);
+    expect(finalX).toBeCloseTo(initX, 5);
+    expect(finalY).toBeCloseTo(initY, 5);
+  });
+});

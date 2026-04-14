@@ -11,6 +11,9 @@ const SETTINGS_STORAGE_KEYS = {
   VOICE: "counter_voice_state",
 };
 
+// 首次操作提示已展示标记
+const RESET_TIP_SHOWN_KEY = "simpleCounterResetTipShown";
+
 // 通用的提示配置
 const TOAST_CONFIG = {
   icon: "none" as const,
@@ -58,15 +61,10 @@ Component({
       type: Boolean,
       value: wx.getStorageSync(SETTINGS_STORAGE_KEYS.VIBRATION) || false,
     },
-    // 是否显示备忘录按钮
-    showMemoBtn: {
+    // 是否已激活计数器-标尺联动（影响按钮视觉样式）
+    linked: {
       type: Boolean,
       value: false,
-    },
-    // 备忘录内容（用于判断是否显示高亮图标）
-    memoContent: {
-      type: String,
-      value: "",
     },
   },
 
@@ -85,6 +83,7 @@ Component({
     },
     showModifyCount: false,
     modifyCountInput: "",
+    showResetTip: false,
   },
 
   /**
@@ -173,9 +172,28 @@ Component({
     },
 
     /**
+     * 检查是否需要展示首次操作提示
+     */
+    _checkAndShowResetTip() {
+      if (wx.getStorageSync(RESET_TIP_SHOWN_KEY)) return;
+      wx.setStorageSync(RESET_TIP_SHOWN_KEY, true);
+      this.setData({ showResetTip: true });
+    },
+
+    /**
+     * 关闭首次操作提示
+     */
+    onResetTipDismiss() {
+      this.setData({ showResetTip: false });
+    },
+
+    /**
      * 增加计数器值
      */
     increaseCount() {
+      // 首次操作提示
+      this._checkAndShowResetTip();
+
       // 重置针织总时长计时器的活跃时间
       const app = getApp<IAppOption>();
       if (app) {
@@ -193,6 +211,9 @@ Component({
         count: newCount,
       });
       this.saveCounterValue();
+
+      // 触发 increase 事件（用于标尺联动等）
+      this.triggerEvent('increase', { id: this.properties.counterId, count: newCount });
 
       // 播放音效
       if (
@@ -214,6 +235,9 @@ Component({
      * 减少计数器值
      */
     decreaseCount() {
+      // 首次操作提示
+      this._checkAndShowResetTip();
+
       // 重置针织总时长计时器的活跃时间
       const app = getApp<IAppOption>();
       if (app) {
@@ -231,6 +255,9 @@ Component({
         count: newCount,
       });
       this.saveCounterValue();
+
+      // 触发 decrease 事件（用于标尺联动等）
+      this.triggerEvent('decrease', { id: this.properties.counterId, count: newCount });
 
       // 播放音效
       if (
@@ -276,11 +303,17 @@ Component({
     },
 
     /**
-     * 点击备忘录按钮
+     * 长按数字区域，弹出重置选项
      */
-    onMemoTap() {
-      this.triggerEvent("memotap", {
-        id: this.properties.counterId,
+    onCountLongPress() {
+      wx.showActionSheet({
+        itemList: ['重置计数'],
+        success: (res) => {
+          if (res.tapIndex === 0) {
+            this.resetCount();
+            this.showToast("已重置");
+          }
+        },
       });
     },
 
@@ -331,6 +364,20 @@ Component({
         showModifyCount: false,
       });
       this.saveCounterValue();
+    },
+
+    /**
+     * 点击上箭头按钮：触发 up 事件（用于标尺联动）
+     */
+    onUpTap() {
+      this.triggerEvent('up', { id: this.properties.counterId });
+    },
+
+    /**
+     * 点击下箭头按钮：触发 down 事件（用于标尺联动）
+     */
+    onDownTap() {
+      this.triggerEvent('down', { id: this.properties.counterId });
     },
 
     /**

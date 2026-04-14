@@ -161,10 +161,14 @@ Page({
       return { key, name: data?.name || "默认计数器" };
     });
 
+    // 根据 activeKey 计算对应的 Tab 索引
+    const activeTabIndex = activeKey ? normalizedKeys.indexOf(activeKey) : 0;
+
     this.setData({
       counterKeys: normalizedKeys,
       counterList,
       activeKey,
+      activeTab: activeTabIndex >= 0 ? activeTabIndex : 0,
       isVibrationOn: wx.getStorageSync(STORAGE_KEYS.VIBRATION) || false,
       isKeepScreenOn: wx.getStorageSync(STORAGE_KEYS.KEEP_SCREEN) || false,
       isVoiceOn: wx.getStorageSync(STORAGE_KEYS.VOICE) || false,
@@ -301,7 +305,7 @@ Page({
     if (isMemoModified) {
       setTimeout(() => {
         wx.showToast({
-          title: "备忘录已更新~",
+          title: "针织笔记已更新~",
           icon: "none",
         });
         isMemoModified = false;
@@ -325,11 +329,13 @@ Page({
       const data = wx.getStorageSync(key);
       return { key, name: data?.name || "默认计数器" };
     });
+    // 根据 activeKey 计算对应的 Tab 索引
+    const activeTabIndex = activeKey ? normalizedKeys.indexOf(activeKey) : 0;
     this.setData({
       counterKeys: normalizedKeys,
       counterList,
       activeKey,
-      activeTab: Math.min(this.data.activeTab, normalizedKeys.length - 1),
+      activeTab: activeTabIndex >= 0 ? activeTabIndex : 0,
     });
     // 刷新所有计数器组件
     eventBus.emit('refreshCounter', { counterKey: 'all' });
@@ -370,11 +376,13 @@ Page({
             const data = wx.getStorageSync(key);
             return { key, name: data?.name || "默认计数器" };
           });
+          // 根据 activeKey 计算对应的 Tab 索引
+          const syncActiveTabIndex = syncActiveKey ? normalizedSyncKeys.indexOf(syncActiveKey) : 0;
           this.setData({
             counterKeys: normalizedSyncKeys,
             counterList: syncCounterList,
             activeKey: syncActiveKey,
-            activeTab: Math.min(this.data.activeTab, normalizedSyncKeys.length - 1),
+            activeTab: syncActiveTabIndex >= 0 ? syncActiveTabIndex : 0,
           });
           // 刷新所有计数器组件
           eventBus.emit('refreshCounter', { counterKey: 'all' });
@@ -391,6 +399,10 @@ Page({
   },
 
   onHide() {
+    // 持久化当前活跃 Tab（确保退出时保存）
+    const currentKey = this.data.counterKeys[this.data.activeTab] || "";
+    wx.setStorageSync(STORAGE_KEYS.ACTIVE_KEY, currentKey);
+
     // 暂停针织总时长计时
     const app = getApp<IAppOption>();
     if (app) {
@@ -679,9 +691,13 @@ Page({
       currentCounter.pauseTimerAndMark();
     }
 
+    // 计算新 Tab 对应的 storageKey 并持久化
+    const newActiveKey = this.data.counterKeys[index] || "";
     this.setData({
       activeTab: index,
+      activeKey: newActiveKey,
     });
+    wx.setStorageSync(STORAGE_KEYS.ACTIVE_KEY, newActiveKey);
 
     // 重置心跳计时器
     const app = getApp<IAppOption>();

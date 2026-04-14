@@ -743,4 +743,180 @@ describe('app.ts 核心逻辑', () => {
       expect(isOldUserMigration(storage)).toBe(false);
     });
   });
+
+  // ===== syncCounterData sync 响应写回逻辑（updatedAt 保护） =====
+  describe('syncCounterData sync 本地写回 — updatedAt 保护', () => {
+    /**
+     * 模拟 syncCounterData('sync') 响应后写回本地的逻辑（修复后版本）
+     * 与 app.ts 中 syncCounterData 方法的响应处理逻辑一致
+     */
+    function applySyncToLocal(
+      storage: Record<string, any>,
+      cloudKeys: any[],
+      cloudCounters: Record<string, any>,
+    ) {
+      const localKeys = storage['counter_keys'] || [];
+
+      const cloudKeysList = (cloudKeys || []).map((k: any) => {
+        if (typeof k === 'string') return k;
+        return k.key || k;
+      });
+
+      const cloudKeysSet = new Set(cloudKeysList);
+
+      // 删除本地多余的计数器
+      for (const key of localKeys) {
+        if (!cloudKeysSet.has(key)) {
+          delete storage[key];
+        }
+      }
+
+      // 更新 counterKeys
+      storage['counter_keys'] = cloudKeysList;
+
+      // 更新云端返回的计数器数据（带 updatedAt 保护）
+      if (cloudCounters && Object.keys(cloudCounters).length > 0) {
+        for (const key of Object.keys(cloudCounters)) {
+          const counterData = cloudCounters[key];
+          if (!counterData.name) {
+            counterData.name = '默认计数器';
+          }
+          // 【修复逻辑】比较 updatedAt，避免覆盖用户最新操作
+          const currentLocalData = storage[key];
+          const currentLocalTime = currentLocalData?.updatedAt || 0;
+          const cloudTime = counterData.updatedAt || 0;
+          if (cloudTime >= currentLocalTime) {
+            storage[key] = counterData;
+          }
+        }
+      }
+    }
+
+    it('云端数据更新 → 正常覆盖本地', () => {
+      const storage: Record<string, any> = {
+        counter_keys: ['counter_1'],
+        counter_1: { name: '计数器1', currentCount: 5, updatedAt: 1000 },
+      };
+
+      applySyncToLocal(storage, ['counter_1'], {
+        counter_1: { name: '计数器1', currentCount: 10, updatedAt: 2000 },
+      });
+
+      expect(storage['counter_1'].currentCount).toBe(10);
+      expect(storage['counter_1'].updatedAt).toBe(2000);
+    });
+
+    it('云端数据比本地旧 → 保留本地数据（核心竞态修复）', () => {
+      // 模拟：onShow 时 sync 读取本地 count=5(updatedAt=1000)，
+      // 网络期间用户点击+1 → 本地变成 count=6(updatedAt=1500)，
+      // 云端响应基于旧数据返回 count=5(updatedAt=1000)
+      const storage: Record<string, any> = {
+        counter_keys: ['counter_1'],
+        counter_1: { name: '计数器1', currentCount: 6, updatedAt: 1500 },
+      };
+
+      applySyncToLocal(storage, ['counter_1'], {
+        counter_1: { name: '计数器1', currentCount: 5, updatedAt: 1000 },
+      });
+
+      expect(storage['counter_1'].currentCount).toBe(6);
+      expect(storage['counter_1'].updatedAt).toBe(1500);
+    });
+
+    it('云端与本地 updatedAt 相同 → 正常覆盖（幂等）', () => {
+      const storage: Record<string, any> = {
+        counter_keys: ['counter_1'],
+        counter_1: { name: '计数器1', currentCount: 5, updatedAt: 1000 },
+      };
+
+      applySyncToLocal(storage, ['counter_1'], {
+        counter_1: { name: '计数器1', currentCount: 5, updatedAt: 1000 },
+      });
+
+      expect(storage['counter_1'].currentCount).toBe(5);
+    });
+
+    it('本地无 updatedAt（旧数据）→ 云端覆盖', () => {
+      const storage: Record<string, any> = {
+        counter_keys: ['counter_1'],
+        counter_1: { name: '计数器1', currentCount: 5 },
+      };
+
+      applySyncToLocal(storage, ['counter_1'], {
+        counter_1: { name: '计数器1', currentCount: 10, updatedAt: 2000 },
+      });
+
+      expect(storage['counter_1'].currentCount).toBe(10);
+    });
+
+    it('云端无 updatedAt → 不覆盖有 updatedAt 的本地数据', () => {
+      const storage: Record<string, any> = {
+        counter_keys: ['counter_1'],
+        counter_1: { name: '计数器1', currentCount: 8, updatedAt: 3000 },
+      };
+
+      applySyncToLocal(storage, ['counter_1'], {
+        counter_1: { name: '计数器1', currentCount: 1 },
+      });
+
+      // cloudTime=0 < currentLocalTime=3000 → 保留本地
+      expect(storage['counter_1'].currentCount).toBe(8);
+    });
+
+    it('本地无该 key → 云端数据正常写入', () => {
+      const storage: Record<string, any> = {
+        counter_keys: [],
+      };
+
+      applySyncToLocal(storage, ['counter_new'], {
+        counter_new: { name: '新计数器', currentCount: 3, updatedAt: 1000 },
+      });
+
+      expect(storage['counter_new'].currentCount).toBe(3);
+      expect(storage['counter_keys']).toEqual(['counter_new']);
+    });
+
+    it('多计数器混合场景：部分覆盖、部分保留', () => {
+      const storage: Record<string, any> = {
+        counter_keys: ['counter_1', 'counter_2'],
+        counter_1: { name: 'A', currentCount: 10, updatedAt: 1000 },  // 比云端旧
+        counter_2: { name: 'B', currentCount: 20, updatedAt: 3000 },  // 比云端新
+      };
+
+      applySyncToLocal(storage, ['counter_1', 'counter_2'], {
+        counter_1: { name: 'A', currentCount: 15, updatedAt: 2000 },  // 新于本地 → 覆盖
+        counter_2: { name: 'B', currentCount: 25, updatedAt: 2000 },  // 旧于本地 → 保留
+      });
+
+      expect(storage['counter_1'].currentCount).toBe(15);  // 覆盖
+      expect(storage['counter_2'].currentCount).toBe(20);  // 保留
+    });
+
+    it('云端 keys 不包含本地 key → 本地被删除', () => {
+      const storage: Record<string, any> = {
+        counter_keys: ['counter_1', 'counter_2'],
+        counter_1: { name: 'A', currentCount: 10, updatedAt: 5000 },
+        counter_2: { name: 'B', currentCount: 20, updatedAt: 5000 },
+      };
+
+      applySyncToLocal(storage, ['counter_1'], {
+        counter_1: { name: 'A', currentCount: 10, updatedAt: 5000 },
+      });
+
+      expect(storage['counter_keys']).toEqual(['counter_1']);
+      expect(storage['counter_2']).toBeUndefined();
+    });
+
+    it('补全缺失的 name 字段', () => {
+      const storage: Record<string, any> = {
+        counter_keys: [],
+      };
+
+      applySyncToLocal(storage, ['counter_1'], {
+        counter_1: { currentCount: 5, updatedAt: 1000 },
+      });
+
+      expect(storage['counter_1'].name).toBe('默认计数器');
+    });
+  });
 });
