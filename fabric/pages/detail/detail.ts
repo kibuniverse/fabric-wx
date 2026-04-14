@@ -2221,15 +2221,36 @@ Page<DetailPageData, WechatMiniprogram.IAnyObject>({
   _computeSideHandleLeftWith(rx: number, ry: number, angle: number, length: number, sc: number, cw: number, ch: number, tx: number, ty: number): number {
     if (!cw || !ch) return length / 2;
     const angleRad = angle * Math.PI / 180;
-    // 视口中心在变换层坐标
-    const vpX = (cw / 2 - tx) / sc;
-    const vpY = (ch / 2 - ty) / sc;
-    // 标尺中心在变换层坐标
-    const rcX = cw / 2 + rx;
-    const rcY = ch / 2 + ry;
-    // 视口中心投影到标尺轴方向
-    const projOnAxis = (vpX - rcX) * Math.cos(angleRad) + (vpY - rcY) * Math.sin(angleRad);
-    return Math.max(100, Math.min(length - 100, length / 2 + projOnAxis));
+    const cosA = Math.cos(angleRad);
+    const sinA = Math.sin(angleRad);
+    const halfLen = length / 2;
+    // 标尺两端转换到屏幕坐标
+    // CSS transform-origin 默认 center，公式：screenX = cw/2 + (layerX - cw/2)*sc + tx
+    // layerX = cw/2 + rx ± halfLen*cosA，化简后：
+    const startScreenX = cw / 2 + (rx - halfLen * cosA) * sc + tx;
+    const startScreenY = ch / 2 + (ry - halfLen * sinA) * sc + ty;
+    const endScreenX   = cw / 2 + (rx + halfLen * cosA) * sc + tx;
+    const endScreenY   = ch / 2 + (ry + halfLen * sinA) * sc + ty;
+    // 参数化裁剪：将标尺线段裁剪到视口 [0, cw] x [0, ch]
+    let tMin = 0, tMax = 1;
+    const dsx = endScreenX - startScreenX;
+    const dsy = endScreenY - startScreenY;
+    const clip = (p: number, q: number) => {
+      if (Math.abs(p) < 0.001) return q >= 0; // 平行于边：完全在内则跳过
+      const t = q / p;
+      if (p < 0) { if (t > tMax) return false; if (t > tMin) tMin = t; }
+      else        { if (t < tMin) return false; if (t < tMax) tMax = t; }
+      return true;
+    };
+    const inside =
+      clip(-dsx, startScreenX) &&
+      clip( dsx, cw - startScreenX) &&
+      clip(-dsy, startScreenY) &&
+      clip( dsy, ch - startScreenY);
+    if (!inside || tMin >= tMax) return length / 2; // 标尺完全在视口外
+    // 可视线段的中点参数 → 换算到标尺本地坐标（0 = 左端，length = 右端）
+    const tMid = (tMin + tMax) / 2;
+    return Math.max(100, Math.min(length - 100, tMid * length));
   },
 
   /** 计算联动 icon 在 wrapper 本地坐标系中的位置（px），定位到标尺右上角并限制在可视区内 */

@@ -96,12 +96,6 @@
 
           <!-- 编辑态：端点手柄 + 侧边手柄（上下各一个，动态定位在可视区） -->
           <view wx:if="{{rulerIsEditMode}}">
-            <view class="ruler-handle-hit ruler-handle-hit-left" catchtouchstart="onRulerHandleTouchStart" data-handle="endLeft">
-              <view class="ruler-handle" />
-            </view>
-            <view class="ruler-handle-hit ruler-handle-hit-right" catchtouchstart="onRulerHandleTouchStart" data-handle="endRight">
-              <view class="ruler-handle" />
-            </view>
             <view class="ruler-handle-hit ruler-handle-hit-side-top" style="left:{{rulerSideHandleLeft}}px;" catchtouchstart="onRulerHandleTouchStart" data-handle="sideTop">
               <view class="ruler-handle" />
             </view>
