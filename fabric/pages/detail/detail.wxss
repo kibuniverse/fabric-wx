@@ -687,6 +687,12 @@
   height: 100%;
   z-index: 15;
   pointer-events: none; /* 默认穿透，仅标尺元素响应事件 */
+  will-change: transform;
+}
+
+/* 缩放/回弹动画时跟随图片平滑过渡 */
+.ruler-transform-layer.ruler-transform-animating {
+  transition: transform 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
 }
 
 /* 编辑态全屏退出遮罩：覆盖计数器区域、preview-area 以外的区域 */

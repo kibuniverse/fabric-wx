@@ -80,7 +80,7 @@
       <!-- 标尺变换层（与图片共享 transform，跟随缩放/平移） -->
       <view
         wx:if="{{rulerVisible}}"
-        class="ruler-transform-layer"
+        class="ruler-transform-layer {{isAnimating ? 'ruler-transform-animating' : ''}}"
         style="transform: translate({{translateX}}px, {{translateY}}px) scale({{scale}});"
       >
         <!-- 标尺主体 -->
