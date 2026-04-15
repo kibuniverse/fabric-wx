@@ -67,8 +67,8 @@
 }
 
 .nav-btn image {
-  width: 30px;
-  height: 30px;
+  width: 60rpx;
+  height: 60rpx;
 }
 
 .counter-btn image {
