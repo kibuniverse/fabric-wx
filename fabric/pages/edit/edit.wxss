@@ -35,6 +35,11 @@
   justify-content: center;
 }
 
+.nav-back-icon {
+  width: 48rpx;
+  height: 48rpx;
+}
+
 .nav-title {
   font-size: 32rpx; /* 16*2 */
   font-weight: 500; /* medium */

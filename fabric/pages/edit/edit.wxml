@@ -4,7 +4,7 @@
   <view class="nav-bar" style="padding-top: {{statusBarHeight}}px;">
     <view class="nav-content">
       <view class="nav-back" bindtap="onCancel">
-        <t-icon name="chevron-left" size="48rpx" color="#333333" />
+        <dynamic-svg svg-class="nav-back-icon" svgPath="/assets/chevron_left.svg" color="#333333" mode="aspectFit" />
       </view>
       <text class="nav-title">修改图解</text>
     </view>

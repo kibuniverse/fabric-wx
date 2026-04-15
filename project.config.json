@@ -49,7 +49,11 @@
   },
   "libVersion": "trial",
   "packOptions": {
-    "ignore": [],
+    "ignore": [
+      { "type": "folder", "value": "__tests__" },
+      { "type": "file", "value": "\\.test\\." },
+      { "type": "file", "value": "\\.spec\\." }
+    ],
     "include": []
   },
   "appid": "wx280f9b26f309bc44"

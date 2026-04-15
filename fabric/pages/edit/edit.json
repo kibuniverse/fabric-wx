@@ -1,1 +1,1 @@
-{"disableScroll": false, "navigationStyle": "custom", "usingComponents": {"dynamic-svg": "/components/dynamic-svg/index", "mp-dialog": "weui-miniprogram/dialog/dialog", "t-icon": "tdesign-miniprogram/icon/icon"}}
+{"disableScroll": false, "navigationStyle": "custom", "usingComponents": {"dynamic-svg": "/components/dynamic-svg/index", "mp-dialog": "weui-miniprogram/dialog/dialog"}}
