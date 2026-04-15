@@ -10,6 +10,8 @@ const LAST_IMAGE_INDEX_KEY = "lastImageIndex";
 const TEMP_COUNTER_TIPS_SHOWN_KEY = "tempCounterTipsShown";
 // 标尺状态存储键
 const RULER_STATE_KEY = "rulerState";
+// 标尺长按提示是否已展示
+const RULER_LONGPRESS_TIP_SHOWN_KEY = "rulerLongPressTipShown";
 
 // 定义详情页面需要的接口
 interface DetailPageData {
@@ -92,6 +94,8 @@ interface DetailPageData {
   paintSheetStyle: string;
   paintSheetClosing: boolean;
   hasHighlighterHistory: boolean; // 是否有荧光笔绘图历史（控制撤销/重做按钮是否可用）
+  // 标尺长按提示（首次打开工具栏时展示）
+  showRulerLongPressTip: boolean;
 
   // ========== 标尺 ==========
   rulerVisible: boolean;        // 标尺是否可见
@@ -191,6 +195,7 @@ Page<DetailPageData, WechatMiniprogram.IAnyObject>({
     paintSheetStyle: '',
     paintSheetClosing: false,
     hasHighlighterHistory: false,
+    showRulerLongPressTip: false,
     rulerVisible: true,
     rulerX: 0,
     rulerY: 0,
@@ -1694,7 +1699,7 @@ Page<DetailPageData, WechatMiniprogram.IAnyObject>({
     });
     setTimeout(() => {
       if (this.data.paintSheetClosing) {
-        this.setData({ showPaintToolbar: false, paintSheetClosing: false, paintSheetStyle: '', showRulerTypeTip: false });
+        this.setData({ showPaintToolbar: false, paintSheetClosing: false, paintSheetStyle: '', showRulerTypeTip: false, showRulerLongPressTip: false });
       }
     }, 350);
   },
@@ -1716,8 +1721,10 @@ Page<DetailPageData, WechatMiniprogram.IAnyObject>({
       });
       setTimeout(() => {
         if (this.data.showPaintToolbar && !this.data.paintSheetClosing) {
+          const needTip = !wx.getStorageSync(RULER_LONGPRESS_TIP_SHOWN_KEY);
           this.setData({
             paintSheetStyle: 'transform: translateY(0); opacity: 1; transition: transform 0.38s cubic-bezier(0.16, 1, 0.3, 1) 0.05s, opacity 0.32s ease-out 0.05s;',
+            ...(needTip ? { showRulerLongPressTip: true } : {}),
           });
         }
       }, 50);
@@ -1804,7 +1811,7 @@ Page<DetailPageData, WechatMiniprogram.IAnyObject>({
       });
       setTimeout(() => {
         if (this.data.paintSheetClosing) {
-          this.setData({ showPaintToolbar: false, paintSheetClosing: false, paintSheetStyle: '', showRulerTypeTip: false });
+          this.setData({ showPaintToolbar: false, paintSheetClosing: false, paintSheetStyle: '', showRulerTypeTip: false, showRulerLongPressTip: false });
         }
       }, 350);
     } else {
@@ -2050,9 +2057,13 @@ Page<DetailPageData, WechatMiniprogram.IAnyObject>({
     if (this._rulerHandleType === 'bodyRotate') {
       // 双指旋转结束，最终吸边并隐藏角度
       const snappedAngle = this._snapRulerAngle(this.data.rulerAngle);
+      const { rulerX, rulerY, rulerLength, rulerThickness, scale, containerWidth, containerHeight, translateX, translateY } = this.data;
+      const iconPos = this._computeLinkIconLocalWith(rulerX, rulerY, snappedAngle, rulerLength, rulerThickness, scale, containerWidth, containerHeight, translateX, translateY);
       this.setData({
         rulerAngle: snappedAngle,
         rulerShowAngle: false,
+        rulerLinkIconLeft: iconPos.left,
+        rulerLinkIconTop: iconPos.top,
       });
       this._rulerHandleType = null;
       this._rulerDidDrag = false;
@@ -2115,6 +2126,12 @@ Page<DetailPageData, WechatMiniprogram.IAnyObject>({
   onRulerTypeTipDismiss() {
     this.setData({ showRulerTypeTip: false });
     this._closePaintToolbar();
+  },
+
+  /** 关闭标尺长按提示（首次打开工具栏时展示） */
+  onRulerLongPressTipDismiss() {
+    this.setData({ showRulerLongPressTip: false });
+    wx.setStorageSync(RULER_LONGPRESS_TIP_SHOWN_KEY, true);
   },
 
   /**
@@ -2264,35 +2281,70 @@ Page<DetailPageData, WechatMiniprogram.IAnyObject>({
     };
   },
 
-  /** 计算联动 icon 在 wrapper 本地坐标系中的位置（px），定位到标尺右上角并限制在可视区内 */
+  /** 计算联动 icon 在 wrapper 本地坐标系中的位置（px），定位在标尺可见段右侧 1/8 处并垂直偏移到标尺外侧 */
   _computeLinkIconLocal(): { left: number, top: number } {
     const { rulerX, rulerY, rulerAngle, rulerLength, rulerThickness, scale, containerWidth, containerHeight, translateX, translateY } = this.data;
     return this._computeLinkIconLocalWith(rulerX, rulerY, rulerAngle, rulerLength, rulerThickness, scale, containerWidth, containerHeight, translateX, translateY);
   },
 
-  /** 带参数版本 */
+  /** 带参数版本：icon 定位在标尺可见段右侧 1/8 处，垂直偏移到标尺外侧（屏幕上方优先） */
   _computeLinkIconLocalWith(rx: number, ry: number, angle: number, length: number, thickness: number, sc: number, cw: number, ch: number, tx: number, ty: number): { left: number, top: number } {
-    if (!cw || !ch) return { left: length, top: 0 };
+    if (!cw || !ch) return { left: length / 2, top: 0 };
     const angleRad = angle * Math.PI / 180;
     const cosA = Math.cos(angleRad);
     const sinA = Math.sin(angleRad);
+    const halfLen = length / 2;
+    const halfThk = thickness / 2;
     // 标尺中心在变换层坐标
     const rcX = cw / 2 + rx;
     const rcY = ch / 2 + ry;
-    const halfLen = length / 2;
-    const halfThk = thickness / 2;
-    // 右上角在变换层坐标（local: halfLen, -halfThk）
-    const cornerX = rcX + halfLen * cosA + halfThk * sinA;
-    const cornerY = rcY + halfLen * sinA - halfThk * cosA;
-    // 可视区边界（变换层坐标）
+    // 标尺端点在屏幕坐标
+    const startScreenX = cw / 2 + (rx - halfLen * cosA) * sc + tx;
+    const startScreenY = ch / 2 + (ry - halfLen * sinA) * sc + ty;
+    const endScreenX   = cw / 2 + (rx + halfLen * cosA) * sc + tx;
+    const endScreenY   = ch / 2 + (ry + halfLen * sinA) * sc + ty;
+    // Liang-Barsky 裁剪：找到标尺在视口内的可见段
+    let tMin = 0, tMax = 1;
+    const dsx = endScreenX - startScreenX;
+    const dsy = endScreenY - startScreenY;
+    const clip = (p: number, q: number) => {
+      if (Math.abs(p) < 0.001) return q >= 0;
+      const t = q / p;
+      if (p < 0) { if (t > tMax) return false; if (t > tMin) tMin = t; }
+      else        { if (t < tMin) return false; if (t < tMax) tMax = t; }
+      return true;
+    };
+    const inside =
+      clip(-dsx, startScreenX) &&
+      clip( dsx, cw - startScreenX) &&
+      clip(-dsy, startScreenY) &&
+      clip( dsy, ch - startScreenY);
+    if (!inside || tMin >= tMax) {
+      // 标尺完全在视口外：fallback 到标尺中心上方
+      return { left: halfLen, top: -halfThk - 20 / sc };
+    }
+    // 可见段右侧 1/8 处（屏幕坐标 → 变换层坐标）
+    const tMid = tMax - (tMax - tMin) / 8;
+    const midScreenX = startScreenX + tMid * dsx;
+    const midScreenY = startScreenY + tMid * dsy;
+    const midLayerX = (midScreenX - tx) / sc;
+    const midLayerY = (midScreenY - ty) / sc;
+    // 垂直于标尺轴的方向（选择屏幕"上方"的方向）
+    let perpX = sinA;
+    let perpY = -cosA;
+    if (perpY > 0.01) { perpX = -perpX; perpY = -perpY; }
+    else if (perpY >= -0.01 && perpX < 0) { perpX = Math.abs(perpX); perpY = 0; }
+    const perpOffset = halfThk + 24 / sc;
+    const targetX = midLayerX + perpX * perpOffset;
+    const targetY = midLayerY + perpY * perpOffset;
+    // 限制在可视区内（变换层坐标）
     const vpLeft = -tx / sc;
     const vpTop = -ty / sc;
     const vpRight = (cw - tx) / sc;
     const vpBottom = (ch - ty) / sc;
-    const pad = 20 / sc; // 屏幕边缘留白（变换层 px）
-    // 限制在可视区内
-    const clampedX = Math.max(vpLeft + pad, Math.min(vpRight - pad, cornerX));
-    const clampedY = Math.max(vpTop + pad, Math.min(vpBottom - pad, cornerY));
+    const pad = 20 / sc;
+    const clampedX = Math.max(vpLeft + pad, Math.min(vpRight - pad, targetX));
+    const clampedY = Math.max(vpTop + pad, Math.min(vpBottom - pad, targetY));
     // 反旋转回 wrapper 本地坐标
     const dx = clampedX - rcX;
     const dy = clampedY - rcY;
@@ -2324,7 +2376,10 @@ Page<DetailPageData, WechatMiniprogram.IAnyObject>({
    */
   _moveRulerPerpendicular(direction: 1 | -1) {
     const { rulerAngle, rulerThickness, rulerX, rulerY, rulerLength, scale, containerWidth, containerHeight, translateX, translateY } = this.data;
-    const angleRad = rulerAngle * Math.PI / 180;
+    // 归一化到 [0°, 180°)：标尺在 θ 和 θ+180° 视觉相同，垂直方向必须一致
+    let effectiveAngle = ((rulerAngle % 360) + 360) % 360;
+    if (effectiveAngle >= 180) effectiveAngle -= 180;
+    const angleRad = effectiveAngle * Math.PI / 180;
     // 垂直"下"方向: (-sin(θ), cos(θ))，乘以 direction 和 thickness
     const dx = -Math.sin(angleRad) * rulerThickness * direction;
     const dy = Math.cos(angleRad) * rulerThickness * direction;

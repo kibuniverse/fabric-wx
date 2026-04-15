@@ -303,6 +303,14 @@
         </view>
       </view>
       -->
+      <!-- 标尺长按提示（首次打开工具栏时展示） -->
+      <view wx:if="{{showRulerLongPressTip}}" class="ruler-longpress-tip" catchtouchstart="" catchtouchmove="" catchtap="">
+        <view class="ruler-longpress-tip-content">
+          <text>长按可以更换标尺类型～</text>
+          <text class="ruler-longpress-tip-confirm" catchtap="onRulerLongPressTipDismiss">我知道了</text>
+        </view>
+        <view class="ruler-longpress-tip-arrow"></view>
+      </view>
     </view>
   </view>
 

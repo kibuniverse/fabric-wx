@@ -631,6 +631,51 @@
   filter: grayscale(100%);
 }
 
+/* 标尺长按提示（首次打开工具栏时展示，在标尺上方） */
+.ruler-longpress-tip {
+  position: absolute;
+  bottom: calc(100% + 16rpx);
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 310;
+  opacity: 0;
+  animation: tip-fade-in 0.3s ease forwards;
+}
+
+@keyframes tip-fade-in {
+  to { opacity: 1; }
+}
+
+.ruler-longpress-tip-content {
+  background-color: rgba(0, 0, 0, 0.75);
+  color: #fff;
+  font-size: 24rpx;
+  padding: 16rpx 24rpx;
+  border-radius: 12rpx;
+  white-space: nowrap;
+  display: flex;
+  align-items: center;
+  gap: 20rpx;
+}
+
+.ruler-longpress-tip-confirm {
+  color: #A889C8;
+  font-weight: 500;
+}
+
+/* 箭头指向标尺图标 */
+.ruler-longpress-tip-arrow {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: -12rpx;
+  width: 0;
+  height: 0;
+  border-left: 12rpx solid transparent;
+  border-right: 12rpx solid transparent;
+  border-top: 12rpx solid rgba(0, 0, 0, 0.75);
+}
+
 /* ========== 标尺工具 ========== */
 
 /* 标尺变换层：position absolute 覆盖整个 preview-area，接受相同的 CSS transform */

@@ -1330,26 +1330,59 @@ function computeLinkIconLocalWith(
   rx: number, ry: number, angle: number, length: number, thickness: number,
   sc: number, cw: number, ch: number, tx: number, ty: number,
 ): { left: number; top: number } {
-  if (!cw || !ch) return { left: length, top: 0 };
+  if (!cw || !ch) return { left: length / 2, top: 0 };
   const angleRad = angle * Math.PI / 180;
   const cosA = Math.cos(angleRad);
   const sinA = Math.sin(angleRad);
-  const rcX = cw / 2 + rx;
-  const rcY = ch / 2 + ry;
   const halfLen = length / 2;
   const halfThk = thickness / 2;
-  // 右上角在变换层坐标
-  const cornerX = rcX + halfLen * cosA + halfThk * sinA;
-  const cornerY = rcY + halfLen * sinA - halfThk * cosA;
-  // 可视区边界
+  const rcX = cw / 2 + rx;
+  const rcY = ch / 2 + ry;
+  // 标尺端点在屏幕坐标
+  const startScreenX = cw / 2 + (rx - halfLen * cosA) * sc + tx;
+  const startScreenY = ch / 2 + (ry - halfLen * sinA) * sc + ty;
+  const endScreenX   = cw / 2 + (rx + halfLen * cosA) * sc + tx;
+  const endScreenY   = ch / 2 + (ry + halfLen * sinA) * sc + ty;
+  // Liang-Barsky 裁剪
+  let tMin = 0, tMax = 1;
+  const dsx = endScreenX - startScreenX;
+  const dsy = endScreenY - startScreenY;
+  const clip = (p: number, q: number) => {
+    if (Math.abs(p) < 0.001) return q >= 0;
+    const t = q / p;
+    if (p < 0) { if (t > tMax) return false; if (t > tMin) tMin = t; }
+    else        { if (t < tMin) return false; if (t < tMax) tMax = t; }
+    return true;
+  };
+  const inside =
+    clip(-dsx, startScreenX) &&
+    clip( dsx, cw - startScreenX) &&
+    clip(-dsy, startScreenY) &&
+    clip( dsy, ch - startScreenY);
+  if (!inside || tMin >= tMax) {
+    return { left: halfLen, top: -halfThk - 20 / sc };
+  }
+  const tMid = tMax - (tMax - tMin) / 8;
+  const midScreenX = startScreenX + tMid * dsx;
+  const midScreenY = startScreenY + tMid * dsy;
+  const midLayerX = (midScreenX - tx) / sc;
+  const midLayerY = (midScreenY - ty) / sc;
+  // 垂直于标尺轴的方向（屏幕上方优先）
+  let perpX = sinA;
+  let perpY = -cosA;
+  if (perpY > 0.01) { perpX = -perpX; perpY = -perpY; }
+  else if (perpY >= -0.01 && perpX < 0) { perpX = Math.abs(perpX); perpY = 0; }
+  const perpOffset = halfThk + 24 / sc;
+  const targetX = midLayerX + perpX * perpOffset;
+  const targetY = midLayerY + perpY * perpOffset;
+  // 限制在可视区内
   const vpLeft = -tx / sc;
   const vpTop = -ty / sc;
   const vpRight = (cw - tx) / sc;
   const vpBottom = (ch - ty) / sc;
   const pad = 20 / sc;
-  // 限制在可视区内
-  const clampedX = Math.max(vpLeft + pad, Math.min(vpRight - pad, cornerX));
-  const clampedY = Math.max(vpTop + pad, Math.min(vpBottom - pad, cornerY));
+  const clampedX = Math.max(vpLeft + pad, Math.min(vpRight - pad, targetX));
+  const clampedY = Math.max(vpTop + pad, Math.min(vpBottom - pad, targetY));
   // 反旋转回 wrapper 本地坐标
   const dx = clampedX - rcX;
   const dy = clampedY - rcY;
@@ -1583,17 +1616,16 @@ describe('详情页 - 联动 icon 位置计算 (_computeLinkIconLocalWith)', () 
   const length = 5000;
   const thickness = 60;
 
-  it('容器为 0 时返回 fallback { left: length, top: 0 }', () => {
+  it('容器为 0 时返回 fallback { left: length/2, top: 0 }', () => {
     expect(computeLinkIconLocalWith(0, 0, 0, length, thickness, 1, 0, 0, 0, 0))
-      .toEqual({ left: length, top: 0 });
+      .toEqual({ left: length / 2, top: 0 });
   });
 
-  it('标尺居中、角度 0° → icon 在右上角（标尺右端附近）', () => {
+  it('标尺居中、角度 0° → icon 在可见段右侧 1/8 处上方', () => {
     const result = computeLinkIconLocalWith(0, 0, 0, length, thickness, 1, cw, ch, 0, 0);
-    // 角度 0° 时右上角 = (cw/2 + halfLen, ch/2 - halfThk)
-    // clamped 后在可视区内
-    expect(result.left).toBeGreaterThan(length / 2); // 靠近右端
-    expect(result.top).toBeLessThanOrEqual(thickness / 2); // 靠近顶部
+    // icon 应偏向标尺右端（> length/2）
+    expect(result.left).toBeGreaterThan(length / 2);
+    expect(result.top).toBeLessThanOrEqual(0);
   });
 
   it('icon 应始终在可视区内（left/top 为有限正数）', () => {
@@ -1623,10 +1655,15 @@ describe('详情页 - 联动 icon 位置计算 (_computeLinkIconLocalWith)', () 
     expect(isFinite(result.top)).toBe(true);
   });
 
-  it('旋转 90° 时 icon 应跟随旋转', () => {
-    const at0 = computeLinkIconLocalWith(0, 0, 0, length, thickness, 1, cw, ch, 0, 0);
+  it('旋转 90° 时 icon 仍可见且有效', () => {
     const at90 = computeLinkIconLocalWith(0, 0, 90, length, thickness, 1, cw, ch, 0, 0);
-    // 角度不同 → local 坐标不同
+    expect(isFinite(at90.left)).toBe(true);
+    expect(isFinite(at90.top)).toBe(true);
+  });
+
+  it('偏移标尺旋转后 icon 位置不同', () => {
+    const at0 = computeLinkIconLocalWith(100, -50, 0, length, thickness, 1, cw, ch, 0, 0);
+    const at90 = computeLinkIconLocalWith(100, -50, 90, length, thickness, 1, cw, ch, 0, 0);
     expect(at90).not.toEqual(at0);
   });
 
