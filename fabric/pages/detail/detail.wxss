@@ -15,7 +15,7 @@
   background-color: #f8f8f8;
   overflow: hidden;
   position: relative;
-  z-index: 52; /* 编辑态遮罩 (51) 之上，保证标尺手柄可交互 */
+  z-index: 62; /* 编辑态遮罩 (61) 之上，保证标尺手柄可交互 */
 }
 
 /* Swiper 容器 */
