@@ -2099,8 +2099,12 @@ Page<DetailPageData, WechatMiniprogram.IAnyObject>({
       this.setData({
         rulerIsEditMode: entering,
         swiperEnabled: this._resolveSwiperEnabled(),
-        // 进入编辑态时计算侧边手柄位置
-        ...(entering ? { rulerSideHandleLeft: this._computeSideHandleLeft() } : {}),
+        // 进入编辑态时：计算侧边手柄位置、收起 FAB
+        ...(entering ? {
+          rulerSideHandleLeft: this._computeSideHandleLeft(),
+          isFabCollapsed: true,
+          fabAnimStyle: '',
+        } : {}),
       });
     }
     // 首次拖动标尺后展示联动提示

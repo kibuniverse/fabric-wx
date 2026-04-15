@@ -208,12 +208,12 @@
 
   <!-- 临时计数器底部栏 -->
   <!-- 拖拽时透明遮罩，点击关闭删除按钮 -->
-  <view wx:if="{{showDeleteForId}}" class="temp-counter-overlay {{showPaintToolbar ? 'temp-counter-overlay-hidden' : ''}}" bindtap="onDismissDelete" />
+  <view wx:if="{{showDeleteForId}}" class="temp-counter-overlay {{showPaintToolbar || rulerIsEditMode ? 'temp-counter-overlay-hidden' : ''}}" bindtap="onDismissDelete" />
 
   <view
     wx:for="{{tempCounters}}"
     wx:key="id"
-    class="temp-counter-item {{draggingCounterId === item.id && didDrag ? 'dragging' : ''}} {{showPaintToolbar ? 'temp-counter-hidden' : ''}}"
+    class="temp-counter-item {{draggingCounterId === item.id && didDrag ? 'dragging' : ''}} {{showPaintToolbar || rulerIsEditMode ? 'temp-counter-hidden' : ''}}"
     style="left:{{item.x}}px;top:{{item.y}}px;z-index:{{draggingCounterId === item.id && didDrag ? 999 : (200 + item.zOrder)}};"
     bindtouchstart="onTempCounterTouchStart"
     catchtouchmove="onTempCounterDragMove"
