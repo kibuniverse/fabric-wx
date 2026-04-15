@@ -131,6 +131,17 @@
         <text class="ruler-angle-text">{{rulerAngleDisplay}}</text>
       </view>
 
+      <!-- 标尺联动提示·聚光灯（首次拖动标尺后展示，阻挡其他操作直到点击"我知道了"） -->
+      <view wx:if="{{showRulerLinkTip}}" class="ruler-link-tip-overlay" catchtouchstart="" catchtouchmove="" catchtap="">
+        <!-- 透明圆圈 + 巨型 box-shadow 遮挡周围，形成聚光灯效果 -->
+        <view class="ruler-link-tip-spotlight" style="left:{{rulerLinkTipLeft}};top:{{rulerLinkTipTop}};" />
+        <!-- 说明文字 + 按钮，居中显示 -->
+        <view class="ruler-link-tip-card">
+          <text class="ruler-link-tip-text">计数器可以和标尺联动，快试试吧～</text>
+          <view class="ruler-link-tip-confirm" catchtap="onRulerLinkTipDismiss">我知道了</view>
+        </view>
+      </view>
+
       <!-- 页码指示器 -->
       <view wx:if="{{totalImages > 1 && scale <= 1}}" class="page-indicator">
         <text>{{currentImageIndex + 1}}/{{totalImages}}页</text>

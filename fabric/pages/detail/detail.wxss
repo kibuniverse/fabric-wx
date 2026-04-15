@@ -940,6 +940,66 @@
   box-shadow: 0 2px 16px rgba(106, 13, 173, 0.25);
 }
 
+/* ========== 标尺联动提示·聚光灯（首次拖动后展示） ========== */
+
+/* 全屏遮罩：阻止一切其他操作 */
+.ruler-link-tip-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 500;
+}
+
+/* 聚光灯圆圈：透明中心 + 巨型 box-shadow 形成暗色遮罩 */
+.ruler-link-tip-spotlight {
+  position: absolute;
+  width: 90rpx;
+  height: 90rpx;
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  background: transparent;
+  box-shadow: 0 0 0 4000px rgba(0, 0, 0, 0.7);
+  z-index: 1;
+  animation: spotlight-pulse 1.8s ease-in-out infinite;
+}
+
+@keyframes spotlight-pulse {
+  0%, 100% { box-shadow: 0 0 0 4000px rgba(0, 0, 0, 0.7), 0 0 0 0 rgba(168, 137, 200, 0); }
+  50%      { box-shadow: 0 0 0 4000px rgba(0, 0, 0, 0.7), 0 0 0 16rpx rgba(168, 137, 200, 0.5); }
+}
+
+/* 说明文字卡片：居中，浮在聚光灯之上 */
+.ruler-link-tip-card {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 2;
+  background-color: rgba(0, 0, 0, 0.75);
+  color: #fff;
+  font-size: 26rpx;
+  padding: 28rpx 36rpx;
+  border-radius: 16rpx;
+  white-space: nowrap;
+  display: flex;
+  align-items: center;
+  gap: 24rpx;
+  opacity: 0;
+  animation: tip-fade-in 0.3s 0.15s ease forwards;
+}
+
+.ruler-link-tip-text {
+  color: #fff;
+}
+
+.ruler-link-tip-confirm {
+  color: #A889C8;
+  font-weight: 500;
+  flex-shrink: 0;
+}
+
 /* ========== 计数器-标尺联动 Icon ========== */
 
 /* 联动 icon 外层 wrapper（与标尺同位置、同旋转，pointer-events 穿透） */

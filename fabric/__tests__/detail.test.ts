@@ -1396,9 +1396,14 @@ function movePerpendicularOffset(
   angle: number, thickness: number, direction: 1 | -1,
 ): { dx: number; dy: number } {
   const angleRad = angle * Math.PI / 180;
+  // 垂直方向：确保 + 始终对应屏幕"向下"
+  let perpX = -Math.sin(angleRad);
+  let perpY = Math.cos(angleRad);
+  if (perpY < -0.01) { perpX = -perpX; perpY = -perpY; }
+  else if (Math.abs(perpY) <= 0.01 && perpX < 0) { perpX = Math.abs(perpX); perpY = 0; }
   return {
-    dx: -Math.sin(angleRad) * thickness * direction,
-    dy: Math.cos(angleRad) * thickness * direction,
+    dx: perpX * thickness * direction,
+    dy: perpY * thickness * direction,
   };
 }
 
@@ -1701,10 +1706,10 @@ describe('详情页 - 标尺垂直移动计算 (_moveRulerPerpendicular)', () =>
     expect(dy).toBeCloseTo(-60, 10);
   });
 
-  it('角度 90° 方向向下(+1) → X 减少 thickness', () => {
+  it('角度 90° 方向向下(+1) → X 增加 thickness（标尺垂直时"下"=屏幕右方）', () => {
     const { dx, dy } = movePerpendicularOffset(90, 60, 1);
-    expect(dx).toBeCloseTo(-60, 10); // -sin(90°) * 60 = -60
-    expect(dy).toBeCloseTo(0, 10); // cos(90°) * 60 ≈ 0
+    expect(dx).toBeCloseTo(60, 10); // 翻转后 sin(90°) * 60 = 60
+    expect(dy).toBeCloseTo(0, 10);
   });
 
   it('角度 45° 方向向下(+1) → X 和 Y 都变化', () => {
@@ -1723,6 +1728,60 @@ describe('详情页 - 标尺垂直移动计算 (_moveRulerPerpendicular)', () =>
     const down = movePerpendicularOffset(30, 60, 1);
     expect(up.dx).toBeCloseTo(-down.dx, 10);
     expect(up.dy).toBeCloseTo(-down.dy, 10);
+  });
+
+  it('角度 180° 方向向下(+1) → Y 增加 thickness（翻转后方向正确）', () => {
+    const { dx, dy } = movePerpendicularOffset(180, 60, 1);
+    expect(dx).toBeCloseTo(0, 10);
+    expect(dy).toBeCloseTo(60, 10); // cos(180°) = -1 → 翻转后为 1
+  });
+
+  it('角度 270° 方向向下(+1) → X 增加 thickness', () => {
+    const { dx, dy } = movePerpendicularOffset(270, 60, 1);
+    expect(dx).toBeCloseTo(60, 10);
+    expect(dy).toBeCloseTo(0, 10);
+  });
+
+  it('角度 135° 方向向下(+1) → Y 为正（屏幕向下）', () => {
+    const { dy } = movePerpendicularOffset(135, 60, 1);
+    expect(dy).toBeGreaterThan(0);
+  });
+
+  it('边界约束：移动后超出视口时应被阻止', () => {
+    // 水平标尺(0°)，thickness=60，视口 375×667，scale=1，translateX/Y=0
+    // maxPerpOffset = 667/2 - 60/2 = 303.5
+    // 当前 rulerY=280，向下移动 60 → newRulerY=340 > 303.5 → 阻止
+    const scale = 1;
+    const thickness = 60;
+    const angleRad = 0;
+    const cosA = Math.cos(angleRad);
+    const sinA = Math.sin(angleRad);
+    const cw = 375, ch = 667;
+
+    const newRulerY = 280 + thickness; // 模拟移动后的位置
+    const screenRelY = newRulerY * scale;
+    const alongPerp = screenRelY; // angle=0, perp = screenRelY
+    const perpExtent = thickness / 2 * scale;
+    const viewportPerpHalf = cw / 2 * Math.abs(sinA) + ch / 2 * Math.abs(cosA);
+    const maxPerpOffset = Math.max(0, viewportPerpHalf - perpExtent);
+    expect(Math.abs(alongPerp)).toBeGreaterThan(maxPerpOffset); // 应被阻止
+  });
+
+  it('边界约束：标尺在中间位置时不应被阻止', () => {
+    const scale = 1;
+    const thickness = 60;
+    const angleRad = 0;
+    const cosA = Math.cos(angleRad);
+    const sinA = Math.sin(angleRad);
+    const cw = 375, ch = 667;
+
+    const rulerY = 0; // 居中
+    const screenRelY = 0 + rulerY * scale;
+    const alongPerp = -0 * sinA + screenRelY * cosA;
+    const perpExtent = thickness / 2 * scale;
+    const viewportPerpHalf = cw / 2 * Math.abs(sinA) + ch / 2 * Math.abs(cosA);
+    const maxPerpOffset = Math.max(0, viewportPerpHalf - perpExtent);
+    expect(Math.abs(alongPerp)).toBeLessThanOrEqual(maxPerpOffset); // 不应被阻止
   });
 });
 

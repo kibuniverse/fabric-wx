@@ -12,6 +12,8 @@ const TEMP_COUNTER_TIPS_SHOWN_KEY = "tempCounterTipsShown";
 const RULER_STATE_KEY = "rulerState";
 // 标尺长按提示是否已展示
 const RULER_LONGPRESS_TIP_SHOWN_KEY = "rulerLongPressTipShown";
+// 标尺联动提示是否已展示
+const RULER_LINK_TIP_SHOWN_KEY = "rulerLinkTipShown";
 
 // 定义详情页面需要的接口
 interface DetailPageData {
@@ -122,6 +124,10 @@ interface DetailPageData {
   rulerLinkIconLeft: number;     // 联动 icon left（px，wrapper 本地坐标）
   rulerLinkIconTop: number;      // 联动 icon top（px，wrapper 本地坐标）
   rulerLinkIconFallback: boolean; // SVG 加载失败时显示文字 fallback
+  // 标尺联动提示（首次拖动标尺后展示）
+  showRulerLinkTip: boolean;
+  rulerLinkTipLeft: string;      // tip 屏幕坐标 left（px）
+  rulerLinkTipTop: string;       // tip 屏幕坐标 top（px）
 }
 
 // 缩放范围常量
@@ -217,6 +223,9 @@ Page<DetailPageData, WechatMiniprogram.IAnyObject>({
     rulerLinkIconLeft: 0,
     rulerLinkIconTop: 0,
     rulerLinkIconFallback: false,
+    showRulerLinkTip: false,
+    rulerLinkTipLeft: '',
+    rulerLinkTipTop: '',
   },
 
   onLoad(options: Record<string, string>) {
@@ -663,9 +672,11 @@ Page<DetailPageData, WechatMiniprogram.IAnyObject>({
         if (this.data.rulerVisible) {
           updateData.rulerLength = this._getMinRulerLength();
         }
-        // 容器尺寸已知后，重新计算联动 icon 位置
+        // 容器尺寸已知后，重新计算联动 icon 位置（使用最新 data 中的标尺状态）
         if (this.data.rulerVisible) {
-          const iconPos = this._computeLinkIconLocal();
+          const { rulerX, rulerY, rulerAngle, rulerThickness, scale, translateX, translateY } = this.data;
+          const rulerLength = updateData.rulerLength || this.data.rulerLength;
+          const iconPos = this._computeLinkIconLocalWith(rulerX, rulerY, rulerAngle, rulerLength, rulerThickness, scale, rect.width, rect.height, translateX, translateY);
           updateData.rulerLinkIconLeft = iconPos.left;
           updateData.rulerLinkIconTop = iconPos.top;
         }
@@ -1699,7 +1710,7 @@ Page<DetailPageData, WechatMiniprogram.IAnyObject>({
     });
     setTimeout(() => {
       if (this.data.paintSheetClosing) {
-        this.setData({ showPaintToolbar: false, paintSheetClosing: false, paintSheetStyle: '', showRulerTypeTip: false, showRulerLongPressTip: false });
+        this.setData({ showPaintToolbar: false, paintSheetClosing: false, paintSheetStyle: '', showRulerTypeTip: false, showRulerLongPressTip: false, showRulerLinkTip: false });
       }
     }, 350);
   },
@@ -1811,7 +1822,7 @@ Page<DetailPageData, WechatMiniprogram.IAnyObject>({
       });
       setTimeout(() => {
         if (this.data.paintSheetClosing) {
-          this.setData({ showPaintToolbar: false, paintSheetClosing: false, paintSheetStyle: '', showRulerTypeTip: false, showRulerLongPressTip: false });
+          this.setData({ showPaintToolbar: false, paintSheetClosing: false, paintSheetStyle: '', showRulerTypeTip: false, showRulerLongPressTip: false, showRulerLinkTip: false });
         }
       }, 350);
     } else {
@@ -2079,6 +2090,19 @@ Page<DetailPageData, WechatMiniprogram.IAnyObject>({
         ...(entering ? { rulerSideHandleLeft: this._computeSideHandleLeft() } : {}),
       });
     }
+    // 首次拖动标尺后展示联动提示
+    if (this._rulerHandleType === 'body' && this._rulerDidDrag && !wx.getStorageSync(RULER_LINK_TIP_SHOWN_KEY)) {
+      const query = wx.createSelectorQuery();
+      query.select('.ruler-link-icon').boundingClientRect((rect: any) => {
+        if (rect) {
+          this.setData({
+            showRulerLinkTip: true,
+            rulerLinkTipLeft: (rect.left + rect.width / 2) + 'px',
+            rulerLinkTipTop: (rect.top + rect.height / 2) + 'px',
+          });
+        }
+      }).exec();
+    }
     this._rulerHandleType = null;
     this._rulerDidDrag = false;
   },
@@ -2132,6 +2156,12 @@ Page<DetailPageData, WechatMiniprogram.IAnyObject>({
   onRulerLongPressTipDismiss() {
     this.setData({ showRulerLongPressTip: false });
     wx.setStorageSync(RULER_LONGPRESS_TIP_SHOWN_KEY, true);
+  },
+
+  /** 关闭标尺联动提示（首次拖动标尺后展示） */
+  onRulerLinkTipDismiss() {
+    this.setData({ showRulerLinkTip: false });
+    wx.setStorageSync(RULER_LINK_TIP_SHOWN_KEY, true);
   },
 
   /**
@@ -2372,19 +2402,34 @@ Page<DetailPageData, WechatMiniprogram.IAnyObject>({
 
   /**
    * 沿标尺垂直方向移动一个 rulerThickness（带动画）
-   * direction: 1 = "下"（正法线方向）, -1 = "上"（负法线方向）
+   * direction: 1 = "下"（屏幕向下）, -1 = "上"（屏幕向上）
+   * 如果移动后长边会超出预览区，则不移动（计数器仍正常增减）
    */
   _moveRulerPerpendicular(direction: 1 | -1) {
     const { rulerAngle, rulerThickness, rulerX, rulerY, rulerLength, scale, containerWidth, containerHeight, translateX, translateY } = this.data;
-    // 归一化到 [0°, 180°)：标尺在 θ 和 θ+180° 视觉相同，垂直方向必须一致
-    let effectiveAngle = ((rulerAngle % 360) + 360) % 360;
-    if (effectiveAngle >= 180) effectiveAngle -= 180;
-    const angleRad = effectiveAngle * Math.PI / 180;
-    // 垂直"下"方向: (-sin(θ), cos(θ))，乘以 direction 和 thickness
-    const dx = -Math.sin(angleRad) * rulerThickness * direction;
-    const dy = Math.cos(angleRad) * rulerThickness * direction;
-    const newRulerX = rulerX + dx;
-    const newRulerY = rulerY + dy;
+    const angleRad = rulerAngle * Math.PI / 180;
+    // 垂直方向：确保 + 始终对应屏幕"向下"
+    let perpX = -Math.sin(angleRad);
+    let perpY = Math.cos(angleRad);
+    if (perpY < -0.01) { perpX = -perpX; perpY = -perpY; }
+    else if (Math.abs(perpY) <= 0.01 && perpX < 0) { perpX = Math.abs(perpX); perpY = 0; }
+    const dx = perpX * rulerThickness * direction;
+    const dy = perpY * rulerThickness * direction;
+    let newRulerX = rulerX + dx;
+    let newRulerY = rulerY + dy;
+
+    // 垂直约束：标尺长边不超出预览区（与 _handleRulerBodyDrag 约束一致）
+    const cosA = Math.cos(angleRad);
+    const sinA = Math.sin(angleRad);
+    const screenRelX = translateX + newRulerX * scale;
+    const screenRelY = translateY + newRulerY * scale;
+    const alongPerp = -screenRelX * sinA + screenRelY * cosA;
+    const perpExtent = rulerThickness / 2 * scale;
+    const viewportPerpHalf = containerWidth / 2 * Math.abs(sinA) + containerHeight / 2 * Math.abs(cosA);
+    const maxPerpOffset = Math.max(0, viewportPerpHalf - perpExtent);
+    if (Math.abs(alongPerp) > maxPerpOffset) {
+      return; // 超出边界，不移动（计数器仍正常增减）
+    }
 
     const iconPos = this._computeLinkIconLocalWith(newRulerX, newRulerY, rulerAngle, rulerLength, rulerThickness, scale, containerWidth, containerHeight, translateX, translateY);
 
