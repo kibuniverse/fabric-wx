@@ -1290,6 +1290,11 @@ Page<DetailPageData, WechatMiniprogram.IAnyObject>({
   },
 
   onTempCounterTap() {
+    // 编辑态时优先退出编辑态
+    if (this.data.rulerIsEditMode) {
+      this.setData({ rulerIsEditMode: false, swiperEnabled: this._resolveSwiperEnabled() });
+      return;
+    }
     // 如果工具栏正在显示，先关闭工具栏并退出标尺编辑态
     if (this.data.showPaintToolbar) {
       this._closePaintToolbar();
@@ -1716,10 +1721,18 @@ Page<DetailPageData, WechatMiniprogram.IAnyObject>({
   },
 
   onMemoFabTap() {
+    if (this.data.rulerIsEditMode) {
+      this.setData({ rulerIsEditMode: false, swiperEnabled: this._resolveSwiperEnabled() });
+      return;
+    }
     this.onMemoTap();
   },
 
   onPaintFabTap() {
+    if (this.data.rulerIsEditMode) {
+      this.setData({ rulerIsEditMode: false, swiperEnabled: this._resolveSwiperEnabled() });
+      return;
+    }
     if (this.data.paintSheetClosing) return;
     if (this.data.showPaintToolbar) {
       this._closePaintToolbar();
@@ -2136,14 +2149,13 @@ Page<DetailPageData, WechatMiniprogram.IAnyObject>({
     }
   },
 
-  /** 选择标尺类型（选完后自动关闭 Tips，保留工具栏） */
+  /** 选择标尺类型（仅切换类型，Tips 保持打开，点击外部再关闭） */
   onRulerTypeSelect(e: WechatMiniprogram.CustomEvent) {
     const type = e.currentTarget.dataset.type as 'ticked' | 'plain';
     if (this.data.rulerType !== type) {
       this.setData({ rulerType: type });
       this.saveRulerState();
     }
-    this.setData({ showRulerTypeTip: false });
   },
 
   /** 点击 Tips 外部关闭（同时关闭工具栏，避免需两次点击） */
