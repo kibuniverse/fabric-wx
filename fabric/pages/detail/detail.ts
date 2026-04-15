@@ -2484,7 +2484,7 @@ Page<DetailPageData, WechatMiniprogram.IAnyObject>({
    * 计数器 ↑ 按钮事件：标尺向上移动一个厚度（计数不变）
    */
   onCounterUp() {
-    if (!this.data.rulerCounterLinked || this.data.rulerAnimating) return;
+    if (!this.data.rulerVisible || this.data.rulerAnimating) return;
     this._moveRulerPerpendicular(-1);
   },
 
@@ -2492,7 +2492,7 @@ Page<DetailPageData, WechatMiniprogram.IAnyObject>({
    * 计数器 ↓ 按钮事件：标尺向下移动一个厚度（计数不变）
    */
   onCounterDown() {
-    if (!this.data.rulerCounterLinked || this.data.rulerAnimating) return;
+    if (!this.data.rulerVisible || this.data.rulerAnimating) return;
     this._moveRulerPerpendicular(1);
   },
 
