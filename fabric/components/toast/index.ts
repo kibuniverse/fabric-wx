@@ -4,51 +4,60 @@ Component({
       type: String,
       value: ''
     },
+    icon: {
+      type: String,
+      value: 'none' // 'success' | 'error' | 'none'
+    },
     duration: {
       type: Number,
-      value: 2500 // 默认显示2.5秒
+      value: 2500
     }
   },
 
   data: {
     show: false,
     message: '',
-    timer: 0 as number
+    icon: 'none',
+    timer: 0 as number,
+    animating: false
   },
 
   methods: {
-    showToast(message) {
-      // 清除现有的定时器
+    showToast(message?: string, icon?: string) {
       if (this.data.timer) {
         clearTimeout(this.data.timer);
       }
 
-      // 如果传入message，则更新message
+      const updates: Record<string, string | boolean> = { show: true, animating: true };
       if (message) {
-        this.setData({ message });
+        updates.message = message;
       }
-      
-      // 显示toast
-      this.setData({ show: true });
+      if (icon) {
+        updates.icon = icon;
+      }
+      this.setData(updates);
 
-      // 设置新的定时器
+      // 触发进入动画
+      setTimeout(() => {
+        this.setData({ animating: false });
+      }, 50);
+
       const timer = setTimeout(() => {
         this.hideToast();
       }, this.data.duration) as unknown as number;
 
-      // 保存定时器ID
       this.setData({ timer });
     },
 
     hideToast() {
-      this.setData({ 
+      this.setData({
         show: false,
+        animating: true,
         timer: 0
       });
     }
   },
 
-  // 组件销毁时清理定时器
   detached() {
     if (this.data.timer) {
       clearTimeout(this.data.timer);

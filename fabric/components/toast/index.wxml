@@ -1,5 +1,24 @@
-<view class="toast-container {{show ? 'toast-show' : 'toast-hide'}}">
-  <view class="toast-content">
-    {{message}}
+<view class="toast-overlay {{show ? 'toast-visible' : 'toast-hidden'}} {{animating ? '' : 'toast-entered'}}">
+  <view class="toast-card">
+    <!-- 成功图标 -->
+    <view wx:if="{{icon === 'success'}}" class="toast-icon-wrapper toast-icon-success">
+      <view class="checkmark-circle">
+        <view class="checkmark">
+          <view class="checkmark-stem"></view>
+          <view class="checkmark-kick"></view>
+        </view>
+      </view>
+    </view>
+    <!-- 错误图标 -->
+    <view wx:elif="{{icon === 'error'}}" class="toast-icon-wrapper toast-icon-error">
+      <view class="error-circle">
+        <view class="error-x">
+          <view class="error-line-left"></view>
+          <view class="error-line-right"></view>
+        </view>
+      </view>
+    </view>
+    <!-- 消息文本 -->
+    <view class="toast-text {{icon !== 'none' ? 'toast-text-with-icon' : ''}}">{{message}}</view>
   </view>
 </view>

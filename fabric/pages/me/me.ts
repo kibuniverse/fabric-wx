@@ -408,7 +408,10 @@ Page({
           }
         }
 
-        wx.showToast({ title: '欢迎回来', icon: 'success' });
+        const toast = this.selectComponent('#toast');
+        if (toast) {
+          toast.showToast('欢迎回来', 'success');
+        }
       } else {
         // 云端没有数据，清除本地缓存并显示登录对话框
         wx.removeStorageSync('userInfo');
@@ -549,10 +552,10 @@ Page({
           }
         }
 
-        wx.showToast({
-          title: res.result.isNewUser ? '注册成功' : '欢迎回来',
-          icon: 'success'
-        });
+        const toast = this.selectComponent('#toast');
+        if (toast) {
+          toast.showToast(res.result.isNewUser ? '注册成功' : '欢迎回来', 'success');
+        }
       } else {
         wx.showToast({
           title: res.result?.error || '登录失败，请重试',

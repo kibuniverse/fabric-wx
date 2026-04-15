@@ -84,6 +84,7 @@ Component({
     showModifyCount: false,
     modifyCountInput: "",
     showResetTip: false,
+    resetTipTop: 0,
   },
 
   /**
@@ -177,7 +178,13 @@ Component({
     _checkAndShowResetTip() {
       if (wx.getStorageSync(RESET_TIP_SHOWN_KEY)) return;
       wx.setStorageSync(RESET_TIP_SHOWN_KEY, true);
-      this.setData({ showResetTip: true });
+
+      // 获取计数器中心元素位置，计算提示气泡的 fixed top 值
+      const query = this.createSelectorQuery();
+      query.select('.counter-center').boundingClientRect((rect) => {
+        const top = rect ? (rect.bottom + 6) : 0;
+        this.setData({ showResetTip: true, resetTipTop: top });
+      }).exec();
     },
 
     /**

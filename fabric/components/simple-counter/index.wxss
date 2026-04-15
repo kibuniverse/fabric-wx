@@ -88,14 +88,13 @@
 /* ========== 首次操作提示（长按重置） ========== */
 
 .reset-tip {
-  position: absolute;
-  top: calc(100% + 12rpx);
+  position: fixed;
   left: 50%;
   transform: translateX(-50%);
   background-color: rgba(0, 0, 0, 0.75);
   border-radius: 12rpx;
   padding: 16rpx 24rpx;
-  z-index: 210;
+  z-index: 99999;
   white-space: nowrap;
   display: flex;
   align-items: center;

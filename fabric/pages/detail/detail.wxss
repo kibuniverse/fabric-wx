@@ -94,7 +94,7 @@
   background-color: var(--main-bg-color);
   overflow: visible;
   position: relative;
-  z-index: 50;
+  z-index: 60;
 }
 
 /* 页码指示器 */
@@ -702,7 +702,7 @@
   left: 0;
   right: 0;
   bottom: 0;
-  z-index: 51; /* 覆盖计数器区域 (z-index 50)，低于 FAB (100) 和工具栏 (300) */
+  z-index: 61; /* 覆盖计数器区域 (z-index 60)，低于 FAB (100) 和工具栏 (300) */
   pointer-events: auto;
 }
 

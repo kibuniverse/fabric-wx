@@ -109,5 +109,7 @@
   <view class="placeholder-wrapper">
     <image class="placeholder-image" src="/assets/me_placeholder.png" mode="aspectFit" />
   </view>
-  <toast id="toast" duration="2000" />
 </view>
+
+<!-- 全局 toast，放在两个分支外 -->
+<toast id="toast" duration="2000" />
