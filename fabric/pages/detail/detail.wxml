@@ -1,14 +1,6 @@
 <!-- pages/detail/detail.wxml -->
 <view class="detail-container">
 
-  <!-- 编辑态全屏退出遮罩（覆盖计数器区域等 preview-area 以外的区域） -->
-  <view
-    wx:if="{{rulerVisible && rulerIsEditMode}}"
-    class="ruler-edit-fullscreen-overlay"
-    catchtap="onRulerExitEditMode"
-    catchtouchmove=""
-  />
-
   <!-- 计数器区域 -->
   <view class="counter-section">
     <simple-counter
@@ -23,6 +15,13 @@
       bind:up="onCounterUp"
       bind:down="onCounterDown"
     ></simple-counter>
+    <!-- 编辑态：覆盖计数器区域，点击退出编辑态 -->
+    <view
+      wx:if="{{rulerVisible && rulerIsEditMode}}"
+      class="counter-section-edit-overlay"
+      catchtap="onRulerExitEditMode"
+      catchtouchmove=""
+    />
   </view>
 
   <!-- 图解预览区域 -->
