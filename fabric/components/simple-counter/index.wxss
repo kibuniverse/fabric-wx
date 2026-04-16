@@ -119,12 +119,12 @@
   position: absolute;
   left: 50%;
   transform: translateX(-50%);
-  top: -10rpx;
+  bottom: -10rpx;
   width: 0;
   height: 0;
   border-left: 10rpx solid transparent;
   border-right: 10rpx solid transparent;
-  border-bottom: 10rpx solid rgba(0, 0, 0, 0.75);
+  border-top: 10rpx solid rgba(0, 0, 0, 0.75);
 }
 
 /* 修改计数弹窗样式 */

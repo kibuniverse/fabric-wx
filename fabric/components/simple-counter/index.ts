@@ -182,7 +182,7 @@ Component({
       // 获取计数器中心元素位置，计算提示气泡的 fixed top 值
       const query = this.createSelectorQuery();
       query.select('.counter-center').boundingClientRect((rect) => {
-        const top = rect ? (rect.bottom + 6) : 0;
+        const top = rect ? Math.max(0, rect.top - 48) : 0;
         this.setData({ showResetTip: true, resetTipTop: top });
       }).exec();
     },

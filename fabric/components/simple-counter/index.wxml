@@ -8,7 +8,7 @@
       <animate-numbers value="{{count}}" min='{{0}}' max='{{999}}' options='{{options}}' />
       <!-- 首次操作提示：长按可以重置计数 -->
       <view wx:if="{{showResetTip}}" class="reset-tip" style="top: {{resetTipTop}}px;" catchtap="">
-        <text class="reset-tip-text">长按可以重置计数哦～</text>
+        <text class="reset-tip-text">长按数字可以重置计数哦～</text>
         <text class="reset-tip-dismiss" catchtap="onResetTipDismiss">我知道了</text>
         <view class="reset-tip-arrow"></view>
       </view>
