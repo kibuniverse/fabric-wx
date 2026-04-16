@@ -1201,7 +1201,7 @@ Page<DetailPageData, WechatMiniprogram.IAnyObject>({
     if (this.data.itemId) {
       this.loadItemDetail(this.data.itemId, true);
     }
-    this.getContainerSize();
+    setTimeout(() => this.getContainerSize(), 200);
     this.loadTempCounters();
     this.loadRulerState();
     // 开始针织总时长计时
@@ -2226,11 +2226,11 @@ Page<DetailPageData, WechatMiniprogram.IAnyObject>({
     return `${Math.round(a)}°`;
   },
 
-  /** 标尺渲染长度 = 容器对角线 × 8（两端始终远超可视区，实现无限延伸效果） */
+  /** 标尺渲染长度 = 容器对角线 × 4（两端超出可视区，实现无限延伸效果，同时减少 GPU 分块渲染导致的刻度拼接缝） */
   _getMinRulerLength(): number {
     const { containerWidth, containerHeight } = this.data;
     if (!containerWidth || !containerHeight) return 500;
-    return Math.sqrt(containerWidth * containerWidth + containerHeight * containerHeight) * 8;
+    return Math.sqrt(containerWidth * containerWidth + containerHeight * containerHeight) * 4;
   },
 
   /** 计算侧边手柄在标尺上的位置（距左边缘 px），使其始终在可视区中心附近 */
