@@ -240,7 +240,7 @@
       <view class="temp-counter-btn {{showDeleteForId ? 'temp-counter-btn-disabled' : ''}}" hover-class="{{showDeleteForId ? '' : 'temp-counter-btn-hover'}}" hover-stay-time="100" catchtap="{{showDeleteForId ? '' : 'onTempCounterDecrease'}}" data-id="{{item.id}}">
         <image src="/assets/minus.svg" mode="aspectFit" />
       </view>
-      <text class="temp-counter-value">{{item.count}}</text>
+      <text class="temp-counter-value" catchtap="{{showDeleteForId ? '' : 'onTempCounterValueTap'}}" data-id="{{item.id}}">{{item.count}}</text>
       <view class="temp-counter-btn {{showDeleteForId ? 'temp-counter-btn-disabled' : ''}}" hover-class="{{showDeleteForId ? '' : 'temp-counter-btn-hover'}}" hover-stay-time="100" catchtap="{{showDeleteForId ? '' : 'onTempCounterIncrease'}}" data-id="{{item.id}}">
         <image src="/assets/plus.svg" mode="aspectFit" />
       </view>

@@ -1544,6 +1544,35 @@ Page<DetailPageData, WechatMiniprogram.IAnyObject>({
     this.showToast('已重置');
   },
 
+  /** 点击数字弹出修改弹窗 */
+  onTempCounterValueTap(e: WechatMiniprogram.CustomEvent) {
+    if (this.data.showDeleteForId) return;
+    const id = e.currentTarget.dataset.id;
+    const counter = this.data.tempCounters.find((c) => c.id === id);
+    if (!counter) return;
+    wx.showModal({
+      title: '修改计数',
+      editable: true,
+      placeholderText: '请输入数字',
+      content: String(counter.count),
+      success: (res) => {
+        if (res.confirm && res.content !== undefined) {
+          const num = parseInt(res.content, 10);
+          if (isNaN(num)) {
+            this.showToast('请输入有效数字');
+            return;
+          }
+          const clamped = Math.max(0, Math.min(999, num));
+          const counters = this.data.tempCounters.map((c) =>
+            c.id === id ? { ...c, count: clamped } : c
+          );
+          this.setData({ tempCounters: counters });
+          this.saveTempCounters();
+        }
+      },
+    });
+  },
+
   /** 点击标签文案重命名 */
   onTempCounterLabelTap(e: WechatMiniprogram.CustomEvent) {
     // 编辑态（长按触发）下不响应
