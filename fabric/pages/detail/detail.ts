@@ -14,6 +14,8 @@ const RULER_STATE_KEY = "rulerState";
 const RULER_LONGPRESS_TIP_SHOWN_KEY = "rulerLongPressTipShown";
 // 标尺联动提示是否已展示
 const RULER_LINK_TIP_SHOWN_KEY = "rulerLinkTipShown";
+// FAB 是否被用户收起过（设备级别）
+const FAB_COLLAPSED_KEY = "fabCollapsed";
 
 // 定义详情页面需要的接口
 interface DetailPageData {
@@ -193,7 +195,7 @@ Page<DetailPageData, WechatMiniprogram.IAnyObject>({
     isVoiceOn: false,
     showTempCounterTipStep: 0,
     tempCounterTipTargetId: '',
-    isFabCollapsed: false,
+    isFabCollapsed: !!wx.getStorageSync(FAB_COLLAPSED_KEY),
     isFabDragging: false,
     fabAnimStyle: '',
     showPaintToolbar: false,
@@ -2782,6 +2784,7 @@ Page<DetailPageData, WechatMiniprogram.IAnyObject>({
         isFabDragging: false,
         fabAnimStyle: '',
       });
+      if (shouldCollapse) wx.setStorageSync(FAB_COLLAPSED_KEY, true);
       this._fabCurrentOffset = 0;
       return;
     }
@@ -2793,6 +2796,7 @@ Page<DetailPageData, WechatMiniprogram.IAnyObject>({
     const dy = touch.clientY - this._fabTouchStartY;
     if (dx > 40 && Math.abs(dy) < 60) {
       this.setData({ isFabCollapsed: true });
+      wx.setStorageSync(FAB_COLLAPSED_KEY, true);
     }
   },
 
@@ -2804,6 +2808,7 @@ Page<DetailPageData, WechatMiniprogram.IAnyObject>({
       fabAnimStyle: '',
     });
     this._fabCurrentOffset = 0;
+    wx.setStorageSync(FAB_COLLAPSED_KEY, true);
   },
 
   /** 点击展开图标展开 */
